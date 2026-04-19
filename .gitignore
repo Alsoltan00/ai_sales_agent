@@ -1,0 +1,11 @@
+.env
+__pycache__/
+*.pyc
+temp_*.mp3
+incoming_*.ogg
+.vscode/
+venv/
+node_modules/
+dist/
+build/
+*.log
