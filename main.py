@@ -4,6 +4,8 @@ import io
 import uvicorn
 from fastapi import FastAPI, Request, File, UploadFile, BackgroundTasks
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from dotenv import load_dotenv
 
 # Load environment variables FIRST before importing any agent modules
@@ -11,41 +13,50 @@ load_dotenv()
 
 from agent.conversation_manager import handle_incoming_message
 from agent.supabase_db import upload_products_bulk
+import dotenv
 
 app = FastAPI(title="Evolution AI Sales Agent")
+templates = Jinja2Templates(directory="templates")
+
+class SettingsUpdate(BaseModel):
+    GROQ_API_KEY: str | None = None
+    EVOLUTION_API_URL: str | None = None
+    EVOLUTION_API_KEY: str | None = None
+    EVOLUTION_INSTANCE_NAME: str | None = None
+    SUPABASE_URL: str | None = None
+    SUPABASE_KEY: str | None = None
 
 @app.get("/admin", response_class=HTMLResponse)
-def get_admin_panel():
+async def get_admin_panel(request: Request):
     """
-    A built-in simple admin interface to upload products via CSV.
+    Renders the professional N8N-style admin control panel.
     """
-    html_content = """
-    <html>
-        <head>
-            <title>إدارة منتجات الذكاء الاصطناعي</title>
-            <style>
-                body { font-family: Arial, sans-serif; background: #f4f7f6; direction: rtl; text-align: center; padding-top: 50px; }
-                .box { background: white; width: 400px; margin: auto; padding: 30px; border-radius: 10px; box-shadow: 0px 4px 10px rgba(0,0,0,0.1); }
-                h2 { color: #333; }
-                input[type=file] { margin: 20px 0; }
-                button { background: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-                button:hover { background: #45a049; }
-            </style>
-        </head>
-        <body>
-            <div class="box">
-                <h2>رفع المنتجات للسيرفر 🚀</h2>
-                <p>قم برفع ملف المنتجات (Excel أو CSV) هنا ليتم إضافته إلى قاعدة بيانات Supabase فوراً.</p>
-                <form action="/admin/upload" enctype="multipart/form-data" method="post">
-                    <input name="file" type="file" required accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
-                    <br>
-                    <button type="submit">رفع المنتجات</button>
-                </form>
-            </div>
-        </body>
-    </html>
+    return templates.TemplateResponse("admin.html", {
+        "request": request,
+        "groq_key": os.environ.get("GROQ_API_KEY", ""),
+        "evolution_url": os.environ.get("EVOLUTION_API_URL", ""),
+        "evolution_key": os.environ.get("EVOLUTION_API_KEY", ""),
+        "evolution_instance": os.environ.get("EVOLUTION_INSTANCE_NAME", ""),
+        "supabase_url": os.environ.get("SUPABASE_URL", ""),
+        "supabase_key": os.environ.get("SUPABASE_KEY", "")
+    })
+
+@app.post("/admin/settings")
+async def update_settings(settings: SettingsUpdate):
     """
-    return html_content
+    Dynamically update the system environment variables and write them to .env
+    """
+    env_path = ".env"
+    if not os.path.exists(env_path):
+        open(env_path, 'a').close() # Create if missing
+
+    # Update valid fields
+    for key, value in settings.model_dump(exclude_none=True).items():
+        if value and value.strip() != "":
+            dotenv.set_key(env_path, key, value.strip())
+            os.environ[key] = value.strip()
+            
+    return {"status": "success", "message": "Settings updated dynamically"}
 
 @app.post("/admin/upload")
 async def upload_file(file: UploadFile = File(...)):
