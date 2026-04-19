@@ -76,10 +76,10 @@ async def handle_incoming_message(payload: dict):
         # 3. Process Intent (The Intelligent Dispatcher)
         intent_data = classify_intent_and_extract_keywords(text, history)
         
-        if intent_data.get("action") == "clarify":
-            # The sales agent needs more info (e.g. "which type of rice?")
-            final_response_text = intent_data.get("reply", "هل تبحث عن صنف محدد؟")
-            print("[i] Action: Clarifying")
+        if intent_data.get("action") in ["clarify", "chat"]:
+            # The sales agent generates a direct response (greeting, chat, or clarification)
+            final_response_text = intent_data.get("reply", "أهلاً بك! كيف يمكنني مساعدتك اليوم؟")
+            print(f"[i] Action: Direct Reply ({intent_data.get('action')})")
         else:
             # Action is 'search'
             keywords = intent_data.get("keywords", [])
