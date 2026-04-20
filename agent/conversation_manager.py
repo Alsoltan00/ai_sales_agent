@@ -32,10 +32,22 @@ async def handle_incoming_message(payload: dict):
             
         print(f"[*] Received message from: {remote_jid}")
 
-        # Basic filtering (Optional)
-        allowed_numbers = ["966579331312", "966501683230", "966549852342", "966501018908", "967776803879"]
+        # 1. Block Group Chats Completely
+        if remote_jid.endswith("@g.us"):
+            print(f"[-] Ignored group message from {remote_jid}")
+            return
+
+        # 2. Strict Whitelist Filtering
+        # Read from environment, or use the default array of allowed numbers.
+        allowed_env = os.getenv("ALLOWED_NUMBERS", "966579331312,966501683230,966549852342,966501018908,967776803879")
+        allowed_numbers = [num.strip() for num in allowed_env.split(",") if num.strip()]
+        
         clean_number = remote_jid.split("@")[0]
-        # if clean_number not in allowed_numbers: return
+        
+        # If allowed_numbers list is NOT empty, verify the sender.
+        if allowed_numbers and clean_number not in allowed_numbers:
+            print(f"[-] Ignored message from unauthorized number: {clean_number}")
+            return
 
         # 2. Extract Text or Audio
         text = ""
