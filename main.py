@@ -93,7 +93,14 @@ async def upload_file(file: UploadFile = File(...)):
             'سعر المستهلك': 'price',
             'الكمية': 'stock'
         }
-        
+        products_list = []
+        for row in raw_products_list:
+            clean_row = {}
+            for arabic_key, db_key in column_mapping.items():
+                val = row.get(arabic_key)
+                if val is not None:
+                    clean_row[db_key] = val
+            
             if clean_row.get("name"):
                 products_list.append(clean_row)
         
