@@ -111,13 +111,16 @@ async def handle_incoming_message(payload: dict):
         if len(conversation_history[remote_jid]) > 10:
             conversation_history[remote_jid] = conversation_history[remote_jid][-10:]
 
-        # 4. Create the Voice Response
-        voice_path = f"temp_reply_{uuid.uuid4().hex}.mp3"
-        await text_to_speech(final_response_text, voice_path)
-
-        # 5. Send the Replies back to WhatsApp (Both Text and Audio for premium feel)
+        # 4. Send the Text Reply back to WhatsApp IMMEDIATELY for speed
         send_whatsapp_text(remote_jid, final_response_text)
-        send_whatsapp_audio(remote_jid, voice_path)
+
+        # 5. Create and Send the Voice Response in the background
+        voice_path = f"temp_reply_{uuid.uuid4().hex}.mp3"
+        try:
+            await text_to_speech(final_response_text, voice_path)
+            send_whatsapp_audio(remote_jid, voice_path)
+        except Exception as ve:
+            print(f"[!] Voice generation error: {ve}")
         
         # Cleanup temp file
         if os.path.exists(voice_path):
