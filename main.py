@@ -84,28 +84,16 @@ async def upload_file(file: UploadFile = File(...)):
         raw_products_list = json.loads(json_str)
         
         # AUTOMATIC EXCEL TO DATABASE MAPPING:
-        # Maps the user's specific Arabic Excel headers to the NEW clean DB schema
+        # Arabic Mapping logic
         column_mapping = {
-            "رقم الباركود": "barcode",
-            "اسم الصنف": "name",
-            "الوحدة": "unit",
-            "العبوه": "package",
-            "سعر البيع": "price",
-            "الكمية المتوفرة": "stock"
+            'اسم الصنف': 'name',
+            'العبوه': 'package',
+            'الواحدات': 'unit',
+            'باركود': 'barcode',
+            'سعر المستهلك': 'price',
+            'الكمية': 'stock'
         }
         
-        products_list = []
-        for row in raw_products_list:
-            clean_row = {}
-            # Ensure EVERY row has ALL the keys (PostgREST requires uniform keys for bulk insert)
-            for arabic_key, db_key in column_mapping.items():
-                val = row.get(arabic_key)
-                if val is not None and str(val).strip() != "":
-                    clean_row[db_key] = val
-                else:
-                    clean_row[db_key] = None # Fill missing with null
-            
-            # If the row has a valid product name, include it
             if clean_row.get("name"):
                 products_list.append(clean_row)
         
@@ -113,34 +101,54 @@ async def upload_file(file: UploadFile = File(...)):
             return {"status": "error", "message": "لم يتم العثور على أي منتجات صالحة. تأكد أن الإكسيل يحتوي على عمود 'اسم الصنف'."}
             
         # Send mapped rows directly to Supabase
-        success = upload_products_bulk(products_list)
+        success, msg = upload_products_bulk(products_list)
         
         if success:
             return {"status": "تم رفع المنتجات والأعمدة بنجاح!", "count": len(products_list)}
         else:
-            return {"status": "حدث خطأ بالرفع. تأكد أن كل عناوين الأعمدة في ملف الإكسيل موجودة فعلياً كأعمدة في جدول products."}
+            return {"status": "error", "message": msg}
     except Exception as e:
         return {"status": "خطأ برمجي", "message": str(e)}
 
 @app.get("/")
-def read_root():
-    return {"status": "AI Sales Agent Server is running smoothly 🚀"}
+async def root_redirect():
+    return RedirectResponse(url="/admin")
 
-@app.post("/webhook/evo-whatsapp")
-async def receive_webhook(request: Request):
-    """
-    This endpoint receives messages from Evolution API.
-    """
-    payload = await request.json()
-    
-    # Run the core conversation handling logic asynchronously
-    # (In production, consider adding to a background task queue if it takes long)
+@app.post("/webhook")
+async def evolution_webhook(request: Request, background_tasks: BackgroundTasks):
+    data = await request.json()
+    background_tasks.add_task(handle_incoming_message, data)
+    return {"status": "received"}
+
+# --- SECURE PROXY ENDPOINTS FOR AUTHORIZED NUMBERS ---
+@app.get("/admin/api/numbers")
+async def get_authorized_numbers_api():
+    from agent.supabase_db import get_all_authorized_numbers
     try:
-        await handle_incoming_message(payload)
-        return {"status": "Message processed successfully"}
+        data = get_all_authorized_numbers()
+        return data
     except Exception as e:
-        print(f"Error processing message: {e}")
-        return {"status": "Error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/admin/api/numbers")
+async def add_authorized_number_api(payload: dict):
+    from agent.supabase_db import add_authorized_number_db
+    phone = payload.get("phone")
+    if not phone: raise HTTPException(status_code=400, detail="Missing phone number")
+    try:
+        add_authorized_number_db(phone)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/admin/api/numbers/delete/{phone}")
+async def delete_authorized_number_api(phone: str):
+    from agent.supabase_db import delete_authorized_number_db
+    try:
+        delete_authorized_number_db(phone)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

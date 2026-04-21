@@ -14,33 +14,28 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list) 
     Returns a dict: {"action": "clarify" | "search" | "chat", "reply": "...", "keywords": ["..."]}
     """
     system_prompt = """
-    أنت موظف مبيعات ذكي ومحترف، تتحدث باللهجة السعودية الودودة.
+    أنت موظف مبيعات محترف ولبق جداً لدى "متجر أصيل" للتموينات والسلع. تتحدث بلهجة سعودية محترمة.
+    
     مهمتك تحليل رسالة العميل وإخراج رد بصيغة JSON فقط، يحتوي على المفاتيح التالية:
     
     1. "action": 
-       - اختر "chat" إذا كانت الرسالة ترحيبية أو سؤال عام (مثل: كيف الحال، سلام، من أنتم، شكرا، يعطيك العافية).
-       - اختر "search" إذا كان العميل يسأل بوضوح عن توفر منتج أو سعره (مثل: بكم العطر؟، عندكم رز؟، تفاح).
-       - اختر "clarify" إذا كان الطلب ناقصاً جداً ويحتاج توضيح لتتمكن من البحث عنه (مثل: أبغى شيء رخيص).
+       - اختر "search" بنسبة 90%: لأي سؤال عن المنتجات، توفرها، أسعارها، أو حتى طلبات عامة مثل (وش عندكم، أفضل منتجاتكم)، وحتى لو سأل العميل عن شيء غريب (يجب أن تبحث أولاً في المتجر قبل الرفض لعل المنتج موجود).
+       - اختر "chat" بنسبة 10%: فقط لرسائل الترحيب والتحية الصافية جداً والمجردة من الطلبات (مثل: هلا، السلام عليكم، شكرا، يعطيك العافية).
        
     2. "reply": 
-       - إذا كان الخيار "chat" أو "clarify"، اكتب ردك الودود والمساعد للعميل هنا.
-       - أما إذا كان الخيار "search" اتركه فارغاً "".
+       - إذا كان الخيار "chat"، اكتب رد ترحيبي لبق جداً (مثل: يا هلا بك في متجر أصيل، طال عمرك كيف أقدر أخدمك اليوم؟).
+       - إذا كان الخيار "search" اتركه فارغاً "".
        
     3. "keywords": 
-       - إذا كان الخيار "search"، استخرج أسماء المنتجات أو الكلمات المفتاحية كأسماء وحبات في قائمة (مثل: ["عطر", "ديور"]).
-       - وإلا اتركها فارغة [].
-
-    يجب أن يكون المخرج JSON صحيح 100% كما في هذا المثال:
-    {"action": "chat", "reply": "يا هلا والله! كيف أقدر أخدمك اليوم؟", "keywords": []}
+       - إذا كان "search"، استخرج الأسماء الجوهرية للبحث (مثل: حليب، عسل، ماء). إذا كان السؤال عاماً اتركه فارغاً [] لتظهر بعض المنتجات العشوائية.
     """
     
     messages = [{"role": "system", "content": system_prompt}]
     
-    # Safely inject history without causing alternating role constraint errors
+    # Inject full conversation history to understand context
     if chat_history:
-        # Include previous user messages as an assistant context reminder
-        context = "سياق رسائل العميل السابقة: " + " | ".join(chat_history[-4:])
-        messages.append({"role": "assistant", "content": context})
+        for msg in chat_history[-6:]:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
         
     messages.append({"role": "user", "content": user_message})
     
@@ -58,29 +53,38 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list) 
         # Default fallback to search with the whole message as keyword
         return {"action": "search", "reply": "", "keywords": [user_message]}
 
-def generate_sales_reply(user_message: str, filtered_products: list) -> str:
+def generate_sales_reply(user_message: str, filtered_products: list, chat_history: list = None) -> str:
     """
     Takes the filtered products and writes a human-like, persuasive Arabic message summarizing them.
+    Incorporates full context and strict stock reporting rules.
     """
     system_prompt = f"""
-    أنت بائع سعودي محترف ونشمي. سأل العميل عن منتج، وهذه نتائج البحث في قاعدة البيانات لدينا:
-    المنتجات المتوفرة: {json.dumps(filtered_products, ensure_ascii=False)}
+    أنت بائع خبير ولبق في "متجر أصيل"، تتحدث بلهجة سعودية محترمة.
+    النتائج المتوفرة من المخزن: {json.dumps(filtered_products, ensure_ascii=False)}
     
-    تعليمات هامة للرد:
-    1. اكتب رداً للعميل بناءً على النتائج بلهجة سعودية ودودة واحترافية (مثل: أبشر، حياك الله، سم).
-    2. استعرض الأسعار بوضوح مع ذكر (الوحدة/العبوة) إذا كانت متوفرة.
-    3. إذا كانت (المنتجات المتوفرة) عبارة عن قائمة فارغة []، اعتذر للعميل بلطف وأخبره أن المنتج غير متوفر لدينا حالياً.
-    4. إذا كان المنتج موجوداً ولكن (الكمية/stock) تساوي صفراً، أخبر العميل بلطف أن الكمية نفدت وسنقوم بتوفيرها قريباً.
-    5. تحذير شديد: لا تخترع أسماء منتجات أو أسعار أو عروض من خارج القائمة نهائياً. التزم فقط بما هو متاح لك في المتوفر.
+    أوامر الرد (طبقها بدقة واحترافية):
+    1. عرض السعر: اعرض المنتجات والأسعار بطريقة مرتبة جداً هكذا: "[اسم المنتج]: [السعر] ريال".
+    2. قاعدة الكمية (Stock):
+       - إذا كان المنتج (stock) يساوي 0 أو أقل، يجب أن تخبر العميل تلقائياً بأن "الكمية نفدت حالياً" لهذا المنتج.
+       - إذا كان المنتج متوفراً (stock أكبر من 0)، يُمنع منعاً باتاً ذكر الرقم المحدد للكمية (لا تقل متوفر 50 حبة) إلا إذا سأل العميل صراحة (كم المتوفر؟ أو كم الكمية؟).
+    3. الأسلوب: استخدم لهجة سعودية ترحيبية (أبشر، سم، طال عمرك).
+    4. البدائل: إذا لم تجد المنتج المطلوب صراحة، ابحث عن أقرب بديل في القائمة واقترحه بذكاء. إذا كانت القائمة فارغة [] تماماً، اعتذر بلطف واعرض المساعدة في أصناف أخرى.
+    5. الالتزام: لا تخترع أسعاراً أو منتجات غير موجودة في القائمة المرفقة.
+    6. إذا كان العميل يكمل من محادثة سابقة (مثلاً: عطني الأول)، فافهم السياق وقدمه له باحترام.
     """
+    
+    messages = [{"role": "system", "content": system_prompt}]
+    
+    if chat_history:
+        for msg in chat_history[-6:]:
+            messages.append({"role": msg.get("role", "user"), "content": msg.get("content", "")})
+            
+    messages.append({"role": "user", "content": user_message})
     
     try:
         response = client.chat.completions.create(
             model=DEFAULT_MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message}
-            ],
+            messages=messages,
             temperature=0.4
         )
         return response.choices[0].message.content

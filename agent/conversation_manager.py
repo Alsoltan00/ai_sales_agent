@@ -26,6 +26,10 @@ async def handle_incoming_message(payload: dict):
         key = data.get("key", {})
         message = data.get("message", {})
         
+        # [NEW] Loop Prevention: Ignore messages from the bot itself
+        if key.get("fromMe") is True:
+            return
+
         remote_jid = key.get("remoteJid")
         if not remote_jid:
             return
@@ -37,15 +41,11 @@ async def handle_incoming_message(payload: dict):
             print(f"[-] Ignored group message from {remote_jid}")
             return
 
-        # 2. Strict Whitelist Filtering
-        # Read from environment, or use the default array of allowed numbers.
-        allowed_env = os.getenv("ALLOWED_NUMBERS", "966579331312,966501683230,966549852342,966501018908,967776803879")
-        allowed_numbers = [num.strip() for num in allowed_env.split(",") if num.strip()]
+        # 2. Strict Whitelist Filtering (Supabase-driven)
+        from agent.supabase_db import check_authorized_number
+        clean_number = "".join(filter(str.isdigit, remote_jid.split("@")[0]))
         
-        clean_number = remote_jid.split("@")[0]
-        
-        # If allowed_numbers list is NOT empty, verify the sender.
-        if allowed_numbers and clean_number not in allowed_numbers:
+        if not check_authorized_number(clean_number):
             print(f"[-] Ignored message from unauthorized number: {clean_number}")
             return
 
@@ -89,23 +89,22 @@ async def handle_incoming_message(payload: dict):
         intent_data = classify_intent_and_extract_keywords(text, history)
         
         if intent_data.get("action") in ["clarify", "chat"]:
-            # The sales agent generates a direct response (greeting, chat, or clarification)
             final_response_text = intent_data.get("reply", "أهلاً بك! كيف يمكنني مساعدتك اليوم؟")
-            print(f"[i] Action: Direct Reply ({intent_data.get('action')})")
         else:
-            # Action is 'search'
             keywords = intent_data.get("keywords", [])
-            print(f"[i] Action: Searching DB for: {keywords}")
-            
-            # Fetch and filter from Supabase
+            from agent.supabase_db import search_products
             filtered_products = search_products(keywords)
             
-            # Generate personalized pitch based on actual available inventory
-            final_response_text = generate_sales_reply(text, filtered_products)
-            print("[i] Generated Sales Pitch")
+            # Pass history for contextual product advice
+            final_response_text = generate_sales_reply(text, filtered_products, history)
 
-        # Remember latest message to keep context
-        conversation_history[remote_jid].append(text)
+        # [NEW] Rich Memory: Remember full role-based context
+        conversation_history[remote_jid].append({"role": "user", "content": text})
+        conversation_history[remote_jid].append({"role": "assistant", "content": final_response_text})
+
+        # Keep history concise (last 10 interactions)
+        if len(conversation_history[remote_jid]) > 10:
+            conversation_history[remote_jid] = conversation_history[remote_jid][-10:]
 
         # 4. Create the Voice Response
         voice_path = f"temp_reply_{uuid.uuid4().hex}.mp3"
