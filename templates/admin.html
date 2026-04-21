@@ -305,16 +305,16 @@
         </div>
         <div class="nav-items">
             <div class="nav-item active" onclick="switchTab('settings', this)">
-                <i class="fa-solid fa-sliders"></i> System Settings
+                <i class="fa-solid fa-sliders"></i> System Settings (الرموز)
             </div>
             <div class="nav-item" onclick="switchTab('database', this)">
                 <i class="fa-solid fa-database"></i> Database Connections
             </div>
             <div class="nav-item" onclick="switchTab('products', this)">
-                <i class="fa-solid fa-file-excel"></i> Manage Products
+                <i class="fa-solid fa-file-excel"></i> Manage Products (رفع المنتجات)
             </div>
             <div class="nav-item" onclick="switchTab('numbers', this)">
-                <i class="fa-solid fa-users-check"></i> Authorized Numbers
+                <i class="fa-solid fa-phone"></i> Authorized Numbers
             </div>
         </div>
     </div>
@@ -436,27 +436,33 @@
 
         <!-- Authorized Numbers Tab -->
         <div id="numbers-tab" class="tab-content">
-            <div class="page-header">
-                <h1>Authorized Numbers</h1>
-                <p>Manage which phone numbers are allowed to interact with the AI Sales Agent.</p>
+            <div class="page-header" style="text-align: center;">
+                <h1 style="font-size: 2rem;">Authorized Numbers / الأرقام المصرحة</h1>
+                <p>إدارة الأرقام المتاح لها مراسلة البوت حالياً.</p>
             </div>
 
             <div class="card">
-                <div class="card-title"><i class="fa-solid fa-user-plus" style="color:var(--brand-color)"></i> Add New Number</div>
+                <div class="card-title" style="justify-content: flex-end; font-size: 1.4rem;">
+                    تسجيل رقم جديد <i class="fa-solid fa-user-plus" style="color:var(--brand-color)"></i>
+                </div>
                 <div class="form-group">
-                    <label class="form-label">Phone Number (with Country Code)</label>
-                    <div class="form-desc">Example: 9665XXXXXXXX (No + or spaces)</div>
-                    <div style="display: flex; gap: 10px;">
-                        <input type="text" id="newNumberInput" class="form-control" placeholder="9665...">
-                        <button onclick="addNumber()" class="btn btn-primary">Add</button>
+                    <div style="text-align: right; margin-bottom: 10px;">
+                        <label class="form-label" style="font-size: 1.1rem;">Phone Number (with Country Code)</label>
+                        <div class="form-desc">Example: 9665XXXXXXXX (No + or spaces)</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-direction: row-reverse;">
+                        <input type="text" id="newNumberInput" class="form-control" placeholder="9665xxxxxxxxx" style="direction: ltr; text-align: left;">
+                        <button onclick="addNumber()" class="btn btn-primary" style="background-color: #ff6d5a; border-radius: 8px; padding: 10px 30px;">إضافة الرقم +</button>
                     </div>
                 </div>
             </div>
 
-            <div class="card">
-                <div class="card-title"><i class="fa-solid fa-list-check" style="color:var(--brand-color)"></i> Whitelisted Numbers</div>
-                <div id="numbersListContainer" style="margin-top: 10px;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> Loading numbers...
+            <div class="card" style="background: none; box-shadow: none; border: none; padding: 0;">
+                <div class="card-title" style="justify-content: flex-end; font-size: 1.2rem; border: none; margin-bottom: 10px;">
+                    الأرقام المسجلة حالياً
+                </div>
+                <div id="numbersListContainer" style="display: flex; flex-direction: column; gap: 15px;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل الأرقام...
                 </div>
             </div>
         </div>
@@ -491,38 +497,25 @@
                 const numbers = await response.json();
                 
                 if (numbers.length === 0) {
-                    container.innerHTML = '<p style="color:var(--text-muted)">No authorized numbers found. Everyone is blocked!</p>';
+                    container.innerHTML = '<p style="text-align:center; color:var(--text-muted)">لا توجد أرقام مسجلة حالياً. البوت لن يرد على أحد!</p>';
                     return;
                 }
 
-                let html = `
-                    <table style="width:100%; border-collapse: collapse; text-align: left; direction: ltr;">
-                        <thead>
-                            <tr style="border-bottom: 2px solid var(--border-color);">
-                                <th style="padding: 12px;">Phone Number</th>
-                                <th style="padding: 12px; text-align: right;">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
+                let html = '';
                 numbers.forEach(item => {
                     html += `
-                        <tr style="border-bottom: 1px solid var(--border-color);">
-                            <td style="padding: 12px;">${item.phone}</td>
-                            <td style="padding: 12px; text-align: right;">
-                                <button onclick="deleteNumber('${item.phone}')" style="background:none; border:none; color:var(--error); cursor:pointer;">
-                                    <i class="fa-solid fa-trash-can"></i>
-                                </button>
-                            </td>
-                        </tr>
+                        <div class="card" style="margin: 0; display: flex; justify-content: space-between; align-items: center; flex-direction: row; padding: 15px 25px; border-radius: 12px; background-color: #f8f9fa;">
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #222b35; letter-spacing: 1px;">${item.phone}</div>
+                            <button onclick="deleteNumber('${item.phone}')" style="background-color: #fff1f0; border: none; border-radius: 8px; color: #ff4d4f; padding: 8px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; font-family: 'Tajawal', sans-serif;">
+                                <i class="fa-solid fa-trash"></i> حذف
+                            </button>
+                        </div>
                     `;
                 });
 
-                html += '</tbody></table>';
                 container.innerHTML = html;
             } catch (err) {
-                container.innerHTML = '<p style="color:var(--error)">Failed to load numbers.</p>';
+                container.innerHTML = '<p style="text-align:center; color:var(--error)">فشل تحميل الأرقام.</p>';
             }
         }
 
