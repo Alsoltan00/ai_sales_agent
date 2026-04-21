@@ -26,6 +26,13 @@ class SettingsUpdate(BaseModel):
     SUPABASE_URL: str | None = None
     SUPABASE_KEY: str | None = None
 
+@app.get("/")
+async def root():
+    """
+    Root endpoint for health checks and easy access.
+    """
+    return RedirectResponse(url="/admin")
+
 @app.get("/admin", response_class=HTMLResponse)
 async def get_admin_panel(request: Request):
     """
