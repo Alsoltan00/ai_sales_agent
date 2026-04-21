@@ -140,8 +140,11 @@ async def get_authorized_numbers_api():
 @app.post("/admin/api/numbers")
 async def add_authorized_number_api(payload: dict):
     from agent.supabase_db import add_authorized_number_db
-    phone = payload.get("phone")
-    if not phone: raise HTTPException(status_code=400, detail="Missing phone number")
+    raw_phone = payload.get("phone", "")
+    # Sanitize: Keep only digits
+    phone = "".join(filter(str.isdigit, str(raw_phone)))
+    
+    if not phone: raise HTTPException(status_code=400, detail="Invalid phone number format")
     try:
         add_authorized_number_db(phone)
         return {"status": "success"}
