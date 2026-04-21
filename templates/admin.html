@@ -313,6 +313,9 @@
             <div class="nav-item" onclick="switchTab('products', this)">
                 <i class="fa-solid fa-file-excel"></i> Manage Products
             </div>
+            <div class="nav-item" onclick="switchTab('numbers', this)">
+                <i class="fa-solid fa-users-check"></i> Authorized Numbers
+            </div>
         </div>
     </div>
 
@@ -431,6 +434,33 @@
             </div>
         </div>
 
+        <!-- Authorized Numbers Tab -->
+        <div id="numbers-tab" class="tab-content">
+            <div class="page-header">
+                <h1>Authorized Numbers</h1>
+                <p>Manage which phone numbers are allowed to interact with the AI Sales Agent.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-user-plus" style="color:var(--brand-color)"></i> Add New Number</div>
+                <div class="form-group">
+                    <label class="form-label">Phone Number (with Country Code)</label>
+                    <div class="form-desc">Example: 9665XXXXXXXX (No + or spaces)</div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="newNumberInput" class="form-control" placeholder="9665...">
+                        <button onclick="addNumber()" class="btn btn-primary">Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-list-check" style="color:var(--brand-color)"></i> Whitelisted Numbers</div>
+                <div id="numbersListContainer" style="margin-top: 10px;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Loading numbers...
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <!-- Toast Notification -->
@@ -448,6 +478,95 @@
             // Add active classes
             document.getElementById(tabId + '-tab').classList.add('active');
             el.classList.add('active');
+
+            if (tabId === 'numbers') {
+                loadNumbers();
+            }
+        }
+
+        async function loadNumbers() {
+            const container = document.getElementById('numbersListContainer');
+            try {
+                const response = await fetch('/admin/api/numbers');
+                const numbers = await response.json();
+                
+                if (numbers.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted)">No authorized numbers found. Everyone is blocked!</p>';
+                    return;
+                }
+
+                let html = `
+                    <table style="width:100%; border-collapse: collapse; text-align: left; direction: ltr;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border-color);">
+                                <th style="padding: 12px;">Phone Number</th>
+                                <th style="padding: 12px; text-align: right;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                numbers.forEach(item => {
+                    html += `
+                        <tr style="border-bottom: 1px solid var(--border-color);">
+                            <td style="padding: 12px;">${item.phone}</td>
+                            <td style="padding: 12px; text-align: right;">
+                                <button onclick="deleteNumber('${item.phone}')" style="background:none; border:none; color:var(--error); cursor:pointer;">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = '<p style="color:var(--error)">Failed to load numbers.</p>';
+            }
+        }
+
+        async function addNumber() {
+            const input = document.getElementById('newNumberInput');
+            const phone = input.value.trim();
+            if (!phone) return;
+
+            try {
+                const response = await fetch('/admin/api/numbers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+                
+                if (response.ok) {
+                    showToast('Number added successfully!');
+                    input.value = '';
+                    loadNumbers();
+                } else {
+                    showToast('Failed to add number', true);
+                }
+            } catch (err) {
+                showToast('Error connecting to API', true);
+            }
+        }
+
+        async function deleteNumber(phone) {
+            if (!confirm(`Are you sure you want to remove ${phone}?`)) return;
+
+            try {
+                const response = await fetch(`/admin/api/numbers/delete/${phone}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('Number removed');
+                    loadNumbers();
+                } else {
+                    showToast('Failed to remove', true);
+                }
+            } catch (err) {
+                showToast('Error connecting to API', true);
+            }
         }
 
         function showToast(message, isError = false) {
