@@ -42,8 +42,8 @@ def search_products(keywords: list) -> list:
         return []
 
 def check_authorized_number(phone: str) -> bool:
-    """Checks if a number exists in the white_list table (Supabase)."""
-    url = f"{get_supabase_url()}/rest/v1/white_list?phone=eq.{phone}&select=phone"
+    """Checks if a number exists in the authorized_numbers table (Supabase)."""
+    url = f"{get_supabase_url()}/rest/v1/authorized_numbers?phone=eq.{phone}&select=phone"
     try:
         response = requests.get(url, headers=get_headers())
         if response.status_code == 200:
@@ -53,8 +53,8 @@ def check_authorized_number(phone: str) -> bool:
     return False
 
 def get_all_authorized_numbers():
-    """Fetches all phone numbers from the white_list table."""
-    url = f"{get_supabase_url()}/rest/v1/white_list?select=phone"
+    """Fetches all phone numbers from the authorized_numbers table."""
+    url = f"{get_supabase_url()}/rest/v1/authorized_numbers?select=phone"
     try:
         response = requests.get(url, headers=get_headers())
         response.raise_for_status()
@@ -64,13 +64,13 @@ def get_all_authorized_numbers():
         return []
 
 def add_authorized_number_db(phone: str):
-    """Adds a new phone number to the white_list."""
-    url = f"{get_supabase_url()}/rest/v1/white_list"
+    """Adds a new phone number to the authorized_numbers."""
+    url = f"{get_supabase_url()}/rest/v1/authorized_numbers"
     requests.post(url, headers=get_headers(), json={"phone": phone})
 
 def delete_authorized_number_db(phone: str):
-    """Removes a phone number from the white_list."""
-    url = f"{get_supabase_url()}/rest/v1/white_list?phone=eq.{phone}"
+    """Removes a phone number from the authorized_numbers."""
+    url = f"{get_supabase_url()}/rest/v1/authorized_numbers?phone=eq.{phone}"
     requests.delete(url, headers=get_headers())
 
 def upload_products_bulk(products_list: list) -> tuple[bool, str]:
