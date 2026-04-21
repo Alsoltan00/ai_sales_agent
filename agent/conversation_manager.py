@@ -32,6 +32,7 @@ async def handle_incoming_message(payload: dict):
 
         remote_jid = key.get("remoteJid")
         if not remote_jid:
+            print("[-] No remoteJid found in payload.")
             return
             
         print(f"[*] Received message from: {remote_jid}")
@@ -45,7 +46,11 @@ async def handle_incoming_message(payload: dict):
         from agent.supabase_db import check_authorized_number
         clean_number = "".join(filter(str.isdigit, remote_jid.split("@")[0]))
         
-        if not check_authorized_number(clean_number):
+        print(f"[*] Checking whitelist for: {clean_number}")
+        is_auth = check_authorized_number(clean_number)
+        print(f"[*] Whitelist check result: {is_auth}")
+
+        if not is_auth:
             print(f"[-] Ignored message from unauthorized number: {clean_number}")
             return
 
@@ -136,17 +141,21 @@ def send_whatsapp_text(remote_jid: str, text: str):
         "Content-Type": "application/json"
     }
     
+    # Sanitize remote_jid to get only the numeric part for Evolution API
+    clean_number = remote_jid.split("@")[0]
+    
     body = {
-        "number": remote_jid,
+        "number": clean_number,
         "text": text
     }
     
+    print(f"[*] Attempting to send text to {clean_number} via {instance_name}...")
     response = requests.post(url, headers=headers, json=body)
     
-    if response.status_code == 200 or response.status_code == 201:
-        print(f"[+] Successfully sent message to {remote_jid}")
+    if response.status_code in [200, 201]:
+        print(f"[+] Successfully sent message to {clean_number}")
     else:
-        print(f"[-] Failed to send message: {response.text}")
+        print(f"[!] Failed to send message (HTTP {response.status_code}): {response.text}")
 
 def send_whatsapp_audio(remote_jid: str, audio_path: str):
     """
@@ -154,6 +163,9 @@ def send_whatsapp_audio(remote_jid: str, audio_path: str):
     """
     instance_name = os.getenv("EVOLUTION_INSTANCE_NAME", "asil-phone")
     url = f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{instance_name}"
+    
+    # Sanitize number
+    clean_number = remote_jid.split("@")[0]
     
     try:
         with open(audio_path, "rb") as f:
