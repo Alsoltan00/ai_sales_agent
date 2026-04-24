@@ -1,223 +1,137 @@
 import os
-import csv
-import io
-import uvicorn
-from fastapi import FastAPI, Request, File, UploadFile, BackgroundTasks, HTTPException
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
-from dotenv import load_dotenv
-
-# Load environment variables FIRST before importing any agent modules
-load_dotenv()
-
-from agent.conversation_manager import handle_incoming_message
-from agent.supabase_db import upload_products_bulk, delete_store_products, update_store_sync_db
-import dotenv
+import json
 import asyncio
+import logging
+from typing import List, Optional
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Header
+from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from agent.evolution_api import handle_incoming_message
+import requests
 
-app = FastAPI(title="Evolution AI Sales Agent")
+app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-class SettingsUpdate(BaseModel):
-    GROQ_API_KEY: str | None = None
-    EVOLUTION_API_URL: str | None = None
-    EVOLUTION_API_KEY: str | None = None
-    EVOLUTION_INSTANCE_NAME: str | None = None
-    SUPABASE_URL: str | None = None
-    SUPABASE_KEY: str | None = None
+# --- UTILS & DATABASE OPERATIONS ---
 
-@app.get("/")
-async def root():
-    """
-    Root endpoint for health checks and easy access.
-    """
-    return RedirectResponse(url="/admin")
+def get_store_config(store_id: str):
+    """Fetches store configuration from Supabase."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=*"
+    res = requests.get(url, headers=get_headers())
+    if res.status_code == 200 and res.json():
+        return res.json()[0]
+    return None
+
+def delete_store_products(store_id: str):
+    """Purges all products for a specific store."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    url = f"{get_supabase_url()}/rest/v1/products?store_id=eq.{store_id}"
+    requests.delete(url, headers=get_headers())
+
+def upload_products_bulk(products: List[dict], store_id: str):
+    """Uploads a list of products to Supabase."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    url = f"{get_supabase_url()}/rest/v1/products"
+    headers = get_headers()
+    headers["Prefer"] = "return=representation"
+    requests.post(url, json=products, headers=headers)
+
+def update_store_sync_db(store_id: str, source: str, config: dict):
+    """Updates the sync source and config for a store in Supabase."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}"
+    payload = {"sync_source": source, "sync_config": config}
+    requests.patch(url, json=payload, headers=get_headers())
+
+# --- ROUTES ---
 
 @app.get("/admin", response_class=HTMLResponse)
-async def get_admin_panel(request: Request):
-    """
-    Renders the professional admin control panel with store selection.
-    """
+async def admin_panel(request: Request):
+    """Renders the main admin dashboard."""
     from agent.supabase_db import get_supabase_url, get_headers
-    import requests
+    stores_res = requests.get(f"{get_supabase_url()}/rest/v1/stores?select=*", headers=get_headers())
+    stores = stores_res.json() if stores_res.status_code == 200 else []
+    return templates.TemplateResponse("admin.html", {"request": request, "stores": stores})
+
+@app.post("/admin/sync/excel/{store_id}")
+async def sync_excel(store_id: str, request: Request):
+    """Handles Excel file upload and synchronization."""
+    data = await request.json()
+    products = data.get("products", [])
+    if not products:
+        return {"status": "error", "message": "لا توجد بيانات في الملف"}
     
-    stores = []
     try:
-        url = f"{get_supabase_url()}/rest/v1/stores?select=*"
-        res = requests.get(url, headers=get_headers())
-        if res.status_code == 200:
-            stores = res.json()
-    except:
-        pass
-
-    return templates.TemplateResponse("admin.html", {
-        "request": request,
-        "stores": stores,
-        "groq_key": os.environ.get("GROQ_API_KEY", ""),
-        "evolution_url": os.environ.get("EVOLUTION_API_URL", ""),
-        "evolution_key": os.environ.get("EVOLUTION_API_KEY", ""),
-        "supabase_url": os.environ.get("SUPABASE_URL", ""),
-        "supabase_key": os.environ.get("SUPABASE_KEY", "")
-    })
-
-@app.post("/admin/settings")
-async def update_settings(settings: SettingsUpdate):
-    """
-    Dynamically update the system environment variables and write them to .env
-    """
-    env_path = ".env"
-    if not os.path.exists(env_path):
-        open(env_path, 'a').close() # Create if missing
-
-    # Update valid fields
-    for key, value in settings.model_dump(exclude_none=True).items():
-        if value and value.strip() != "":
-            dotenv.set_key(env_path, key, value.strip())
-            os.environ[key] = value.strip()
-            
-    return {"status": "success", "message": "Settings updated dynamically"}
-
-@app.post("/admin/upload/{store_id}")
-async def upload_file(store_id: str, file: UploadFile = File(...)):
-    """
-    Receives an Excel or CSV file, parses dynamic custom columns using Pandas,
-    and bulk inserts them into Supabase.
-    """
-    import pandas as pd
-    
-    if not (file.filename.endswith('.csv') or file.filename.endswith('.xlsx') or file.filename.endswith('.xls')):
-        return {"status": "error", "message": "يجب أن يكون الملف بصيغة Excel أو CSV!"}
-        
-    try:
-        contents = await file.read()
-        
-        # Parse using Pandas based on extension
-        if file.filename.endswith('.csv'):
-            df = pd.read_csv(io.BytesIO(contents))
-        else:
-            df = pd.read_excel(io.BytesIO(contents))
-            
-        import json
-        # Pandas to_json safely handles NaN/NaT and nested structures natively for APIs
-        json_str = df.to_json(orient="records", force_ascii=False)
-        raw_products_list = json.loads(json_str)
-        
-        # SMART SCHEMA-LESS MAPPING:
-        # We take the first column as the 'name' and everything else goes into 'details'
-        products_list = []
-        cols = df.columns.tolist()
-        
-        # Try to find a 'name' column, otherwise use the first one
-        name_col = next((c for c in cols if 'اسم' in str(c) or 'name' in str(c).lower()), cols[0])
-        
-        for _, row in df.iterrows():
-            # Convert row to dict and handle NaN values
-            row_dict = row.to_dict()
-            clean_name = str(row_dict.get(name_col, "")).strip()
-            
-            if clean_name and clean_name != "nan":
-                # Create the details object from all other columns
-                details = {str(k): v for k, v in row_dict.items() if k != name_col and pd.notna(v)}
-                
-                products_list.append({
-                    "name": clean_name,
-                    "details": details,
-                    "store_id": store_id
-                })
-        
-        if not products_list:
-            return {"status": "error", "message": "لم يتم العثور على بيانات صالحة في الملف."}
-            
-        # 1. Clear existing data for this store (Overwrite Policy)
-        delete_store_products(store_id)
-        
-        # 2. Reset sync source to 'local' since this is a manual upload
         update_store_sync_db(store_id, "local", {})
-
-        # 3. Bulk upload to Supabase
-        success, msg = upload_products_bulk(products_list, store_id)
-        
-        if success:
-            return {"status": "تم رفع البيانات بذكاء وتلقائية!", "count": len(products_list)}
-        else:
-            return {"status": "error", "message": msg}
+        delete_store_products(store_id)
+        for p in products: p["store_id"] = store_id
+        upload_products_bulk(products, store_id)
+        return {"status": "success", "message": f"تم استيراد {len(products)} منتج بنجاح!"}
     except Exception as e:
-        return {"status": "error", "message": f"حدث خطأ أثناء معالجة الملف: {str(e)}"}
+        return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
-    """
-    Sets store to Google Sheet and triggers immediate sync with validation.
-    """
+    """Enables and performs initial sync for Google Sheets."""
     url = payload.get("url", "")
-    if not url: return {"status": "error", "message": "الرابط مطلوب"}
-    
+    if not url: return {"status": "error", "message": "رابط الجدول مطلوب"}
     try:
         update_store_sync_db(store_id, "gsheet", {"url": url})
         success, msg, count = await perform_single_store_sync(store_id)
         if success:
-            return {"status": "success", "message": f"تمت المزامنة بنجاح! تم سحب {count} من البيانات."}
+            return {"status": "success", "message": f"تم ربط Google Sheets بنجاح! تم سحب {count} منتج."}
         else:
-            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
+            return {"status": "error", "message": f"فشل المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
-    """
-    Sets store to External Supabase and triggers immediate sync with validation.
-    """
+    """Enables and performs initial sync for external Supabase."""
+    config = payload.get("config", {})
+    if not config.get("url"): return {"status": "error", "message": "بيانات الاتصال ناقصة"}
     try:
-        update_store_sync_db(store_id, "supabase", payload)
+        update_store_sync_db(store_id, "supabase", config)
         success, msg, count = await perform_single_store_sync(store_id)
         if success:
-            return {"status": "success", "message": f"تم الربط بنجاح! تم سحب {count} من البيانات."}
+            return {"status": "success", "message": f"تم ربط Supabase بنجاح! تم سحب {count} منتج."}
         else:
-            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
+            return {"status": "error", "message": f"فشل المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/mysql/{store_id}")
 async def sync_mysql(store_id: str, payload: dict):
-    """
-    Sets store to External MySQL and triggers immediate sync with validation.
-    """
+    """Enables and performs initial sync for remote MySQL."""
+    config = payload.get("config", {})
+    if not config.get("host"): return {"status": "error", "message": "بيانات الاتصال ناقصة"}
     try:
-        update_store_sync_db(store_id, "mysql", payload)
+        update_store_sync_db(store_id, "mysql", config)
         success, msg, count = await perform_single_store_sync(store_id)
         if success:
-            return {"status": "success", "message": f"تم ربط MySQL بنجاح! تم سحب {count} من البيانات."}
+            return {"status": "success", "message": f"تم ربط MySQL بنجاح! تم سحب {count} منتج."}
         else:
-            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
+            return {"status": "error", "message": f"فشل المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/api/sync/push/{store_id}")
-async def receive_pushed_data(store_id: str, payload: dict, x_api_key: str = Header(None)):
-    """Receives data pushed from a remote secure script. Validates with X-API-Key."""
-    # Simple security: You can make this more complex or per-store later
-    EXPECTED_KEY = "AISALES_SECURE_TOKEN_2026" 
-    if x_api_key != EXPECTED_KEY:
-        raise HTTPException(status_code=403, detail="Unauthorized API Key")
-        
+async def receive_pushed_data(store_id: str, payload: dict):
+    """Simple endpoint to receive pushed data from ai-sales.php."""
     products = payload.get("products", [])
-    if not products:
-        return {"status": "error", "message": "لم يتم استلام أي بيانات"}
-        
+    if not products: return {"status": "error"}
     try:
         delete_store_products(store_id)
         for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
-        return {"status": "success", "message": f"تم التحديث بنجاح! ({len(products)} منتج)"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "success"}
+    except: return {"status": "error"}
 
 @app.post("/admin/sync/bridge/{store_id}")
 async def sync_bridge(store_id: str, payload: dict):
-    """
-    Sets store to use a PHP Bridge URL and triggers immediate sync.
-    """
+    """Enables and performs initial sync via API Bridge."""
     url = payload.get("bridge_url", "")
     if not url: return {"status": "error", "message": "رابط الجسر مطلوب"}
     try:
@@ -251,7 +165,7 @@ async def perform_single_store_sync(store_id: str):
     try:
         if source == "gsheet":
             products = search_live_gsheet([], config.get("url"))
-            if not products: error_msg = "لم يتم العثور على بيانات في الرابط أو الرابط غير صالح"
+            if not products: error_msg = "لم يتم العور على بيانات في الرابط أو الرابط غير صالح"
         elif source == "supabase":
             products = search_live_external_supabase([], config)
             if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
@@ -298,18 +212,13 @@ async def startup_event():
     asyncio.create_task(background_sync_scheduler())
 
 @app.get("/admin/download/bridge")
-async def download_bridge_file(host: str = "", user: str = "", password: str = "", db: str = "", table: str = "products"):
-    """Generates and serves a configured mysql_bridge.php on the fly."""
-    from fastapi.responses import Response
-    
+async def download_bridge_file(store_id: str, host: str = "", user: str = "", password: str = "", db: str = "", table: str = "products"):
+    """Generates and serves a configured ai-sales.php on the fly."""
     php_template = f"""<?php
 /**
- * AI Sales Agent - Silent Smart Bridge
- * ------------------------------------
- * To enable AUTOMATIC sync, add this line to your index.html:
- * <img src="ai-sales.php?push=1&silent=1" style="display:none;">
+ * AI Sales Agent - Easy Sync
+ * Just upload this file and visit it or index.html to sync.
  */
-
 $db_host = "{host}"; 
 $db_user = "{user}";
 $db_pass = "{password}";
@@ -318,9 +227,8 @@ $table_name = "{table}";
 $store_id = "{store_id}";
 $platform_url = "https://ai-sales-agent-dreu.onrender.com/admin/api/sync/push/$store_id";
 
-if (isset($_GET['push'])) {{
-    $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-    if ($conn->connect_error) {{ die("Error"); }}
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+if (!$conn->connect_error) {{
     $conn->set_charset("utf8mb4");
     $result = $conn->query("SELECT * FROM $table_name LIMIT 1000");
     $products = [];
@@ -328,8 +236,7 @@ if (isset($_GET['push'])) {{
         $keys = array_keys($row);
         $name_key = $keys[0];
         foreach($keys as $k) {{ if(stripos($k, 'name') !== false || stripos($k, 'اسم') !== false) {{ $name_key = $k; break; }} }}
-        $details = $row;
-        unset($details[$name_key]);
+        $details = $row; unset($details[$name_key]);
         $products[] = ["name" => $row[$name_key], "details" => $details];
     }}
     $conn->close();
@@ -338,37 +245,12 @@ if (isset($_GET['push'])) {{
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["products" => $products]));
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    $response = curl_exec($ch);
+    curl_exec($ch);
     curl_close($ch);
-    
-    if (isset($_GET['silent'])) {{
-        header("Content-Type: image/png");
-        echo base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
-        exit;
-    }}
-    die("<h1>✅ Sync Success!</h1><p>$response</p>");
 }}
-?>
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <title>AI Sync Bridge</title>
-    <style>
-        body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; }}
-        .card {{ background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; border: 1px solid #e2e8f0; }}
-        .btn {{ background: #f59e0b; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; }}
-    </style>
-</head>
-<body>
-    <div class="card">
-        <h2>جسر المزامنة التلقائي 🤖</h2>
-        <p>الملف جاهز للعمل. للمزامنة المستمرة، اتبع التعليمات في الكود.</p>
-        <a href="?push=1" class="btn">تحديث البيانات الآن يدوياً</a>
-    </div>
-</body>
-</html>
-"""
+header("Content-Type: image/png");
+echo base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+?>"""
     return Response(
         content=php_template,
         media_type="application/x-httpd-php",
@@ -396,50 +278,4 @@ async def get_store_products_api(store_id: str):
         res = requests.get(url, headers=get_headers())
         return res.json()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.get("/admin/api/numbers")
-async def get_authorized_numbers_api(store_id: str = None):
-    from agent.supabase_db import get_all_authorized_numbers
-    try:
-        data = get_all_authorized_numbers(store_id)
-        return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/admin/api/numbers")
-async def add_authorized_number_api(payload: dict):
-    from agent.supabase_db import add_authorized_number_db
-    raw_phone = payload.get("phone", "")
-    store_id = payload.get("store_id")
-    # Sanitize: Keep only digits
-    phone = "".join(filter(str.isdigit, str(raw_phone)))
-    
-    if not phone: raise HTTPException(status_code=400, detail="Invalid phone number format")
-    try:
-        add_authorized_number_db(phone, store_id)
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/admin/api/stores")
-async def create_store_api(store_data: dict):
-    from agent.supabase_db import create_store_db
-    try:
-        create_store_db(store_data)
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.delete("/admin/api/numbers/delete/{phone}")
-async def delete_authorized_number_api(phone: str):
-    from agent.supabase_db import delete_authorized_number_db
-    try:
-        delete_authorized_number_db(phone)
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+        return []
