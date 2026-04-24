@@ -209,15 +209,21 @@
 
                 <!-- Method 5: API Bridge (The Solution) -->
                 <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-bridge" style="color:#f59e0b"></i> API Bridge</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">تخطي الحماية (عبر ملف PHP على موقعك).</p>
-                    <div style="margin-bottom: 15px;">
-                        <a href="/admin/download/bridge" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 0.8rem; border-color: #f59e0b; color: #f59e0b;">
-                            <i class="fa-solid fa-download"></i> تحميل ملف الجسر أولاً
-                        </a>
+                    <div class="card-header"><i class="fa-solid fa-bridge" style="color:#f59e0b"></i> API Bridge (توليد ذكي)</div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">أدخل بيانات MySQL لتوليد ملف جاهز للرفع.</p>
+                    <div id="bridgeConfig" style="background: #fffbeb; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #fef3c7;">
+                        <input type="text" id="b_host" class="input" placeholder="Host" value="sql100.infinityfree.com" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
+                        <input type="text" id="b_user" class="input" placeholder="User" value="if0_41719311" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
+                        <input type="password" id="b_pass" class="input" placeholder="Password" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
+                        <input type="text" id="b_db" class="input" placeholder="DB Name" value="if0_41719311_pickline" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
+                        <input type="text" id="b_table" class="input" placeholder="Table Name" value="products" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
+                        <button onclick="downloadSmartBridge()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 0.75rem; border-color: #f59e0b; color: #f59e0b; padding: 8px;">
+                            <i class="fa-solid fa-magic"></i> توليد وتحميل الملف جاهزاً
+                        </button>
                     </div>
                     <form onsubmit="syncBridge(event)">
-                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/sync.php" style="margin-bottom: 10px; font-size: 0.75rem;" required>
+                        <label class="label" style="font-size: 0.75rem;">رابط الملف بعد الرفع:</label>
+                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/mysql_bridge.php" style="margin-bottom: 10px; font-size: 0.75rem;" required>
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>
                     </form>
                 </div>
@@ -394,6 +400,17 @@
                 else showToast(data.message, 'error');
             } catch (err) { showToast('خطأ في الاتصال بالجسر', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'ربط وتجاوز الحماية'; }
+        }
+
+        function downloadSmartBridge() {
+            const host = document.getElementById('b_host').value;
+            const user = document.getElementById('b_user').value;
+            const pass = document.getElementById('b_pass').value;
+            const db = document.getElementById('b_db').value;
+            const table = document.getElementById('b_table').value;
+            
+            const url = `/admin/download/bridge?host=${encodeURIComponent(host)}&user=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&db=${encodeURIComponent(db)}&table=${encodeURIComponent(table)}`;
+            window.location.href = url;
         }
 
         async function syncMySQL(e) {

@@ -278,14 +278,38 @@ async def startup_event():
     asyncio.create_task(background_sync_scheduler())
 
 @app.get("/admin/download/bridge")
-async def download_bridge_file():
-    """Allows the user to download the mysql_bridge.php file directly from the UI."""
-    from fastapi.responses import FileResponse
-    import os
-    file_path = "mysql_bridge.php"
-    if os.path.exists(file_path):
-        return FileResponse(file_path, filename="mysql_bridge.php")
-    raise HTTPException(status_code=404, detail="File not found")
+async def download_bridge_file(host: str = "", user: str = "", password: str = "", db: str = "", table: str = "products"):
+    """Generates and serves a configured mysql_bridge.php on the fly."""
+    from fastapi.responses import Response
+    
+    php_template = f"""<?php
+header('Content-Type: application/json');
+$db_host = "{host}"; 
+$db_user = "{user}";
+$db_pass = "{password}";
+$db_name = "{db}";
+$table_name = "{table}";
+
+$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+if ($conn->connect_error) {{
+    die(json_encode(["error" => "Connection failed: " . $conn->connect_error]));
+}}
+$conn->set_charset("utf8mb4");
+$result = $conn->query("SELECT * FROM $table_name LIMIT 1000");
+$data = [];
+if ($result) {{
+    while($row = $result->fetch_assoc()) {{
+        $data[] = $row;
+    }}
+}}
+echo json_encode($data, JSON_UNESCAPED_UNICODE);
+$conn->close();
+?>"""
+    return Response(
+        content=php_template,
+        media_type="application/x-httpd-php",
+        headers={"Content-Disposition": "attachment; filename=mysql_bridge.php"}
+    )
 
 @app.get("/")
 async def root_redirect():
