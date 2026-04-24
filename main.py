@@ -148,41 +148,48 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
     """
-    Sets the store to use Google Sheet and triggers an immediate first sync.
+    Sets store to Google Sheet, CLEARS local data, and syncs immediately.
     """
     url = payload.get("url", "")
     if not url: return {"status": "error", "message": "الرابط مطلوب"}
     
     try:
+        # 1. Clear old data immediately
+        delete_store_products(store_id)
+        # 2. Set new sync source
         update_store_sync_db(store_id, "gsheet", {"url": url})
-        # Trigger immediate sync in background
-        asyncio.create_task(perform_single_store_sync(store_id))
-        return {"status": "success", "message": "تم ربط جوجل شيت، جاري سحب البيانات حالياً..."}
+        # 3. Pull data immediately (don't wait for scheduler)
+        await perform_single_store_sync(store_id)
+        return {"status": "success", "message": "تم مسح البيانات القديمة ومزامنة جوجل شيت بنجاح!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
     """
-    Sets the store to use External Supabase and triggers an immediate first sync.
+    Sets store to External Supabase, CLEARS local data, and syncs immediately.
     """
     try:
+        delete_store_products(store_id)
         update_store_sync_db(store_id, "supabase", payload)
-        # Trigger immediate sync in background
-        asyncio.create_task(perform_single_store_sync(store_id))
-        return {"status": "success", "message": "تم ربط سوبر بيس الخارجي، جاري سحب البيانات حالياً..."}
+        await perform_single_store_sync(store_id)
+        return {"status": "success", "message": "تم مسح البيانات القديمة وربط سوبر بيس الخارجي بنجاح!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/mysql/{store_id}")
 async def sync_mysql(store_id: str, payload: dict):
     """
-    Sets the store to use External MySQL and triggers an immediate first sync.
+    Sets store to External MySQL, CLEARS local data, and syncs immediately.
     """
     try:
+        # 1. Clear old data immediately
+        delete_store_products(store_id)
+        # 2. Set new sync source
         update_store_sync_db(store_id, "mysql", payload)
-        asyncio.create_task(perform_single_store_sync(store_id))
-        return {"status": "success", "message": "تم ربط قاعدة MySQL، جاري سحب البيانات حالياً..."}
+        # 3. Pull data immediately
+        await perform_single_store_sync(store_id)
+        return {"status": "success", "message": "تم مسح البيانات القديمة وربط قاعدة MySQL بنجاح!"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
