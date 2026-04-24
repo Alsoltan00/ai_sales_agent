@@ -84,7 +84,10 @@
                 <i class="fa-solid fa-store"></i> إدارة المتاجر
             </div>
             <div class="nav-item" onclick="showTab('products', this)">
-                <i class="fa-solid fa-box"></i> إدارة المنتجات
+                <i class="fa-solid fa-sync"></i> مزامنة البيانات
+            </div>
+            <div class="nav-item" onclick="showTab('data-view', this)">
+                <i class="fa-solid fa-magnifying-glass-chart"></i> استعراض البيانات
             </div>
             <div class="nav-item" onclick="showTab('users', this)">
                 <i class="fa-solid fa-users"></i> الأرقام المصرحة
@@ -206,6 +209,27 @@
             </div>
         </div>
 
+        <!-- Data View Tab -->
+        <div id="data-view-tab" class="tab-pane">
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <div>
+                    <h1>استعراض بيانات العميل المستوردة</h1>
+                    <p>هذه هي البيانات التي يراها الذكاء الاصطناعي حالياً من المصدر المربوط.</p>
+                </div>
+                <div style="width: 300px;">
+                    <input type="text" id="dataSearch" class="input" placeholder="بحث في البيانات..." oninput="filterCards()">
+                </div>
+            </div>
+
+            <div id="dataCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                <!-- Cards will be injected here -->
+                <div style="text-align: center; grid-column: 1/-1; padding: 50px; color: var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 15px;"></i>
+                    <p>جاري تحميل البيانات الحية...</p>
+                </div>
+            </div>
+        </div>
+
         <!-- Users Tab -->
         <div id="users-tab" class="tab-pane">
             <div class="card">
@@ -256,6 +280,52 @@
             el.classList.add('active');
             
             if(tabId === 'users') loadNumbers();
+            if(tabId === 'data-view') loadStoreData();
+        }
+
+        async function loadStoreData() {
+            const storeId = document.getElementById('storeSelector').value;
+            const grid = document.getElementById('dataCardsGrid');
+            grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>';
+            
+            try {
+                const res = await fetch(`/admin/api/products?store_id=${storeId}`);
+                const data = await res.json();
+                
+                if (!data || data.length === 0) {
+                    grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن.</div>';
+                    return;
+                }
+
+                grid.innerHTML = data.map(item => {
+                    const details = item.details || {};
+                    let detailsHtml = Object.entries(details).map(([key, val]) => `
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85rem;">
+                            <span style="color:var(--text-muted); font-weight:500;">${key}:</span>
+                            <span style="font-weight:600;">${val}</span>
+                        </div>
+                    `).join('');
+
+                    return `
+                        <div class="card data-card" style="margin-bottom:0; transition:0.3s; border-top: 4px solid var(--primary);">
+                            <h3 style="margin-bottom:15px; font-size:1.1rem; color:var(--primary);">${item.name}</h3>
+                            <div style="border-top: 1px solid var(--border); padding-top:10px;">
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px; color:var(--danger)">فشل في تحميل البيانات</div>';
+            }
+        }
+
+        function filterCards() {
+            const q = document.getElementById('dataSearch').value.toLowerCase();
+            document.querySelectorAll('.data-card').forEach(card => {
+                const text = card.innerText.toLowerCase();
+                card.style.display = text.includes(q) ? 'block' : 'none';
+            });
         }
 
         function showToast(msg, type='success') {

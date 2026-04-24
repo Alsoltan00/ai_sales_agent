@@ -250,6 +250,18 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks)
     return {"status": "received"}
 
 # --- SECURE PROXY ENDPOINTS FOR AUTHORIZED NUMBERS ---
+@app.get("/admin/api/products")
+async def get_store_products_api(store_id: str):
+    """Fetches all products for a specific store to display in the admin UI."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    import requests
+    url = f"{get_supabase_url()}/rest/v1/products?store_id=eq.{store_id}&select=*"
+    try:
+        res = requests.get(url, headers=get_headers())
+        return res.json()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/admin/api/numbers")
 async def get_authorized_numbers_api(store_id: str = None):
     from agent.supabase_db import get_all_authorized_numbers
