@@ -193,11 +193,28 @@ async def sync_mysql(store_id: str, payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/admin/sync/bridge/{store_id}")
+async def sync_bridge(store_id: str, payload: dict):
+    """
+    Sets store to use a PHP Bridge URL and triggers immediate sync.
+    """
+    url = payload.get("bridge_url", "")
+    if not url: return {"status": "error", "message": "رابط الجسر مطلوب"}
+    try:
+        update_store_sync_db(store_id, "bridge", {"bridge_url": url})
+        success, msg, count = await perform_single_store_sync(store_id)
+        if success:
+            return {"status": "success", "message": f"تم تفعيل الجسر بنجاح! تم سحب {count} من البيانات."}
+        else:
+            return {"status": "error", "message": f"فشل الجسر: {msg}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # --- BACKGROUND SYNC LOGIC ---
 
 async def perform_single_store_sync(store_id: str):
     """Fetches remote data and replaces local data. Returns (success, msg, count)."""
-    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase, fetch_live_mysql
+    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
     import requests
     
     # 1. Get Store Config
@@ -219,10 +236,13 @@ async def perform_single_store_sync(store_id: str):
             products = search_live_external_supabase([], config)
             if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
         elif source == "mysql":
-            # fetch_live_mysql now returns (data, error)
             products, mysql_err = fetch_live_mysql(config)
             if mysql_err: error_msg = mysql_err
             elif not products: error_msg = "لا توجد بيانات في جدول MySQL المختار"
+        elif source == "bridge":
+            products, bridge_err = fetch_live_bridge(config.get("bridge_url"))
+            if bridge_err: error_msg = bridge_err
+            elif not products: error_msg = "الجسر لم يرجع أي بيانات"
     except Exception as e:
         error_msg = str(e)
     

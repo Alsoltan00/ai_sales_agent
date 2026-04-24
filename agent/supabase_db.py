@@ -135,6 +135,32 @@ def fetch_live_mysql(config: dict) -> tuple:
     except Exception as e:
         return [], f"خطأ في الاتصال: {str(e)}"
 
+def fetch_live_bridge(url: str) -> tuple:
+    """Fetches data from a PHP/API bridge URL. Returns (list, error_msg)."""
+    import requests
+    try:
+        res = requests.get(url, timeout=15)
+        if res.status_code != 200:
+            return [], f"فشل الاتصال بالجسر (Status: {res.status_code})"
+        
+        data = res.json()
+        if not isinstance(data, list):
+            return [], "تنسيق بيانات الجسر غير صحيح (يجب أن يكون مصفوفة JSON)"
+            
+        results = []
+        for row in data:
+            if not isinstance(row, dict): continue
+            keys = list(row.keys())
+            if not keys: continue
+            name_key = next((k for k in keys if 'name' in k.lower() or 'اسم' in k), keys[0])
+            name_val = str(row.get(name_key, "Item"))
+            details = {k: v for k, v in row.items() if k != name_key}
+            results.append({"name": name_val, "details": details})
+            
+        return results, None
+    except Exception as e:
+        return [], f"خطأ في قراءة الجسر: {str(e)}"
+
 def check_authorized_number(phone: str, store_id: str = None) -> bool:
     """Checks if a number exists in the authorized_numbers table, scoped by store_id."""
     filter_url = f"phone=eq.{phone}"

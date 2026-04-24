@@ -196,14 +196,24 @@
                 <!-- Method 4: MySQL External -->
                 <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
                     <div class="card-header"><i class="fa-solid fa-server" style="color:#00758f"></i> MySQL</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">مزامنة من قاعدة MySQL خارجية (مباشر).</p>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">مزامنة مباشرة (قد تتطلب فتح الـ Firewall).</p>
                     <form onsubmit="syncMySQL(event)">
-                        <input type="text" name="host" class="input" placeholder="Host (e.g. 8.8.8.8)" style="margin-bottom: 5px; font-size: 0.75rem;" required>
+                        <input type="text" name="host" class="input" placeholder="Host" style="margin-bottom: 5px; font-size: 0.75rem;" required>
                         <input type="text" name="user" class="input" placeholder="User" style="margin-bottom: 5px; font-size: 0.75rem;" required>
                         <input type="password" name="password" class="input" placeholder="Password" style="margin-bottom: 5px; font-size: 0.75rem;" required>
                         <input type="text" name="db_name" class="input" placeholder="DB Name" style="margin-bottom: 5px; font-size: 0.75rem;" required>
                         <input type="text" name="table_name" class="input" placeholder="Table Name" style="margin-bottom: 10px; font-size: 0.75rem;" required>
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #00758f; font-size: 0.85rem;" id="mysqlsyncBtn">ربط ومزامنة</button>
+                    </form>
+                </div>
+
+                <!-- Method 5: API Bridge (The Solution) -->
+                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
+                    <div class="card-header"><i class="fa-solid fa-bridge" style="color:#f59e0b"></i> API Bridge</div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">تخطي الحماية (عبر ملف PHP على موقعك).</p>
+                    <form onsubmit="syncBridge(event)">
+                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/sync.php" style="margin-bottom: 10px; font-size: 0.75rem;" required>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>
                     </form>
                 </div>
             </div>
@@ -358,6 +368,27 @@
                 else showToast(data.message, 'error');
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'مزامنة من جوجل'; }
+        }
+
+        async function syncBridge(e) {
+            e.preventDefault();
+            const storeId = document.getElementById('storeSelector').value;
+            const formData = new FormData(e.target);
+            const body = Object.fromEntries(formData.entries());
+            const btn = document.getElementById('bridgesyncBtn');
+            btn.disabled = true; btn.innerText = 'جاري تجاوز الحماية...';
+
+            try {
+                const res = await fetch(`/admin/sync/bridge/${storeId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.status === 'success') showToast(data.message);
+                else showToast(data.message, 'error');
+            } catch (err) { showToast('خطأ في الاتصال بالجسر', 'error'); }
+            finally { btn.disabled = false; btn.innerText = 'ربط وتجاوز الحماية'; }
         }
 
         async function syncMySQL(e) {
