@@ -12,8 +12,9 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agent.conversation_manager import handle_incoming_message
-from agent.supabase_db import upload_products_bulk
+from agent.supabase_db import upload_products_bulk, delete_store_products, update_store_sync_db
 import dotenv
+import asyncio
 
 app = FastAPI(title="Evolution AI Sales Agent")
 templates = Jinja2Templates(directory="templates")
@@ -128,7 +129,13 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
         if not products_list:
             return {"status": "error", "message": "لم يتم العثور على بيانات صالحة في الملف."}
             
-        # Bulk upload to Supabase
+        # 1. Clear existing data for this store (Overwrite Policy)
+        delete_store_products(store_id)
+        
+        # 2. Reset sync source to 'local' since this is a manual upload
+        update_store_sync_db(store_id, "local", {})
+
+        # 3. Bulk upload to Supabase
         success, msg = upload_products_bulk(products_list, store_id)
         
         if success:
@@ -141,30 +148,82 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
     """
-    Sets the store to use a Live Google Sheet for its data.
+    Sets the store to use Google Sheet and triggers an immediate first sync.
     """
-    from agent.supabase_db import update_store_sync_db
     url = payload.get("url", "")
     if not url: return {"status": "error", "message": "الرابط مطلوب"}
     
     try:
-        # We don't import data here, we just save the link for Live Sync
         update_store_sync_db(store_id, "gsheet", {"url": url})
-        return {"status": "success", "message": "تم تفعيل المزامنة الحية من جوجل شيت بنجاح!"}
+        # Trigger immediate sync in background
+        asyncio.create_task(perform_single_store_sync(store_id))
+        return {"status": "success", "message": "تم ربط جوجل شيت، جاري سحب البيانات حالياً..."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
     """
-    Sets the store to use an External Supabase for its data (Live Sync).
+    Sets the store to use External Supabase and triggers an immediate first sync.
     """
-    from agent.supabase_db import update_store_sync_db
     try:
         update_store_sync_db(store_id, "supabase", payload)
-        return {"status": "success", "message": "تم ربط سوبر بيس الخارجي بنجاح!"}
+        # Trigger immediate sync in background
+        asyncio.create_task(perform_single_store_sync(store_id))
+        return {"status": "success", "message": "تم ربط سوبر بيس الخارجي، جاري سحب البيانات حالياً..."}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# --- BACKGROUND SYNC LOGIC ---
+
+async def perform_single_store_sync(store_id: str):
+    """Fetches remote data and replaces local data for one store."""
+    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase
+    import requests
+    
+    # 1. Get Store Config
+    res = requests.get(f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=*", headers=get_headers())
+    if res.status_code != 200 or not res.json(): return
+    store = res.json()[0]
+    
+    source = store.get("sync_source")
+    config = store.get("sync_config")
+    
+    products = []
+    if source == "gsheet":
+        products = search_live_gsheet([], config.get("url")) # Fetch all
+    elif source == "supabase":
+        products = search_live_external_supabase([], config)
+    
+    if products:
+        delete_store_products(store_id)
+        # Add store_id to each product before bulk upload
+        for p in products: p["store_id"] = store_id
+        upload_products_bulk(products, store_id)
+        print(f"[+] Synced {len(products)} items for store {store_id}")
+
+async def background_sync_scheduler():
+    """Loops every 5 minutes to sync all remote stores."""
+    from agent.supabase_db import get_supabase_url, get_headers
+    import requests
+    
+    while True:
+        try:
+            # Get all stores that are NOT local
+            url = f"{get_supabase_url()}/rest/v1/stores?sync_source=neq.local&select=id"
+            res = requests.get(url, headers=get_headers())
+            if res.status_code == 200:
+                stores = res.json()
+                for s in stores:
+                    await perform_single_store_sync(s["id"])
+        except Exception as e:
+            print(f"[!] Sync Scheduler Error: {e}")
+        
+        await asyncio.sleep(300) # 5 Minutes
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(background_sync_scheduler())
 
 @app.get("/")
 async def root_redirect():

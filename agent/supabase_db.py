@@ -29,47 +29,30 @@ def get_store_config(instance_name: str) -> dict | None:
 
 def search_products(keywords: list, store_id: str = None) -> list:
     """
-    Intelligent Hybrid Search:
-    Decides whether to search locally or fetch live data (Google Sheets / External Supabase)
-    based on the store's sync_source setting.
+    Search only the local products table (since remote data is synced here every 5 mins).
     """
-    if not store_id:
+    if not store_id or not get_supabase_url():
         return []
 
-    # 1. Fetch Store Sync Configuration
-    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=sync_source,sync_config"
-    try:
-        res = requests.get(url, headers=get_headers())
-        store_settings = res.json()[0] if res.status_code == 200 and res.json() else {}
-    except:
-        store_settings = {"sync_source": "local"}
-
-    source = store_settings.get("sync_source", "local")
-    config = store_settings.get("sync_config", {})
-
-    # --- CASE A: LIVE GOOGLE SHEETS SEARCH ---
-    if source == "gsheet" and config.get("url"):
-        return search_live_gsheet(keywords, config.get("url"))
-
-    # --- CASE B: LIVE EXTERNAL SUPABASE SEARCH ---
-    elif source == "supabase" and config.get("sb_url"):
-        return search_live_external_supabase(keywords, config)
-
-    # --- CASE C: LOCAL DATABASE SEARCH (DEFAULT) ---
+    base_filter = f"store_id=eq.{store_id}"
+    if not keywords:
+        query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&limit=10"
     else:
-        base_filter = f"store_id=eq.{store_id}"
-        if not keywords:
-            query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&limit=10"
-        else:
-            filter_parts = [f"name.ilike.%{kw.strip()}%" for kw in keywords if kw.strip()]
-            or_filter = ",".join(filter_parts)
-            query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&or=({or_filter})&limit=10"
-        
-        try:
-            response = requests.get(query_url, headers=get_headers(), timeout=10)
-            return response.json() if response.status_code == 200 else []
-        except:
-            return []
+        # Search across the name and within the JSON details if possible
+        filter_parts = [f"name.ilike.%{kw.strip()}%" for kw in keywords if kw.strip()]
+        or_filter = ",".join(filter_parts)
+        query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&or=({or_filter})&limit=10"
+    
+    try:
+        response = requests.get(query_url, headers=get_headers(), timeout=10)
+        return response.json() if response.status_code == 200 else []
+    except:
+        return []
+
+def delete_store_products(store_id: str):
+    """Deletes all products associated with a specific store to allow for a clean re-upload."""
+    url = f"{get_supabase_url()}/rest/v1/products?store_id=eq.{store_id}"
+    requests.delete(url, headers=get_headers())
 
 def search_live_gsheet(keywords: list, sheet_url: str) -> list:
     """Fetches CSV from Google Sheets and filters in-memory (Live Sync)."""
