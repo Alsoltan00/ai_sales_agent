@@ -102,39 +102,41 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
         json_str = df.to_json(orient="records", force_ascii=False)
         raw_products_list = json.loads(json_str)
         
-        # AUTOMATIC EXCEL TO DATABASE MAPPING:
-        # Arabic Mapping logic
-        column_mapping = {
-            'اسم الصنف': 'name',
-            'العبوه': 'package',
-            'الواحدات': 'unit',
-            'باركود': 'barcode',
-            'سعر المستهلك': 'price',
-            'الكمية': 'stock'
-        }
+        # SMART SCHEMA-LESS MAPPING:
+        # We take the first column as the 'name' and everything else goes into 'details'
         products_list = []
-        for row in raw_products_list:
-            clean_row = {}
-            for arabic_key, db_key in column_mapping.items():
-                val = row.get(arabic_key)
-                if val is not None:
-                    clean_row[db_key] = val
+        cols = df.columns.tolist()
+        
+        # Try to find a 'name' column, otherwise use the first one
+        name_col = next((c for c in cols if 'اسم' in str(c) or 'name' in str(c).lower()), cols[0])
+        
+        for _, row in df.iterrows():
+            # Convert row to dict and handle NaN values
+            row_dict = row.to_dict()
+            clean_name = str(row_dict.get(name_col, "")).strip()
             
-            if clean_row.get("name"):
-                products_list.append(clean_row)
+            if clean_name and clean_name != "nan":
+                # Create the details object from all other columns
+                details = {str(k): v for k, v in row_dict.items() if k != name_col and pd.notna(v)}
+                
+                products_list.append({
+                    "name": clean_name,
+                    "details": details,
+                    "store_id": store_id
+                })
         
         if not products_list:
-            return {"status": "error", "message": "لم يتم العثور على أي منتجات صالحة. تأكد أن الإكسيل يحتوي على عمود 'اسم الصنف'."}
+            return {"status": "error", "message": "لم يتم العثور على بيانات صالحة في الملف."}
             
-        # Send mapped rows directly to Supabase with store_id
+        # Bulk upload to Supabase
         success, msg = upload_products_bulk(products_list, store_id)
         
         if success:
-            return {"status": "تم رفع المنتجات والأعمدة بنجاح!", "count": len(products_list)}
+            return {"status": "تم رفع البيانات بذكاء وتلقائية!", "count": len(products_list)}
         else:
             return {"status": "error", "message": msg}
     except Exception as e:
-        return {"status": "خطأ برمجي", "message": str(e)}
+        return {"status": "error", "message": f"حدث خطأ أثناء معالجة الملف: {str(e)}"}
 
 @app.get("/")
 async def root_redirect():
