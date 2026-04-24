@@ -101,8 +101,8 @@ def search_live_external_supabase(keywords: list, config: dict) -> list:
     except: pass
     return []
 
-def fetch_live_mysql(config: dict) -> list:
-    """Connects to external MySQL and fetches all data for sync."""
+def fetch_live_mysql(config: dict) -> tuple:
+    """Connects to external MySQL and fetches all data. Returns (list, error_msg)."""
     import mysql.connector
     try:
         conn = mysql.connector.connect(
@@ -110,7 +110,7 @@ def fetch_live_mysql(config: dict) -> list:
             user=config.get("user"),
             password=config.get("password"),
             database=config.get("db_name"),
-            timeout=10
+            connect_timeout=10
         )
         cursor = conn.cursor(dictionary=True)
         table = config.get("table_name")
@@ -127,10 +127,13 @@ def fetch_live_mysql(config: dict) -> list:
             
         cursor.close()
         conn.close()
-        return results
+        if not results:
+            return [], "الجدول موجود ولكن لا يحتوي على بيانات أو لم نتمكن من قراءتها."
+        return results, None
+    except mysql.connector.Error as err:
+        return [], f"خطأ MySQL: {err.msg}"
     except Exception as e:
-        print(f"[!] MySQL Fetch Error: {e}")
-        return []
+        return [], f"خطأ في الاتصال: {str(e)}"
 
 def check_authorized_number(phone: str, store_id: str = None) -> bool:
     """Checks if a number exists in the authorized_numbers table, scoped by store_id."""

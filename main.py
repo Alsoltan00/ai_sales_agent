@@ -219,8 +219,10 @@ async def perform_single_store_sync(store_id: str):
             products = search_live_external_supabase([], config)
             if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
         elif source == "mysql":
-            products = fetch_live_mysql(config)
-            if not products: error_msg = "فشل الاتصال بـ MySQL (تأكد من الـ Host والـ Firewall)"
+            # fetch_live_mysql now returns (data, error)
+            products, mysql_err = fetch_live_mysql(config)
+            if mysql_err: error_msg = mysql_err
+            elif not products: error_msg = "لا توجد بيانات في جدول MySQL المختار"
     except Exception as e:
         error_msg = str(e)
     
