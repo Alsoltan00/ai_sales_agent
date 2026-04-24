@@ -148,80 +148,89 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
     """
-    Sets store to Google Sheet, CLEARS local data, and syncs immediately.
+    Sets store to Google Sheet and triggers immediate sync with validation.
     """
     url = payload.get("url", "")
     if not url: return {"status": "error", "message": "الرابط مطلوب"}
     
     try:
-        # 1. Clear old data immediately
-        delete_store_products(store_id)
-        # 2. Set new sync source
         update_store_sync_db(store_id, "gsheet", {"url": url})
-        # 3. Pull data immediately (don't wait for scheduler)
-        await perform_single_store_sync(store_id)
-        return {"status": "success", "message": "تم مسح البيانات القديمة ومزامنة جوجل شيت بنجاح!"}
+        success, msg, count = await perform_single_store_sync(store_id)
+        if success:
+            return {"status": "success", "message": f"تمت المزامنة بنجاح! تم سحب {count} من البيانات."}
+        else:
+            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
     """
-    Sets store to External Supabase, CLEARS local data, and syncs immediately.
+    Sets store to External Supabase and triggers immediate sync with validation.
     """
     try:
-        delete_store_products(store_id)
         update_store_sync_db(store_id, "supabase", payload)
-        await perform_single_store_sync(store_id)
-        return {"status": "success", "message": "تم مسح البيانات القديمة وربط سوبر بيس الخارجي بنجاح!"}
+        success, msg, count = await perform_single_store_sync(store_id)
+        if success:
+            return {"status": "success", "message": f"تم الربط بنجاح! تم سحب {count} من البيانات."}
+        else:
+            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/mysql/{store_id}")
 async def sync_mysql(store_id: str, payload: dict):
     """
-    Sets store to External MySQL, CLEARS local data, and syncs immediately.
+    Sets store to External MySQL and triggers immediate sync with validation.
     """
     try:
-        # 1. Clear old data immediately
-        delete_store_products(store_id)
-        # 2. Set new sync source
         update_store_sync_db(store_id, "mysql", payload)
-        # 3. Pull data immediately
-        await perform_single_store_sync(store_id)
-        return {"status": "success", "message": "تم مسح البيانات القديمة وربط قاعدة MySQL بنجاح!"}
+        success, msg, count = await perform_single_store_sync(store_id)
+        if success:
+            return {"status": "success", "message": f"تم ربط MySQL بنجاح! تم سحب {count} من البيانات."}
+        else:
+            return {"status": "error", "message": f"فشلت المزامنة: {msg}"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 # --- BACKGROUND SYNC LOGIC ---
 
 async def perform_single_store_sync(store_id: str):
-    """Fetches remote data and replaces local data for one store."""
+    """Fetches remote data and replaces local data. Returns (success, msg, count)."""
     from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase, fetch_live_mysql
     import requests
     
     # 1. Get Store Config
     res = requests.get(f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=*", headers=get_headers())
-    if res.status_code != 200 or not res.json(): return
-    store = res.json()[0]
+    if res.status_code != 200 or not res.json(): 
+        return False, "لم يتم العثور على إعدادات المتجر", 0
     
+    store = res.json()[0]
     source = store.get("sync_source")
     config = store.get("sync_config")
     
     products = []
-    if source == "gsheet":
-        products = search_live_gsheet([], config.get("url")) 
-    elif source == "supabase":
-        products = search_live_external_supabase([], config)
-    elif source == "mysql":
-        products = fetch_live_mysql(config)
+    error_msg = ""
+    try:
+        if source == "gsheet":
+            products = search_live_gsheet([], config.get("url"))
+            if not products: error_msg = "لم يتم العثور على بيانات في الرابط أو الرابط غير صالح"
+        elif source == "supabase":
+            products = search_live_external_supabase([], config)
+            if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
+        elif source == "mysql":
+            products = fetch_live_mysql(config)
+            if not products: error_msg = "فشل الاتصال بـ MySQL (تأكد من الـ Host والـ Firewall)"
+    except Exception as e:
+        error_msg = str(e)
     
     if products:
         delete_store_products(store_id)
-        # Add store_id to each product before bulk upload
         for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
-        print(f"[+] Synced {len(products)} items for store {store_id} from {source}")
+        return True, "Success", len(products)
+    else:
+        return False, error_msg or "لا توجد بيانات لسحبها", 0
 
 async def background_sync_scheduler():
     """Loops every 5 minutes to sync all remote stores."""
