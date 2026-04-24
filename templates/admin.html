@@ -211,6 +211,11 @@
                 <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
                     <div class="card-header"><i class="fa-solid fa-bridge" style="color:#f59e0b"></i> API Bridge</div>
                     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">تخطي الحماية (عبر ملف PHP على موقعك).</p>
+                    <div style="margin-bottom: 15px;">
+                        <a href="/admin/download/bridge" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 0.8rem; border-color: #f59e0b; color: #f59e0b;">
+                            <i class="fa-solid fa-download"></i> تحميل ملف الجسر أولاً
+                        </a>
+                    </div>
                     <form onsubmit="syncBridge(event)">
                         <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/sync.php" style="margin-bottom: 10px; font-size: 0.75rem;" required>
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>

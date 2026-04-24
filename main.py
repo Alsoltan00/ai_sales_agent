@@ -277,6 +277,16 @@ async def background_sync_scheduler():
 async def startup_event():
     asyncio.create_task(background_sync_scheduler())
 
+@app.get("/admin/download/bridge")
+async def download_bridge_file():
+    """Allows the user to download the mysql_bridge.php file directly from the UI."""
+    from fastapi.responses import FileResponse
+    import os
+    file_path = "mysql_bridge.php"
+    if os.path.exists(file_path):
+        return FileResponse(file_path, filename="mysql_bridge.php")
+    raise HTTPException(status_code=404, detail="File not found")
+
 @app.get("/")
 async def root_redirect():
     return RedirectResponse(url="/admin")
