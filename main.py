@@ -141,72 +141,30 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
     """
-    Syncs data from a public Google Sheet URL.
+    Sets the store to use a Live Google Sheet for its data.
     """
-    import pandas as pd
-    import re
-    
+    from agent.supabase_db import update_store_sync_db
     url = payload.get("url", "")
-    # Extract Spreadsheet ID using regex
-    match = re.search(r"/d/([a-zA-Z0-9-_]+)", url)
-    if not match:
-        return {"status": "error", "message": "رابط جوجل شيت غير صالح!"}
-    
-    sheet_id = match.group(1)
-    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv"
+    if not url: return {"status": "error", "message": "الرابط مطلوب"}
     
     try:
-        df = pd.read_csv(csv_url)
-        # Use same logic as upload_file
-        products_list = []
-        cols = df.columns.tolist()
-        name_col = next((c for c in cols if 'اسم' in str(c) or 'name' in str(c).lower()), cols[0])
-        
-        for _, row in df.iterrows():
-            row_dict = row.to_dict()
-            clean_name = str(row_dict.get(name_col, "")).strip()
-            if clean_name and clean_name != "nan":
-                details = {str(k): v for k, v in row_dict.items() if k != name_col and pd.notna(v)}
-                products_list.append({"name": clean_name, "details": details, "store_id": store_id})
-        
-        success, msg = upload_products_bulk(products_list, store_id)
-        return {"status": "success", "count": len(products_list)} if success else {"status": "error", "message": msg}
+        # We don't import data here, we just save the link for Live Sync
+        update_store_sync_db(store_id, "gsheet", {"url": url})
+        return {"status": "success", "message": "تم تفعيل المزامنة الحية من جوجل شيت بنجاح!"}
     except Exception as e:
-        return {"status": "error", "message": f"فشل سحب البيانات: {str(e)}"}
+        return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
     """
-    Syncs data from an external Supabase instance.
+    Sets the store to use an External Supabase for its data (Live Sync).
     """
-    import requests
-    sb_url = payload.get("sb_url", "").strip("/")
-    sb_key = payload.get("sb_key", "")
-    sb_table = payload.get("sb_table", "")
-    
-    ext_url = f"{sb_url}/rest/v1/{sb_table}?select=*"
-    headers = {"apikey": sb_key, "Authorization": f"Bearer {sb_key}"}
-    
+    from agent.supabase_db import update_store_sync_db
     try:
-        res = requests.get(ext_url, headers=headers)
-        res.raise_for_status()
-        ext_data = res.json()
-        
-        products_list = []
-        for item in ext_data:
-            # Try to find a name-like key
-            keys = list(item.keys())
-            name_key = next((k for k in keys if 'name' in k.lower() or 'اسم' in k), keys[0])
-            name_val = str(item.get(name_key, ""))
-            
-            if name_val:
-                details = {k: v for k, v in item.items() if k != name_key}
-                products_list.append({"name": name_val, "details": details, "store_id": store_id})
-        
-        success, msg = upload_products_bulk(products_list, store_id)
-        return {"status": "success", "count": len(products_list)} if success else {"status": "error", "message": msg}
+        update_store_sync_db(store_id, "supabase", payload)
+        return {"status": "success", "message": "تم ربط سوبر بيس الخارجي بنجاح!"}
     except Exception as e:
-        return {"status": "error", "message": f"فشل الاتصال بسوبر بيس الخارجي: {str(e)}"}
+        return {"status": "error", "message": str(e)}
 
 @app.get("/")
 async def root_redirect():

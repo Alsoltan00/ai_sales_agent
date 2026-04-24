@@ -29,35 +29,94 @@ def get_store_config(instance_name: str) -> dict | None:
 
 def search_products(keywords: list, store_id: str = None) -> list:
     """
-    Upgraded: Searches the 'products' table for matches across multiple keywords, 
-    scoped to a specific store_id.
+    Intelligent Hybrid Search:
+    Decides whether to search locally or fetch live data (Google Sheets / External Supabase)
+    based on the store's sync_source setting.
     """
-    if not get_supabase_url():
+    if not store_id:
         return []
 
-    base_filter = ""
-    if store_id:
-        base_filter = f"store_id=eq.{store_id}"
+    # 1. Fetch Store Sync Configuration
+    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=sync_source,sync_config"
+    try:
+        res = requests.get(url, headers=get_headers())
+        store_settings = res.json()[0] if res.status_code == 200 and res.json() else {}
+    except:
+        store_settings = {"sync_source": "local"}
 
-    if not keywords:
-        url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&limit=10"
+    source = store_settings.get("sync_source", "local")
+    config = store_settings.get("sync_config", {})
+
+    # --- CASE A: LIVE GOOGLE SHEETS SEARCH ---
+    if source == "gsheet" and config.get("url"):
+        return search_live_gsheet(keywords, config.get("url"))
+
+    # --- CASE B: LIVE EXTERNAL SUPABASE SEARCH ---
+    elif source == "supabase" and config.get("sb_url"):
+        return search_live_external_supabase(keywords, config)
+
+    # --- CASE C: LOCAL DATABASE SEARCH (DEFAULT) ---
     else:
-        filter_parts = []
-        for kw in keywords:
-            kw_clean = kw.strip()
-            if kw_clean:
-                filter_parts.append(f"name.ilike.%{kw_clean}%,barcode.ilike.%{kw_clean}%,unit.ilike.%{kw_clean}%,package.ilike.%{kw_clean}%")
+        base_filter = f"store_id=eq.{store_id}"
+        if not keywords:
+            query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&limit=10"
+        else:
+            filter_parts = [f"name.ilike.%{kw.strip()}%" for kw in keywords if kw.strip()]
+            or_filter = ",".join(filter_parts)
+            query_url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&or=({or_filter})&limit=10"
         
-        or_filter = ",".join(filter_parts)
-        url = f"{get_supabase_url()}/rest/v1/products?{base_filter}&or=({or_filter})&limit=10"
+        try:
+            response = requests.get(query_url, headers=get_headers(), timeout=10)
+            return response.json() if response.status_code == 200 else []
+        except:
+            return []
+
+def search_live_gsheet(keywords: list, sheet_url: str) -> list:
+    """Fetches CSV from Google Sheets and filters in-memory (Live Sync)."""
+    import pandas as pd
+    import re
+    try:
+        match = re.search(r"/d/([a-zA-Z0-9-_]+)", sheet_url)
+        if not match: return []
+        csv_url = f"https://docs.google.com/spreadsheets/d/{match.group(1)}/export?format=csv"
+        df = pd.read_csv(csv_url)
+        
+        # Simple in-memory filtering
+        if keywords:
+            pattern = '|'.join([re.escape(k) for k in keywords])
+            # Search in the first column (usually Name)
+            df = df[df.iloc[:, 0].str.contains(pattern, case=False, na=False)]
+        
+        # Convert to our schema-less format for the LLM
+        results = []
+        for _, row in df.head(10).iterrows():
+            row_dict = row.to_dict()
+            name_val = str(row_dict.get(df.columns[0], ""))
+            details = {str(k): v for k, v in row_dict.items() if k != df.columns[0] and pd.notna(v)}
+            results.append({"name": name_val, "details": details})
+        return results
+    except: return []
+
+def search_live_external_supabase(keywords: list, config: dict) -> list:
+    """Queries an external Supabase REST API directly (Live Sync)."""
+    sb_url = config.get("sb_url", "").strip("/")
+    sb_key = config.get("sb_key")
+    sb_table = config.get("sb_table")
+    
+    # Construct external query
+    ext_url = f"{sb_url}/rest/v1/{sb_table}?select=*"
+    if keywords:
+        # Try to find a name-like column on the fly or just use 'name'
+        ext_url += f"&name.ilike.%{keywords[0]}%" # Assumption for simplicity, can be improved
     
     try:
-        response = requests.get(url, headers=get_headers(), timeout=15)
-        response.raise_for_status()
-        return response.json()
-    except Exception as e:
-        print(f"[!] Supabase Search Error: {e}")
-        return []
+        res = requests.get(ext_url, headers={"apikey": sb_key, "Authorization": f"Bearer {sb_key}"}, timeout=10)
+        if res.status_code == 200:
+            data = res.json()
+            # Map to our standard format
+            return [{"name": item.get("name", "Item"), "details": item} for item in data[:10]]
+    except: pass
+    return []
 
 def check_authorized_number(phone: str, store_id: str = None) -> bool:
     """Checks if a number exists in the authorized_numbers table, scoped by store_id."""
@@ -99,6 +158,15 @@ def create_store_db(store_data: dict):
     """Creates a new store entry in Supabase."""
     url = f"{get_supabase_url()}/rest/v1/stores"
     requests.post(url, headers=get_headers(), json=store_data)
+
+def update_store_sync_db(store_id: str, sync_source: str, sync_config: dict):
+    """Updates the sync settings for a specific store (Live Sync)."""
+    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}"
+    payload = {
+        "sync_source": sync_source,
+        "sync_config": sync_config
+    }
+    requests.patch(url, headers=get_headers(), json=payload)
 
 def delete_authorized_number_db(phone: str):
     """Removes a phone number from the authorized_numbers."""
