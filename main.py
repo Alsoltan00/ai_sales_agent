@@ -299,8 +299,10 @@ async def download_bridge_file(host: str = "", user: str = "", password: str = "
     
     php_template = f"""<?php
 /**
- * AI Sales Agent - Smart Bridge (Push Mode)
- * This file allows you to PUSH data to the platform to bypass hosting firewalls.
+ * AI Sales Agent - Silent Smart Bridge
+ * ------------------------------------
+ * To enable AUTOMATIC sync, add this line to your index.html:
+ * <img src="ai-sales.php?push=1&silent=1" style="display:none;">
  */
 
 $db_host = "{host}"; 
@@ -308,14 +310,12 @@ $db_user = "{user}";
 $db_pass = "{password}";
 $db_name = "{db}";
 $table_name = "{table}";
-$store_id = "{store_id}"; // Dynamic store ID
+$store_id = "{store_id}";
 $platform_url = "https://ai-sales-agent-dreu.onrender.com/admin/api/sync/push/$store_id";
 
 if (isset($_GET['push'])) {{
     $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-    if ($conn->connect_error) {{
-        die("خطأ في الاتصال بالقاعدة: " . $conn->connect_error);
-    }}
+    if ($conn->connect_error) {{ die("Error"); }}
     $conn->set_charset("utf8mb4");
     $result = $conn->query("SELECT * FROM $table_name LIMIT 1000");
     $products = [];
@@ -329,35 +329,37 @@ if (isset($_GET['push'])) {{
     }}
     $conn->close();
 
-    // Push to Platform via CURL
     $ch = curl_init($platform_url);
-    $payload = json_encode(["products" => $products]);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(["products" => $products]));
     curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     $response = curl_exec($ch);
     curl_close($ch);
     
-    die("<h1>✅ تمت المزامنة!</h1><p>الرد من المنصة: $response</p><a href='?'>العودة</a>");
+    if (isset($_GET['silent'])) {{
+        header("Content-Type: image/png");
+        echo base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
+        exit;
+    }}
+    die("<h1>✅ Sync Success!</h1><p>$response</p>");
 }}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>مزامنة البيانات - AI Sales Agent</title>
+    <title>AI Sync Bridge</title>
     <style>
-        body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; margin: 0; }}
-        .card {{ background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }}
-        .btn {{ background: #f59e0b; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; text-decoration: none; display: inline-block; }}
-        .btn:hover {{ background: #d97706; }}
+        body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f8fafc; }}
+        .card {{ background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; border: 1px solid #e2e8f0; }}
+        .btn {{ background: #f59e0b; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; font-weight: bold; }}
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>جسر المزامنة الذكي 🚀</h2>
-        <p>اضغط على الزر أدناه لإرسال بياناتك (MySQL) إلى منصة الذكاء الاصطناعي فوراً.</p>
-        <a href="?push=1" class="btn">إرسال البيانات للمنصة الآن</a>
+        <h2>جسر المزامنة التلقائي 🤖</h2>
+        <p>الملف جاهز للعمل. للمزامنة المستمرة، اتبع التعليمات في الكود.</p>
+        <a href="?push=1" class="btn">تحديث البيانات الآن يدوياً</a>
     </div>
 </body>
 </html>
