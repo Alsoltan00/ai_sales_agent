@@ -410,13 +410,14 @@
         }
 
         function downloadSmartBridge() {
+            const storeId = document.getElementById('storeSelector').value;
             const host = document.getElementById('b_host').value;
             const user = document.getElementById('b_user').value;
             const pass = document.getElementById('b_pass').value;
             const db = document.getElementById('b_db').value;
             const table = document.getElementById('b_table').value;
             
-            const url = `/admin/download/bridge?host=${encodeURIComponent(host)}&user=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&db=${encodeURIComponent(db)}&table=${encodeURIComponent(table)}`;
+            const url = `/admin/download/bridge?store_id=${storeId}&host=${encodeURIComponent(host)}&user=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&db=${encodeURIComponent(db)}&table=${encodeURIComponent(table)}`;
             window.location.href = url;
         }
 
