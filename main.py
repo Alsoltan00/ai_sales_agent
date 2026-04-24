@@ -308,7 +308,7 @@ $conn->close();
     return Response(
         content=php_template,
         media_type="application/x-httpd-php",
-        headers={"Content-Disposition": "attachment; filename=mysql_bridge.php"}
+        headers={"Content-Disposition": "attachment; filename=ai-sales.php"}
     )
 
 @app.get("/")

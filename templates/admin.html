@@ -222,8 +222,8 @@
                         </button>
                     </div>
                     <form onsubmit="syncBridge(event)">
-                        <label class="label" style="font-size: 0.75rem;">رابط الملف بعد الرفع:</label>
-                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/mysql_bridge.php" style="margin-bottom: 10px; font-size: 0.75rem;" required>
+                        <label class="label" style="font-size: 0.75rem;">رابط الموقع (سيتم إضافة /ai-sales.php تلقائياً):</label>
+                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/" style="margin-bottom: 10px; font-size: 0.75rem;" required>
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>
                     </form>
                 </div>
@@ -385,7 +385,14 @@
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
             const formData = new FormData(e.target);
-            const body = Object.fromEntries(formData.entries());
+            let bridgeUrl = formData.get('bridge_url');
+            
+            // Auto-append filename if only domain is provided
+            if (!bridgeUrl.endsWith('.php')) {
+                if (!bridgeUrl.endsWith('/')) bridgeUrl += '/';
+                bridgeUrl += 'ai-sales.php';
+            }
+
             const btn = document.getElementById('bridgesyncBtn');
             btn.disabled = true; btn.innerText = 'جاري تجاوز الحماية...';
 
@@ -393,7 +400,7 @@
                 const res = await fetch(`/admin/sync/bridge/${storeId}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
+                    body: JSON.stringify({ bridge_url: bridgeUrl })
                 });
                 const data = await res.json();
                 if (data.status === 'success') showToast(data.message);
