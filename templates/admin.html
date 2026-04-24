@@ -3,662 +3,306 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Evolution Sales AI - Admin Panel</title>
-    <!-- Google Fonts for modern typography like N8N -->
+    <title>AI Sales Platform - Admin</title>
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary-bg: #f4f6f8; /* N8N light gray background */
-            --sidebar-bg: #ffffff;
-            --brand-color: #ff6d5a; /* N8N Coral/Orange */
-            --brand-hover: #e05e4d;
-            --text-main: #222b35;
-            --text-muted: #556270;
-            --border-color: #e2e8f0;
-            --card-bg: #ffffff;
-            --success: #22c55e;
-            --error: #ef4444;
-            --radius-md: 8px;
-            --radius-lg: 12px;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
-            --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+            --bg-body: #f8fafc;
+            --bg-sidebar: #1e293b;
+            --bg-card: #ffffff;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --radius: 12px;
         }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Tajawal', sans-serif;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+        body { background: var(--bg-body); color: var(--text-main); display: flex; min-height: 100vh; }
 
-        body {
-            background-color: var(--primary-bg);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        /* Sidebar styling */
-        .sidebar {
-            width: 260px;
-            background-color: var(--sidebar-bg);
-            border-left: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .sidebar-header {
-            padding: 24px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: var(--brand-color);
-        }
-
-        .nav-items {
-            padding: 16px 0;
-            flex: 1;
-        }
-
-        .nav-item {
-            padding: 12px 24px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: var(--text-muted);
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 500;
-        }
-
-        .nav-item:hover {
-            background-color: var(--primary-bg);
-            color: var(--text-main);
-        }
-
-        .nav-item.active {
-            color: var(--brand-color);
-            background-color: rgba(255, 109, 90, 0.08);
-            border-right: 4px solid var(--brand-color);
-            padding-right: 20px;
-        }
-
-        .nav-item i {
-            font-size: 1.1rem;
-            width: 24px;
-            text-align: center;
-        }
+        /* Sidebar */
+        .sidebar { width: 280px; background: var(--bg-sidebar); color: white; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; color: #60a5fa; }
+        .nav-section { padding: 20px 0; }
+        .nav-label { padding: 0 25px 10px; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
+        .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; color: #cbd5e1; }
+        .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
+        .nav-item.active { background: var(--primary); color: white; border-left: 4px solid #fff; }
 
         /* Main Content */
-        .main-content {
-            flex: 1;
-            padding: 32px;
-            max-width: 1000px;
-        }
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        .header-box { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
+        .store-selector { background: white; border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-weight: 600; outline: none; }
 
-        .page-header {
-            margin-bottom: 32px;
-        }
-
-        .page-header h1 {
-            font-size: 1.75rem;
-            margin-bottom: 8px;
-            color: var(--text-main);
-        }
-
-        .page-header p {
-            color: var(--text-muted);
-        }
-
-        .tab-content {
-            display: none;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Card and Form styling */
-        .card {
-            background: var(--card-bg);
-            border-radius: var(--radius-lg);
-            padding: 24px;
-            box-shadow: var(--shadow-md);
-            margin-bottom: 24px;
-            border: 1px solid var(--border-color);
-        }
-
-        .card-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-
-        div.form-desc {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 8px;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            font-family: monospace;
-            background-color: var(--primary-bg);
-            transition: border-color 0.2s, box-shadow 0.2s;
-            direction: ltr; /* English keys and URLs are LTR */
-            text-align: left;
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--brand-color);
-            box-shadow: 0 0 0 3px rgba(255, 109, 90, 0.2);
-            background-color: #fff;
-        }
-
-        .btn {
-            padding: 12px 24px;
-            border: none;
-            border-radius: var(--radius-md);
-            font-size: 1rem;
-            font-weight: 700;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-primary {
-            background-color: var(--brand-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--brand-hover);
-        }
+        /* Cards */
+        .card { background: var(--bg-card); border-radius: var(--radius); padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 30px; border: 1px solid var(--border); }
+        .card-header { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 15px; }
         
-        .btn-secondary {
-            background-color: var(--primary-bg);
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-        }
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+        .label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+        .input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
+        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .textarea { min-height: 120px; resize: vertical; }
 
-        .btn-secondary:hover {
-            background-color: #e2e8f0;
-        }
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); }
+        .btn-outline:hover { background: #f1f5f9; }
 
-        .file-upload-wrapper {
-            position: relative;
-            margin-bottom: 20px;
-        }
+        /* Tables & Lists */
+        .data-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); }
+        .data-row:last-child { border-bottom: none; }
 
-        .file-upload-input {
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            cursor: pointer;
-        }
+        /* Tabs */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
 
-        .file-upload-box {
-            border: 2px dashed var(--border-color);
-            border-radius: var(--radius-lg);
-            padding: 40px;
-            text-align: center;
-            background-color: var(--primary-bg);
-            transition: all 0.2s;
-        }
-
-        .file-upload-input:hover + .file-upload-box {
-            border-color: var(--brand-color);
-            background-color: rgba(255, 109, 90, 0.05);
-        }
-
-        .file-icon {
-            font-size: 2.5rem;
-            color: var(--brand-color);
-            margin-bottom: 12px;
-        }
-
-        /* Notifications */
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            left: 24px; /* Since RTL, show on left */
-            padding: 16px 24px;
-            background: white;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-md);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transform: translateY(100px);
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-            z-index: 1000;
-        }
-
-        .toast.show {
-            transform: translateY(0);
-            opacity: 1;
-        }
-
-        .toast.success i { color: var(--success); }
-        .toast.error i { color: var(--error); }
-        
-        .alert-warning {
-            background-color: #fffbeb;
-            color: #b45309;
-            border: 1px solid #fcd34d;
-            padding: 12px;
-            border-radius: var(--radius-md);
-            margin-bottom: 24px;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: start;
-            gap: 10px;
-        }
+        /* Toast */
+        .toast { position: fixed; bottom: 30px; left: 30px; padding: 15px 25px; border-radius: 8px; color: white; font-weight: 700; transform: translateY(100px); transition: 0.3s; z-index: 1000; }
+        .toast.show { transform: translateY(0); }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
     </style>
 </head>
 <body>
 
-    <!-- Sidebar navigation -->
     <div class="sidebar">
         <div class="sidebar-header">
-            <i class="fa-solid fa-robot"></i>
-            Evolution AI
+            <i class="fa-solid fa-layer-group"></i>
+            منصة الذكاء الاصطناعي
         </div>
-        <div class="nav-items">
-            <div class="nav-item active" onclick="switchTab('settings', this)">
-                <i class="fa-solid fa-sliders"></i> System Settings (الرموز)
+        
+        <div class="nav-section">
+            <div class="nav-label">التحكم العام</div>
+            <div class="nav-item active" onclick="showTab('stores', this)">
+                <i class="fa-solid fa-store"></i> إدارة المتاجر
             </div>
-            <div class="nav-item" onclick="switchTab('database', this)">
-                <i class="fa-solid fa-database"></i> Database Connections
+            <div class="nav-item" onclick="showTab('products', this)">
+                <i class="fa-solid fa-box"></i> إدارة المنتجات
             </div>
-            <div class="nav-item" onclick="switchTab('products', this)">
-                <i class="fa-solid fa-file-excel"></i> Manage Products (رفع المنتجات)
+            <div class="nav-item" onclick="showTab('users', this)">
+                <i class="fa-solid fa-users"></i> الأرقام المصرحة
             </div>
-            <div class="nav-item" onclick="switchTab('numbers', this)">
-                <i class="fa-solid fa-phone"></i> Authorized Numbers
+            <div class="nav-item" onclick="showTab('settings', this)">
+                <i class="fa-solid fa-gears"></i> الإعدادات الرئيسية
             </div>
         </div>
     </div>
 
-    <!-- Main Workspace -->
     <div class="main-content">
-        
-        <!-- Settings Tab -->
-        <div id="settings-tab" class="tab-content active">
-            <div class="page-header">
-                <h1>System Settings</h1>
-                <p>Manage the dynamic keys and API parameters for the AI sales agent.</p>
+        <div class="header-box">
+            <h2 id="page-title">إدارة المتاجر والأنشطة</h2>
+            <div>
+                <span style="font-size: 0.9rem; color: var(--text-muted); margin-left: 10px;">المتجر الحالي:</span>
+                <select class="store-selector" id="storeSelector" onchange="onStoreChange()">
+                    {% for store in stores %}
+                    <option value="{{ store.id }}" data-instance="{{ store.evolution_instance_name }}">{{ store.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
-            
-            <div class="alert-warning">
-                <i class="fa-solid fa-triangle-exclamation" style="margin-top: 3px;"></i>
-                <div>
-                    <strong>Important Render Note:</strong> Changes made here will apply instantly to the running server.
-                    However, if your server recycles or redeploys, these local configurations will be wiped. To make them permanent, copy these values into your Render Dashboard's "Environment" tab.
-                </div>
-            </div>
-
-            <form id="settingsForm" onsubmit="saveConfiguration(event)">
-                <!-- AI Variables -->
-                <div class="card">
-                    <div class="card-title"><i class="fa-solid fa-brain" style="color:var(--brand-color)"></i> Artificial Intelligence (Groq)</div>
-                    <div class="form-group">
-                        <label class="form-label">GROQ API KEY</label>
-                        <div class="form-desc">Provide your secret gsk_ key used for fast LLM inference.</div>
-                        <input type="password" class="form-control" name="GROQ_API_KEY" value="{{ groq_key }}" placeholder="gsk_...">
-                    </div>
-                </div>
-
-                <!-- Evolution Webhook Variables -->
-                <div class="card">
-                    <div class="card-title"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i> Evolution API Integration</div>
-                    <div class="form-group">
-                        <label class="form-label">EVOLUTION API URL</label>
-                        <input type="text" class="form-control" name="EVOLUTION_API_URL" value="{{ evolution_url }}" placeholder="https://your-evolution-api.render.com">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">EVOLUTION API KEY (Global API Key)</label>
-                        <input type="password" class="form-control" name="EVOLUTION_API_KEY" value="{{ evolution_key }}" placeholder="Apikey...">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">EVOLUTION INSTANCE NAME</label>
-                        <div class="form-desc">The specific WhatsApp instance ID configured in Evolution.</div>
-                        <input type="text" class="form-control" name="EVOLUTION_INSTANCE_NAME" value="{{ evolution_instance }}" placeholder="asil-phone">
-                    </div>
-                </div>
-
-                <div style="text-align: left; /* Using RTL so left is actually the physical left (end of content) */ direction: rtl;">
-                    <button type="submit" class="btn btn-primary" id="saveBtn">
-                        <i class="fa-solid fa-check"></i> Save Details
-                    </button>
-                </div>
-            </form>
         </div>
 
-        <!-- Database Tab -->
-        <div id="database-tab" class="tab-content">
-            <div class="page-header">
-                <h1>Database Connections</h1>
-                <p>Link your Supabase project for inventory and products state.</p>
-            </div>
-            
-            <form id="dbForm" onsubmit="saveConfiguration(event)">
-                <div class="card">
-                    <div class="card-title"><i class="fa-solid fa-server" style="color:var(--brand-color)"></i> Supabase Configuration</div>
-                    <div class="form-group">
-                        <label class="form-label">SUPABASE URL</label>
-                        <div class="form-desc">Found in Supabase Project Settings -> API</div>
-                        <input type="text" class="form-control" name="SUPABASE_URL" value="{{ supabase_url }}" placeholder="https://xyz.supabase.co">
+        <!-- Stores Tab -->
+        <div id="stores-tab" class="tab-pane active">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-plus-circle"></i> إضافة متجر / نشاط جديد</div>
+                <form id="addStoreForm" onsubmit="saveStore(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="label">اسم المتجر</label>
+                            <input type="text" name="name" class="input" placeholder="مثلاً: متجر العطور الفاخرة" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">اسم نسخة الواتساب (Evolution Instance)</label>
+                            <input type="text" name="evolution_instance_name" class="input" placeholder="asil-phone" required>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">SUPABASE KEY (Service Role / Anon Key)</label>
-                        <input type="password" class="form-control" name="SUPABASE_KEY" value="{{ supabase_key }}" placeholder="eyJh...">
+                        <label class="label">شخصية الذكاء الاصطناعي (System Prompt)</label>
+                        <textarea name="system_prompt" class="input textarea" placeholder="صف كيف يجب أن يتحدث البوت مع العملاء في هذا المتجر..."></textarea>
                     </div>
-                </div>
-                
-                <div style="text-align: left; direction: rtl;">
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fa-solid fa-check"></i> Save Database Links
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- Products Management Tab -->
-        <div id="products-tab" class="tab-content">
-            <div class="page-header">
-                <h1>Manage Products</h1>
-                <p>Bulk upload your inventory data to the Supabase database automatically.</p>
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ المتجر</button>
+                </form>
             </div>
 
             <div class="card">
-                <div class="card-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--brand-color)"></i> Bulk Import Products</div>
-                <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem;">
-                    Upload an Excel (.xlsx) or CSV file containing your inventory. The system will automatically map the Arabic columns (اسم الصنف، العبوه، السعر...) and inject them into Supabase.
-                </p>
-
-                <form id="uploadForm" onsubmit="uploadProducts(event)">
-                    <div class="file-upload-wrapper">
-                        <input type="file" id="fileInput" name="file" class="file-upload-input" accept=".csv, .xlsx, .xls" required onchange="updateFileName(this)">
-                        <div class="file-upload-box" id="dropBox">
-                            <i class="fa-solid fa-file-excel file-icon"></i>
-                            <h3 style="margin-bottom: 8px;">Drag & Drop your file here</h3>
-                            <p style="color: var(--text-muted); font-size: 0.9rem;" id="fileNameDisplay">or click to browse local files</p>
+                <div class="card-header"><i class="fa-solid fa-list"></i> المتاجر المسجلة حالياً</div>
+                <div id="storesList">
+                    {% for store in stores %}
+                    <div class="data-row">
+                        <div>
+                            <strong style="font-size: 1.1rem;">{{ store.name }}</strong>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Instance: {{ store.evolution_instance_name }}</div>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" onclick="editStore('{{ store.id }}')"><i class="fa-solid fa-edit"></i></button>
+                            <button class="btn btn-outline" style="color: var(--danger);" onclick="deleteStore('{{ store.id }}')"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     </div>
-                    <div style="text-align: left; direction: rtl;">
-                        <button type="submit" class="btn btn-primary" id="uploadBtn">
-                            <i class="fa-solid fa-rocket"></i> Launch Import
-                        </button>
-                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Products Tab -->
+        <div id="products-tab" class="tab-pane">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-upload"></i> رفع منتجات للمتجر المحدد</div>
+                <p style="margin-bottom: 20px; color: var(--text-muted);">سيتم رفع هذه المنتجات حصرياً للمتجر المختار في الأعلى.</p>
+                <form id="uploadForm" onsubmit="uploadProducts(event)">
+                    <input type="file" id="productFile" class="input" style="margin-bottom: 20px;" accept=".csv, .xlsx">
+                    <button type="submit" class="btn btn-primary" id="uploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> بدء الرفع</button>
                 </form>
             </div>
         </div>
 
-        <!-- Authorized Numbers Tab -->
-        <div id="numbers-tab" class="tab-content">
-            <div class="page-header" style="text-align: center;">
-                <h1 style="font-size: 2rem;">Authorized Numbers / الأرقام المصرحة</h1>
-                <p>إدارة الأرقام المتاح لها مراسلة البوت حالياً.</p>
-            </div>
-
+        <!-- Users Tab -->
+        <div id="users-tab" class="tab-pane">
             <div class="card">
-                <div class="card-title" style="justify-content: flex-end; font-size: 1.4rem;">
-                    تسجيل رقم جديد <i class="fa-solid fa-user-plus" style="color:var(--brand-color)"></i>
-                </div>
-                <div class="form-group">
-                    <div style="text-align: right; margin-bottom: 10px;">
-                        <label class="form-label" style="font-size: 1.1rem;">Phone Number (with Country Code)</label>
-                        <div class="form-desc">Example: 9665XXXXXXXX (No + or spaces)</div>
-                    </div>
-                    <div style="display: flex; gap: 10px; flex-direction: row-reverse;">
-                        <input type="text" id="newNumberInput" class="form-control" placeholder="9665xxxxxxxxx" style="direction: ltr; text-align: left;">
-                        <button onclick="addNumber()" class="btn btn-primary" style="background-color: #ff6d5a; border-radius: 8px; padding: 10px 30px;">إضافة الرقم +</button>
-                    </div>
+                <div class="card-header"><i class="fa-solid fa-user-plus"></i> إضافة رقم مصرح له لهذا المتجر</div>
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="newPhone" class="input" placeholder="9665XXXXXXXX">
+                    <button class="btn btn-primary" onclick="addNumber()">إضافة +</button>
                 </div>
             </div>
-
-            <div class="card" style="background: none; box-shadow: none; border: none; padding: 0;">
-                <div class="card-title" style="justify-content: flex-end; font-size: 1.2rem; border: none; margin-bottom: 10px;">
-                    الأرقام المسجلة حالياً
-                </div>
-                <div id="numbersListContainer" style="display: flex; flex-direction: column; gap: 15px;">
-                    <i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل الأرقام...
+            <div class="card">
+                <div class="card-header">الأرقام المصرحة</div>
+                <div id="numbersList">
+                    <p style="color: var(--text-muted);">اختر متجراً لعرض أرقامه المصرحة...</p>
                 </div>
             </div>
         </div>
 
+        <!-- Global Settings Tab -->
+        <div id="settings-tab" class="tab-pane">
+            <div class="card">
+                <div class="card-header">إعدادات النظام الرئيسية (الرموز السرية)</div>
+                <form onsubmit="saveGlobalSettings(event)">
+                    <div class="form-group">
+                        <label class="label">GROQ API KEY</label>
+                        <input type="password" name="GROQ_API_KEY" value="{{ groq_key }}" class="input">
+                    </div>
+                    <div class="form-group">
+                        <label class="label">SUPABASE URL</label>
+                        <input type="text" name="SUPABASE_URL" value="{{ supabase_url }}" class="input">
+                    </div>
+                    <div class="form-group">
+                        <label class="label">SUPABASE KEY</label>
+                        <input type="password" name="SUPABASE_KEY" value="{{ supabase_key }}" class="input">
+                    </div>
+                    <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast">
-        <i class="fa-solid fa-circle-check fa-lg"></i>
-        <div id="toastText" style="font-weight: 500;">Saved Successfully!</div>
-    </div>
+    <div id="toast" class="toast"></div>
 
     <script>
-        function switchTab(tabId, el) {
-            // Remove active classes
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        function showTab(tabId, el) {
+            document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
-            
-            // Add active classes
             document.getElementById(tabId + '-tab').classList.add('active');
             el.classList.add('active');
-
-            if (tabId === 'numbers') {
-                loadNumbers();
-            }
-        }
-
-        async function loadNumbers() {
-            const container = document.getElementById('numbersListContainer');
-            try {
-                const response = await fetch('/admin/api/numbers');
-                const numbers = await response.json();
-                
-                if (numbers.length === 0) {
-                    container.innerHTML = '<p style="text-align:center; color:var(--text-muted)">لا توجد أرقام مسجلة حالياً. البوت لن يرد على أحد!</p>';
-                    return;
-                }
-
-                let html = '';
-                numbers.forEach(item => {
-                    html += `
-                        <div class="card" style="margin: 0; display: flex; justify-content: space-between; align-items: center; flex-direction: row; padding: 15px 25px; border-radius: 12px; background-color: #f8f9fa;">
-                            <div style="font-size: 1.1rem; font-weight: 700; color: #222b35; letter-spacing: 1px;">${item.phone}</div>
-                            <button onclick="deleteNumber('${item.phone}')" style="background-color: #fff1f0; border: none; border-radius: 8px; color: #ff4d4f; padding: 8px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; font-family: 'Tajawal', sans-serif;">
-                                <i class="fa-solid fa-trash"></i> حذف
-                            </button>
-                        </div>
-                    `;
-                });
-
-                container.innerHTML = html;
-            } catch (err) {
-                container.innerHTML = '<p style="text-align:center; color:var(--error)">فشل تحميل الأرقام.</p>';
-            }
-        }
-
-        async function addNumber() {
-            const input = document.getElementById('newNumberInput');
-            const phone = input.value.trim();
-            if (!phone) return;
-
-            try {
-                const response = await fetch('/admin/api/numbers', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ phone })
-                });
-                
-                if (response.ok) {
-                    showToast('Number added successfully!');
-                    input.value = '';
-                    loadNumbers();
-                } else {
-                    showToast('Failed to add number', true);
-                }
-            } catch (err) {
-                showToast('Error connecting to API', true);
-            }
-        }
-
-        async function deleteNumber(phone) {
-            if (!confirm(`Are you sure you want to remove ${phone}?`)) return;
-
-            try {
-                const response = await fetch(`/admin/api/numbers/delete/${phone}`, {
-                    method: 'DELETE'
-                });
-                
-                if (response.ok) {
-                    showToast('Number removed');
-                    loadNumbers();
-                } else {
-                    showToast('Failed to remove', true);
-                }
-            } catch (err) {
-                showToast('Error connecting to API', true);
-            }
-        }
-
-        function showToast(message, isError = false) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastText').innerText = message;
             
-            if (isError) {
-                toast.classList.add('error');
-                toast.classList.remove('success');
-                toast.querySelector('i').className = 'fa-solid fa-circle-exclamation fa-lg';
-            } else {
-                toast.classList.add('success');
-                toast.classList.remove('error');
-                toast.querySelector('i').className = 'fa-solid fa-circle-check fa-lg';
-            }
-
-            toast.classList.add('show');
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+            if(tabId === 'users') loadNumbers();
         }
 
-        async function saveConfiguration(e) {
-            e.preventDefault();
-            const form = e.target;
-            const btn = form.querySelector('button');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
-            btn.disabled = true;
-
-            const formData = new FormData(form);
-            const data = Object.fromEntries(formData.entries());
-
-            try {
-                const response = await fetch('/admin/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                if (response.ok) {
-                    showToast('Configuration updated instantly!');
-                } else {
-                    showToast(result.detail || 'Failed to save', true);
-                }
-            } catch (err) {
-                showToast('Network error occurred', true);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+        function showToast(msg, type='success') {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.className = `toast show ${type}`;
+            setTimeout(() => t.className = 'toast', 3000);
         }
 
-        function updateFileName(input) {
-            const display = document.getElementById('fileNameDisplay');
-            if (input.files.length > 0) {
-                display.innerText = "Selected: " + input.files[0].name;
-                display.style.color = "var(--brand-color)";
-                display.style.fontWeight = "bold";
-            } else {
-                display.innerText = "or click to browse local files";
-                display.style.color = "var(--text-muted)";
-                display.style.fontWeight = "normal";
-            }
+        function onStoreChange() {
+            const tab = document.querySelector('.tab-pane.active').id;
+            if (tab === 'users-tab') loadNumbers();
         }
 
         async function uploadProducts(e) {
             e.preventDefault();
-            const form = e.target;
-            const btn = document.getElementById('uploadBtn');
-            const originalText = btn.innerHTML;
-            
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
-            btn.disabled = true;
+            const storeId = document.getElementById('storeSelector').value;
+            const file = document.getElementById('productFile').files[0];
+            if (!file) return showToast('يرجى اختيار ملف أولاً', 'error');
 
-            const formData = new FormData(form);
+            const btn = document.getElementById('uploadBtn');
+            btn.disabled = true; btn.innerText = 'جاري الرفع...';
+
+            const formData = new FormData();
+            formData.append('file', file);
 
             try {
-                const response = await fetch('/admin/upload', {
+                const res = await fetch(`/admin/upload/${storeId}`, { method: 'POST', body: formData });
+                const data = await res.json();
+                if (res.ok) showToast('تم الرفع بنجاح');
+                else showToast(data.message, 'error');
+            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+            finally { btn.disabled = false; btn.innerText = 'بدء الرفع'; }
+        }
+
+        async function loadNumbers() {
+            const storeId = document.getElementById('storeSelector').value;
+            const container = document.getElementById('numbersList');
+            container.innerHTML = 'جاري التحميل...';
+            try {
+                const res = await fetch(`/admin/api/numbers?store_id=${storeId}`);
+                const data = await res.json();
+                container.innerHTML = data.map(n => `
+                    <div class="data-row">
+                        <span>${n.phone}</span>
+                        <button class="btn btn-outline" style="color:var(--danger)" onclick="deleteNumber('${n.phone}')"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `).join('') || '<p style="color:var(--text-muted)">لا توجد أرقام مسجلة لهذا المتجر.</p>';
+            } catch (err) { container.innerHTML = 'خطأ في التحميل'; }
+        }
+
+        async function addNumber() {
+            const storeId = document.getElementById('storeSelector').value;
+            const phone = document.getElementById('newPhone').value;
+            if (!phone) return;
+            try {
+                const res = await fetch('/admin/api/numbers', {
                     method: 'POST',
-                    body: formData
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ phone, store_id: storeId })
                 });
-                
-                const result = await response.json();
-                if (response.ok && !result.status.includes("error") && !result.status.includes("خطأ")) {
-                    showToast(`Imported ${result.count || ''} products successfully!`);
-                    form.reset();
-                    updateFileName(document.getElementById('fileInput'));
-                } else {
-                    showToast(result.message || result.status || 'Failed to upload', true);
-                }
-            } catch (err) {
-                showToast('Network error occurred during upload', true);
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
+                if (res.ok) { showToast('تمت الإضافة'); loadNumbers(); }
+            } catch (err) { showToast('فشل الإضافة', 'error'); }
+        }
+        
+        async function saveStore(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            // This endpoint will be added to main.py
+            try {
+                const res = await fetch('/admin/api/stores', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) { showToast('تم حفظ المتجر بنجاح'); location.reload(); }
+            } catch (err) { showToast('فشل الحفظ', 'error'); }
+        }
+
+        async function saveGlobalSettings(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const res = await fetch('/admin/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if (res.ok) showToast('تم التحديث بنجاح');
         }
     </script>
 </body>

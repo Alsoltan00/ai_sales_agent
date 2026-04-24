@@ -8,32 +8,27 @@ client = Groq(api_key=GROQ_API_KEY)
 
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
-def classify_intent_and_extract_keywords(user_message: str, chat_history: list, store_name: str = "المتجر", system_prompt_custom: str = None) -> dict:
+def classify_intent_and_extract_keywords(user_message: str, chat_history: list) -> dict:
     """
     Acts as the 'Traffic Cop'. Decides if we need clarifying questions or if we should search the DB.
     Returns a dict: {"action": "clarify" | "search" | "chat", "reply": "...", "keywords": ["..."]}
     """
-    
-    # Base system prompt with dynamic store name
-    system_prompt = f"""
-    أنت موظف مبيعات محترف ولبق جداً لدى "{store_name}". تتحدث بلهجة سعودية محترمة.
+    system_prompt = """
+    أنت موظف مبيعات محترف ولبق جداً لدى "متجر أصيل" للتموينات والسلع. تتحدث بلهجة سعودية محترمة.
     
     مهمتك تحليل رسالة العميل وإخراج رد بصيغة JSON فقط، يحتوي على المفاتيح التالية:
     
     1. "action": 
-       - اختر "search" بنسبة 90%: لأي سؤال عن المنتجات، توفرها، أسعارها، أو حتى طلبات عامة مثل (وش عندكم، أفضل منتجاتكم).
-       - اختر "chat" بنسبة 10%: فقط لرسائل الترحيب والتحية الصافية جداً (مثل: هلا، السلام عليكم).
+       - اختر "search" بنسبة 90%: لأي سؤال عن المنتجات، توفرها، أسعارها، أو حتى طلبات عامة مثل (وش عندكم، أفضل منتجاتكم)، وحتى لو سأل العميل عن شيء غريب (يجب أن تبحث أولاً في المتجر قبل الرفض لعل المنتج موجود).
+       - اختر "chat" بنسبة 10%: فقط لرسائل الترحيب والتحية الصافية جداً والمجردة من الطلبات (مثل: هلا، السلام عليكم، شكرا، يعطيك العافية).
        
     2. "reply": 
-       - إذا كان الخيار "chat"، اكتب رد ترحيبي لبق جداً (مثل: يا هلا بك في {store_name}، طال عمرك كيف أقدر أخدمك اليوم؟).
+       - إذا كان الخيار "chat"، اكتب رد ترحيبي لبق جداً (مثل: يا هلا بك في متجر أصيل، طال عمرك كيف أقدر أخدمك اليوم؟).
        - إذا كان الخيار "search" اتركه فارغاً "".
        
     3. "keywords": 
-       - إذا كان "search"، استخرج الأسماء الجوهرية للبحث (مثل: حليب، عسل).
+       - إذا كان "search"، استخرج الأسماء الجوهرية للبحث (مثل: حليب، عسل، ماء). إذا كان السؤال عاماً اتركه فارغاً [] لتظهر بعض المنتجات العشوائية.
     """
-    
-    if system_prompt_custom:
-        system_prompt += f"\n\nتعليمات إضافية خاصة بهذا النشاط:\n{system_prompt_custom}"
     
     messages = [{"role": "system", "content": system_prompt}]
     
@@ -58,30 +53,27 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list, 
         # Default fallback to search with the whole message as keyword
         return {"action": "search", "reply": "", "keywords": [user_message]}
 
-def generate_sales_reply(user_message: str, filtered_products: list, chat_history: list = None, store_name: str = "المتجر", system_prompt_custom: str = None) -> str:
+def generate_sales_reply(user_message: str, filtered_products: list, chat_history: list = None) -> str:
     """
     Takes the filtered products and writes a human-like, persuasive Arabic message summarizing them.
     Incorporates full context and strict stock reporting rules.
     """
-    
-    base_prompt = f"""
-    أنت بائع خبير ولبق في "{store_name}"، تتحدث بلهجة سعودية محترمة.
+    system_prompt = f"""
+    أنت بائع خبير ولبق في "متجر أصيل"، تتحدث بلهجة سعودية محترمة.
     النتائج المتوفرة من المخزن: {json.dumps(filtered_products, ensure_ascii=False)}
     
     أوامر الرد (طبقها بدقة واحترافية):
     1. عرض السعر: اعرض المنتجات والأسعار بطريقة مرتبة جداً هكذا: "[اسم المنتج]: [السعر] ريال".
     2. قاعدة الكمية (Stock):
        - إذا كان المنتج (stock) يساوي 0 أو أقل، يجب أن تخبر العميل تلقائياً بأن "الكمية نفدت حالياً" لهذا المنتج.
-       - إذا كان المنتج متوفراً (stock أكبر من 0)، يُمنع منعاً باتاً ذكر الرقم المحدد للكمية إلا إذا سأل العميل صراحة.
+       - إذا كان المنتج متوفراً (stock أكبر من 0)، يُمنع منعاً باتاً ذكر الرقم المحدد للكمية (لا تقل متوفر 50 حبة) إلا إذا سأل العميل صراحة (كم المتوفر؟ أو كم الكمية؟).
     3. الأسلوب: استخدم لهجة سعودية ترحيبية (أبشر، سم، طال عمرك).
-    4. البدائل: إذا لم تجد المنتج المطلوب صراحة، ابحث عن أقرب بديل في القائمة واقترحه بذكاء.
+    4. البدائل: إذا لم تجد المنتج المطلوب صراحة، ابحث عن أقرب بديل في القائمة واقترحه بذكاء. إذا كانت القائمة فارغة [] تماماً، اعتذر بلطف واعرض المساعدة في أصناف أخرى.
     5. الالتزام: لا تخترع أسعاراً أو منتجات غير موجودة في القائمة المرفقة.
+    6. إذا كان العميل يكمل من محادثة سابقة (مثلاً: عطني الأول)، فافهم السياق وقدمه له باحترام.
     """
     
-    if system_prompt_custom:
-        base_prompt += f"\n\nتعليمات إضافية خاصة بهذا النشاط:\n{system_prompt_custom}"
-        
-    messages = [{"role": "system", "content": base_prompt}]
+    messages = [{"role": "system", "content": system_prompt}]
     
     if chat_history:
         for msg in chat_history[-6:]:

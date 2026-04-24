@@ -6,7 +6,7 @@ EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-latest
 EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "Aseel.709293")
 
 from agent.llm_router import classify_intent_and_extract_keywords, generate_sales_reply
-from agent.supabase_db import search_products, get_store_config, check_authorized_number
+from agent.supabase_db import search_products
 from agent.voice_handler import recognize_speech, text_to_speech
 import base64
 import uuid
@@ -19,22 +19,9 @@ conversation_history = {}
 async def handle_incoming_message(payload: dict):
     """
     Parses the webhook payload from Evolution API and orchestrates the response.
-    Supports Multi-Tenancy based on the instance name.
     """
     try:
-        # 1. Detect Instance and Fetch Store Config
-        instance_name = payload.get("instance", "asil-phone")
-        store_config = get_store_config(instance_name)
-        
-        if not store_config:
-            print(f"[-] No store configuration found for instance: {instance_name}")
-            return
-            
-        store_id = store_config.get("id")
-        store_name = store_config.get("name")
-        custom_prompt = store_config.get("system_prompt")
-
-        # 2. Parse Key Information from Payload
+        # 1. Parse Key Information from Payload
         data = payload.get("data", {})
         key = data.get("key", {})
         message = data.get("message", {})
@@ -55,11 +42,12 @@ async def handle_incoming_message(payload: dict):
             print(f"[-] Ignored group message from {remote_jid}")
             return
 
-        # 3. Strict Whitelist Filtering (Supabase-driven)
+        # 2. Strict Whitelist Filtering (Supabase-driven)
+        from agent.supabase_db import check_authorized_number
         clean_number = "".join(filter(str.isdigit, remote_jid.split("@")[0]))
         
-        print(f"[*] Checking whitelist for: {clean_number} in store {store_name}")
-        is_auth = check_authorized_number(clean_number, store_id)
+        print(f"[*] Checking whitelist for: {clean_number}")
+        is_auth = check_authorized_number(clean_number)
         print(f"[*] Whitelist check result: {is_auth}")
 
         if not is_auth:
@@ -103,16 +91,17 @@ async def handle_incoming_message(payload: dict):
         history = conversation_history[remote_jid]
 
         # 3. Process Intent (The Intelligent Dispatcher)
-        intent_data = classify_intent_and_extract_keywords(text, history, store_name, custom_prompt)
+        intent_data = classify_intent_and_extract_keywords(text, history)
         
         if intent_data.get("action") in ["clarify", "chat"]:
             final_response_text = intent_data.get("reply", "أهلاً بك! كيف يمكنني مساعدتك اليوم؟")
         else:
             keywords = intent_data.get("keywords", [])
-            filtered_products = search_products(keywords, store_id)
+            from agent.supabase_db import search_products
+            filtered_products = search_products(keywords)
             
             # Pass history for contextual product advice
-            final_response_text = generate_sales_reply(text, filtered_products, history, store_name, custom_prompt)
+            final_response_text = generate_sales_reply(text, filtered_products, history)
 
         # [NEW] Rich Memory: Remember full role-based context
         conversation_history[remote_jid].append({"role": "user", "content": text})
@@ -123,13 +112,13 @@ async def handle_incoming_message(payload: dict):
             conversation_history[remote_jid] = conversation_history[remote_jid][-10:]
 
         # 4. Send the Text Reply back to WhatsApp IMMEDIATELY for speed
-        send_whatsapp_text(remote_jid, final_response_text, instance_name)
+        send_whatsapp_text(remote_jid, final_response_text)
 
         # 5. Create and Send the Voice Response in the background
         voice_path = f"temp_reply_{uuid.uuid4().hex}.mp3"
         try:
             await text_to_speech(final_response_text, voice_path)
-            send_whatsapp_audio(remote_jid, voice_path, instance_name)
+            send_whatsapp_audio(remote_jid, voice_path)
         except Exception as ve:
             print(f"[!] Voice generation error: {ve}")
         
@@ -140,10 +129,14 @@ async def handle_incoming_message(payload: dict):
     except Exception as e:
         print(f"[!] Critical Error in Conversation Manager: {e}")
 
-def send_whatsapp_text(remote_jid: str, text: str, instance_name: str):
+def send_whatsapp_text(remote_jid: str, text: str):
     """
-    Sends a text message using Evolution API.
+    Sends a text message using Evolution API exactly like the N8N HTTP Request node did.
     """
+    # The Evolution API sender url format depending on your setup.
+    # Usually it's /message/sendText/{instanceName}
+    # Currently hardcoded to "asil-phone" based on the previous json configuration.
+    instance_name = os.getenv("EVOLUTION_INSTANCE_NAME", "asil-phone")
     url = f"{EVOLUTION_API_URL}/message/sendText/{instance_name}"
     
     headers = {
@@ -167,10 +160,11 @@ def send_whatsapp_text(remote_jid: str, text: str, instance_name: str):
     else:
         print(f"[!] Failed to send message (HTTP {response.status_code}): {response.text}")
 
-def send_whatsapp_audio(remote_jid: str, audio_path: str, instance_name: str):
+def send_whatsapp_audio(remote_jid: str, audio_path: str):
     """
     Sends an audio file as a PTT (Voice Note) via Evolution API using Base64.
     """
+    instance_name = os.getenv("EVOLUTION_INSTANCE_NAME", "asil-phone")
     url = f"{EVOLUTION_API_URL}/message/sendWhatsAppAudio/{instance_name}"
     
     # Sanitize number

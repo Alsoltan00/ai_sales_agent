@@ -36,26 +36,14 @@ async def root():
 @app.get("/admin", response_class=HTMLResponse)
 async def get_admin_panel(request: Request):
     """
-    Renders the professional admin control panel with store selection.
+    Renders the professional N8N-style admin control panel.
     """
-    from agent.supabase_db import get_supabase_url, get_headers
-    import requests
-    
-    stores = []
-    try:
-        url = f"{get_supabase_url()}/rest/v1/stores?select=*"
-        res = requests.get(url, headers=get_headers())
-        if res.status_code == 200:
-            stores = res.json()
-    except:
-        pass
-
     return templates.TemplateResponse("admin.html", {
         "request": request,
-        "stores": stores,
         "groq_key": os.environ.get("GROQ_API_KEY", ""),
         "evolution_url": os.environ.get("EVOLUTION_API_URL", ""),
         "evolution_key": os.environ.get("EVOLUTION_API_KEY", ""),
+        "evolution_instance": os.environ.get("EVOLUTION_INSTANCE_NAME", ""),
         "supabase_url": os.environ.get("SUPABASE_URL", ""),
         "supabase_key": os.environ.get("SUPABASE_KEY", "")
     })
@@ -77,8 +65,8 @@ async def update_settings(settings: SettingsUpdate):
             
     return {"status": "success", "message": "Settings updated dynamically"}
 
-@app.post("/admin/upload/{store_id}")
-async def upload_file(store_id: str, file: UploadFile = File(...)):
+@app.post("/admin/upload")
+async def upload_file(file: UploadFile = File(...)):
     """
     Receives an Excel or CSV file, parses dynamic custom columns using Pandas,
     and bulk inserts them into Supabase.
@@ -126,8 +114,8 @@ async def upload_file(store_id: str, file: UploadFile = File(...)):
         if not products_list:
             return {"status": "error", "message": "لم يتم العثور على أي منتجات صالحة. تأكد أن الإكسيل يحتوي على عمود 'اسم الصنف'."}
             
-        # Send mapped rows directly to Supabase with store_id
-        success, msg = upload_products_bulk(products_list, store_id)
+        # Send mapped rows directly to Supabase
+        success, msg = upload_products_bulk(products_list)
         
         if success:
             return {"status": "تم رفع المنتجات والأعمدة بنجاح!", "count": len(products_list)}
@@ -148,10 +136,10 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks)
 
 # --- SECURE PROXY ENDPOINTS FOR AUTHORIZED NUMBERS ---
 @app.get("/admin/api/numbers")
-async def get_authorized_numbers_api(store_id: str = None):
+async def get_authorized_numbers_api():
     from agent.supabase_db import get_all_authorized_numbers
     try:
-        data = get_all_authorized_numbers(store_id)
+        data = get_all_authorized_numbers()
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -160,22 +148,12 @@ async def get_authorized_numbers_api(store_id: str = None):
 async def add_authorized_number_api(payload: dict):
     from agent.supabase_db import add_authorized_number_db
     raw_phone = payload.get("phone", "")
-    store_id = payload.get("store_id")
     # Sanitize: Keep only digits
     phone = "".join(filter(str.isdigit, str(raw_phone)))
     
     if not phone: raise HTTPException(status_code=400, detail="Invalid phone number format")
     try:
-        add_authorized_number_db(phone, store_id)
-        return {"status": "success"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/admin/api/stores")
-async def create_store_api(store_data: dict):
-    from agent.supabase_db import create_store_db
-    try:
-        create_store_db(store_data)
+        add_authorized_number_db(phone)
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolution Sales AI - Admin Panel</title>
+    <!-- Google Fonts for modern typography like N8N -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-bg: #f4f6f8; /* N8N light gray background */
+            --sidebar-bg: #ffffff;
+            --brand-color: #ff6d5a; /* N8N Coral/Orange */
+            --brand-hover: #e05e4d;
+            --text-main: #222b35;
+            --text-muted: #556270;
+            --border-color: #e2e8f0;
+            --card-bg: #ffffff;
+            --success: #22c55e;
+            --error: #ef4444;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Tajawal', sans-serif;
+        }
+
+        body {
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar styling */
+        .sidebar {
+            width: 260px;
+            background-color: var(--sidebar-bg);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--brand-color);
+        }
+
+        .nav-items {
+            padding: 16px 0;
+            flex: 1;
+        }
+
+        .nav-item {
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+
+        .nav-item:hover {
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            color: var(--brand-color);
+            background-color: rgba(255, 109, 90, 0.08);
+            border-right: 4px solid var(--brand-color);
+            padding-right: 20px;
+        }
+
+        .nav-item i {
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 32px;
+            max-width: 1000px;
+        }
+
+        .page-header {
+            margin-bottom: 32px;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .page-header p {
+            color: var(--text-muted);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Card and Form styling */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            border: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        div.form-desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-family: monospace;
+            background-color: var(--primary-bg);
+            transition: border-color 0.2s, box-shadow 0.2s;
+            direction: ltr; /* English keys and URLs are LTR */
+            text-align: left;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 3px rgba(255, 109, 90, 0.2);
+            background-color: #fff;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--brand-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--brand-hover);
+        }
+        
+        .btn-secondary {
+            background-color: var(--primary-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #e2e8f0;
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .file-upload-input {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .file-upload-box {
+            border: 2px dashed var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+            text-align: center;
+            background-color: var(--primary-bg);
+            transition: all 0.2s;
+        }
+
+        .file-upload-input:hover + .file-upload-box {
+            border-color: var(--brand-color);
+            background-color: rgba(255, 109, 90, 0.05);
+        }
+
+        .file-icon {
+            font-size: 2.5rem;
+            color: var(--brand-color);
+            margin-bottom: 12px;
+        }
+
+        /* Notifications */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 24px; /* Since RTL, show on left */
+            padding: 16px 24px;
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success i { color: var(--success); }
+        .toast.error i { color: var(--error); }
+        
+        .alert-warning {
+            background-color: #fffbeb;
+            color: #b45309;
+            border: 1px solid #fcd34d;
+            padding: 12px;
+            border-radius: var(--radius-md);
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar navigation -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <i class="fa-solid fa-robot"></i>
+            Evolution AI
+        </div>
+        <div class="nav-items">
+            <div class="nav-item active" onclick="switchTab('settings', this)">
+                <i class="fa-solid fa-sliders"></i> System Settings (الرموز)
+            </div>
+            <div class="nav-item" onclick="switchTab('database', this)">
+                <i class="fa-solid fa-database"></i> Database Connections
+            </div>
+            <div class="nav-item" onclick="switchTab('products', this)">
+                <i class="fa-solid fa-file-excel"></i> Manage Products (رفع المنتجات)
+            </div>
+            <div class="nav-item" onclick="switchTab('numbers', this)">
+                <i class="fa-solid fa-phone"></i> Authorized Numbers
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace -->
+    <div class="main-content">
+        
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content active">
+            <div class="page-header">
+                <h1>System Settings</h1>
+                <p>Manage the dynamic keys and API parameters for the AI sales agent.</p>
+            </div>
+            
+            <div class="alert-warning">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-top: 3px;"></i>
+                <div>
+                    <strong>Important Render Note:</strong> Changes made here will apply instantly to the running server.
+                    However, if your server recycles or redeploys, these local configurations will be wiped. To make them permanent, copy these values into your Render Dashboard's "Environment" tab.
+                </div>
+            </div>
+
+            <form id="settingsForm" onsubmit="saveConfiguration(event)">
+                <!-- AI Variables -->
+                <div class="card">
+                    <div class="card-title"><i class="fa-solid fa-brain" style="color:var(--brand-color)"></i> Artificial Intelligence (Groq)</div>
+                    <div class="form-group">
+                        <label class="form-label">GROQ API KEY</label>
+                        <div class="form-desc">Provide your secret gsk_ key used for fast LLM inference.</div>
+                        <input type="password" class="form-control" name="GROQ_API_KEY" value="{{ groq_key }}" placeholder="gsk_...">
+                    </div>
+                </div>
+
+                <!-- Evolution Webhook Variables -->
+                <div class="card">
+                    <div class="card-title"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i> Evolution API Integration</div>
+                    <div class="form-group">
+                        <label class="form-label">EVOLUTION API URL</label>
+                        <input type="text" class="form-control" name="EVOLUTION_API_URL" value="{{ evolution_url }}" placeholder="https://your-evolution-api.render.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">EVOLUTION API KEY (Global API Key)</label>
+                        <input type="password" class="form-control" name="EVOLUTION_API_KEY" value="{{ evolution_key }}" placeholder="Apikey...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">EVOLUTION INSTANCE NAME</label>
+                        <div class="form-desc">The specific WhatsApp instance ID configured in Evolution.</div>
+                        <input type="text" class="form-control" name="EVOLUTION_INSTANCE_NAME" value="{{ evolution_instance }}" placeholder="asil-phone">
+                    </div>
+                </div>
+
+                <div style="text-align: left; /* Using RTL so left is actually the physical left (end of content) */ direction: rtl;">
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="fa-solid fa-check"></i> Save Details
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Database Tab -->
+        <div id="database-tab" class="tab-content">
+            <div class="page-header">
+                <h1>Database Connections</h1>
+                <p>Link your Supabase project for inventory and products state.</p>
+            </div>
+            
+            <form id="dbForm" onsubmit="saveConfiguration(event)">
+                <div class="card">
+                    <div class="card-title"><i class="fa-solid fa-server" style="color:var(--brand-color)"></i> Supabase Configuration</div>
+                    <div class="form-group">
+                        <label class="form-label">SUPABASE URL</label>
+                        <div class="form-desc">Found in Supabase Project Settings -> API</div>
+                        <input type="text" class="form-control" name="SUPABASE_URL" value="{{ supabase_url }}" placeholder="https://xyz.supabase.co">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">SUPABASE KEY (Service Role / Anon Key)</label>
+                        <input type="password" class="form-control" name="SUPABASE_KEY" value="{{ supabase_key }}" placeholder="eyJh...">
+                    </div>
+                </div>
+                
+                <div style="text-align: left; direction: rtl;">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-check"></i> Save Database Links
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Products Management Tab -->
+        <div id="products-tab" class="tab-content">
+            <div class="page-header">
+                <h1>Manage Products</h1>
+                <p>Bulk upload your inventory data to the Supabase database automatically.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><i class="fa-solid fa-cloud-arrow-up" style="color:var(--brand-color)"></i> Bulk Import Products</div>
+                <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.95rem;">
+                    Upload an Excel (.xlsx) or CSV file containing your inventory. The system will automatically map the Arabic columns (اسم الصنف، العبوه، السعر...) and inject them into Supabase.
+                </p>
+
+                <form id="uploadForm" onsubmit="uploadProducts(event)">
+                    <div class="file-upload-wrapper">
+                        <input type="file" id="fileInput" name="file" class="file-upload-input" accept=".csv, .xlsx, .xls" required onchange="updateFileName(this)">
+                        <div class="file-upload-box" id="dropBox">
+                            <i class="fa-solid fa-file-excel file-icon"></i>
+                            <h3 style="margin-bottom: 8px;">Drag & Drop your file here</h3>
+                            <p style="color: var(--text-muted); font-size: 0.9rem;" id="fileNameDisplay">or click to browse local files</p>
+                        </div>
+                    </div>
+                    <div style="text-align: left; direction: rtl;">
+                        <button type="submit" class="btn btn-primary" id="uploadBtn">
+                            <i class="fa-solid fa-rocket"></i> Launch Import
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Authorized Numbers Tab -->
+        <div id="numbers-tab" class="tab-content">
+            <div class="page-header" style="text-align: center;">
+                <h1 style="font-size: 2rem;">Authorized Numbers / الأرقام المصرحة</h1>
+                <p>إدارة الأرقام المتاح لها مراسلة البوت حالياً.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-title" style="justify-content: flex-end; font-size: 1.4rem;">
+                    تسجيل رقم جديد <i class="fa-solid fa-user-plus" style="color:var(--brand-color)"></i>
+                </div>
+                <div class="form-group">
+                    <div style="text-align: right; margin-bottom: 10px;">
+                        <label class="form-label" style="font-size: 1.1rem;">Phone Number (with Country Code)</label>
+                        <div class="form-desc">Example: 9665XXXXXXXX (No + or spaces)</div>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-direction: row-reverse;">
+                        <input type="text" id="newNumberInput" class="form-control" placeholder="9665xxxxxxxxx" style="direction: ltr; text-align: left;">
+                        <button onclick="addNumber()" class="btn btn-primary" style="background-color: #ff6d5a; border-radius: 8px; padding: 10px 30px;">إضافة الرقم +</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="background: none; box-shadow: none; border: none; padding: 0;">
+                <div class="card-title" style="justify-content: flex-end; font-size: 1.2rem; border: none; margin-bottom: 10px;">
+                    الأرقام المسجلة حالياً
+                </div>
+                <div id="numbersListContainer" style="display: flex; flex-direction: column; gap: 15px;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> جاري تحميل الأرقام...
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <i class="fa-solid fa-circle-check fa-lg"></i>
+        <div id="toastText" style="font-weight: 500;">Saved Successfully!</div>
+    </div>
+
+    <script>
+        function switchTab(tabId, el) {
+            // Remove active classes
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            
+            // Add active classes
+            document.getElementById(tabId + '-tab').classList.add('active');
+            el.classList.add('active');
+
+            if (tabId === 'numbers') {
+                loadNumbers();
+            }
+        }
+
+        async function loadNumbers() {
+            const container = document.getElementById('numbersListContainer');
+            try {
+                const response = await fetch('/admin/api/numbers');
+                const numbers = await response.json();
+                
+                if (numbers.length === 0) {
+                    container.innerHTML = '<p style="text-align:center; color:var(--text-muted)">لا توجد أرقام مسجلة حالياً. البوت لن يرد على أحد!</p>';
+                    return;
+                }
+
+                let html = '';
+                numbers.forEach(item => {
+                    html += `
+                        <div class="card" style="margin: 0; display: flex; justify-content: space-between; align-items: center; flex-direction: row; padding: 15px 25px; border-radius: 12px; background-color: #f8f9fa;">
+                            <div style="font-size: 1.1rem; font-weight: 700; color: #222b35; letter-spacing: 1px;">${item.phone}</div>
+                            <button onclick="deleteNumber('${item.phone}')" style="background-color: #fff1f0; border: none; border-radius: 8px; color: #ff4d4f; padding: 8px 20px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: bold; font-family: 'Tajawal', sans-serif;">
+                                <i class="fa-solid fa-trash"></i> حذف
+                            </button>
+                        </div>
+                    `;
+                });
+
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = '<p style="text-align:center; color:var(--error)">فشل تحميل الأرقام.</p>';
+            }
+        }
+
+        async function addNumber() {
+            const input = document.getElementById('newNumberInput');
+            const phone = input.value.trim();
+            if (!phone) return;
+
+            try {
+                const response = await fetch('/admin/api/numbers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phone })
+                });
+                
+                if (response.ok) {
+                    showToast('Number added successfully!');
+                    input.value = '';
+                    loadNumbers();
+                } else {
+                    showToast('Failed to add number', true);
+                }
+            } catch (err) {
+                showToast('Error connecting to API', true);
+            }
+        }
+
+        async function deleteNumber(phone) {
+            if (!confirm(`Are you sure you want to remove ${phone}?`)) return;
+
+            try {
+                const response = await fetch(`/admin/api/numbers/delete/${phone}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showToast('Number removed');
+                    loadNumbers();
+                } else {
+                    showToast('Failed to remove', true);
+                }
+            } catch (err) {
+                showToast('Error connecting to API', true);
+            }
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastText').innerText = message;
+            
+            if (isError) {
+                toast.classList.add('error');
+                toast.classList.remove('success');
+                toast.querySelector('i').className = 'fa-solid fa-circle-exclamation fa-lg';
+            } else {
+                toast.classList.add('success');
+                toast.classList.remove('error');
+                toast.querySelector('i').className = 'fa-solid fa-circle-check fa-lg';
+            }
+
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        async function saveConfiguration(e) {
+            e.preventDefault();
+            const form = e.target;
+            const btn = form.querySelector('button');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
+            btn.disabled = true;
+
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+
+            try {
+                const response = await fetch('/admin/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    showToast('Configuration updated instantly!');
+                } else {
+                    showToast(result.detail || 'Failed to save', true);
+                }
+            } catch (err) {
+                showToast('Network error occurred', true);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        function updateFileName(input) {
+            const display = document.getElementById('fileNameDisplay');
+            if (input.files.length > 0) {
+                display.innerText = "Selected: " + input.files[0].name;
+                display.style.color = "var(--brand-color)";
+                display.style.fontWeight = "bold";
+            } else {
+                display.innerText = "or click to browse local files";
+                display.style.color = "var(--text-muted)";
+                display.style.fontWeight = "normal";
+            }
+        }
+
+        async function uploadProducts(e) {
+            e.preventDefault();
+            const form = e.target;
+            const btn = document.getElementById('uploadBtn');
+            const originalText = btn.innerHTML;
+            
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Uploading...';
+            btn.disabled = true;
+
+            const formData = new FormData(form);
+
+            try {
+                const response = await fetch('/admin/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (response.ok && !result.status.includes("error") && !result.status.includes("خطأ")) {
+                    showToast(`Imported ${result.count || ''} products successfully!`);
+                    form.reset();
+                    updateFileName(document.getElementById('fileInput'));
+                } else {
+                    showToast(result.message || result.status || 'Failed to upload', true);
+                }
+            } catch (err) {
+                showToast('Network error occurred during upload', true);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
