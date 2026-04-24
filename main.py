@@ -194,8 +194,13 @@ async def sync_mysql(store_id: str, payload: dict):
         return {"status": "error", "message": str(e)}
 
 @app.post("/admin/api/sync/push/{store_id}")
-async def receive_pushed_data(store_id: str, payload: dict):
-    """Receives data pushed from a remote bridge script (e.g. for InfinityFree bypass)."""
+async def receive_pushed_data(store_id: str, payload: dict, x_api_key: str = Header(None)):
+    """Receives data pushed from a remote secure script. Validates with X-API-Key."""
+    # Simple security: You can make this more complex or per-store later
+    EXPECTED_KEY = "AISALES_SECURE_TOKEN_2026" 
+    if x_api_key != EXPECTED_KEY:
+        raise HTTPException(status_code=403, detail="Unauthorized API Key")
+        
     products = payload.get("products", [])
     if not products:
         return {"status": "error", "message": "لم يتم استلام أي بيانات"}
@@ -204,7 +209,7 @@ async def receive_pushed_data(store_id: str, payload: dict):
         delete_store_products(store_id)
         for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
-        return {"status": "success", "message": f"تم استلام وتحديث {len(products)} منتج بنجاح!"}
+        return {"status": "success", "message": f"تم التحديث بنجاح! ({len(products)} منتج)"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
