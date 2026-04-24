@@ -138,8 +138,12 @@ def fetch_live_mysql(config: dict) -> tuple:
 def fetch_live_bridge(url: str) -> tuple:
     """Fetches data from a PHP/API bridge URL. Returns (list, error_msg)."""
     import requests
+    # Use a browser-like User-Agent to bypass hosting firewalls (like InfinityFree)
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
     try:
-        res = requests.get(url, timeout=15)
+        res = requests.get(url, headers=headers, timeout=15)
         if res.status_code != 200:
             return [], f"فشل الاتصال بالجسر (Status: {res.status_code})"
         
