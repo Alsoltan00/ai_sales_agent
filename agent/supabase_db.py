@@ -101,6 +101,37 @@ def search_live_external_supabase(keywords: list, config: dict) -> list:
     except: pass
     return []
 
+def fetch_live_mysql(config: dict) -> list:
+    """Connects to external MySQL and fetches all data for sync."""
+    import mysql.connector
+    try:
+        conn = mysql.connector.connect(
+            host=config.get("host"),
+            user=config.get("user"),
+            password=config.get("password"),
+            database=config.get("db_name"),
+            timeout=10
+        )
+        cursor = conn.cursor(dictionary=True)
+        table = config.get("table_name")
+        cursor.execute(f"SELECT * FROM {table} LIMIT 1000")
+        rows = cursor.fetchall()
+        
+        results = []
+        for row in rows:
+            keys = list(row.keys())
+            name_key = next((k for k in keys if 'name' in k.lower() or 'اسم' in k), keys[0])
+            name_val = str(row.get(name_key, "Item"))
+            details = {k: v for k, v in row.items() if k != name_key}
+            results.append({"name": name_val, "details": details})
+            
+        cursor.close()
+        conn.close()
+        return results
+    except Exception as e:
+        print(f"[!] MySQL Fetch Error: {e}")
+        return []
+
 def check_authorized_number(phone: str, store_id: str = None) -> bool:
     """Checks if a number exists in the authorized_numbers table, scoped by store_id."""
     filter_url = f"phone=eq.{phone}"

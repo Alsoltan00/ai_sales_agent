@@ -174,11 +174,23 @@ async def sync_external_supabase(store_id: str, payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/admin/sync/mysql/{store_id}")
+async def sync_mysql(store_id: str, payload: dict):
+    """
+    Sets the store to use External MySQL and triggers an immediate first sync.
+    """
+    try:
+        update_store_sync_db(store_id, "mysql", payload)
+        asyncio.create_task(perform_single_store_sync(store_id))
+        return {"status": "success", "message": "تم ربط قاعدة MySQL، جاري سحب البيانات حالياً..."}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # --- BACKGROUND SYNC LOGIC ---
 
 async def perform_single_store_sync(store_id: str):
     """Fetches remote data and replaces local data for one store."""
-    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase
+    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase, fetch_live_mysql
     import requests
     
     # 1. Get Store Config
@@ -191,16 +203,18 @@ async def perform_single_store_sync(store_id: str):
     
     products = []
     if source == "gsheet":
-        products = search_live_gsheet([], config.get("url")) # Fetch all
+        products = search_live_gsheet([], config.get("url")) 
     elif source == "supabase":
         products = search_live_external_supabase([], config)
+    elif source == "mysql":
+        products = fetch_live_mysql(config)
     
     if products:
         delete_store_products(store_id)
         # Add store_id to each product before bulk upload
         for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
-        print(f"[+] Synced {len(products)} items for store {store_id}")
+        print(f"[+] Synced {len(products)} items for store {store_id} from {source}")
 
 async def background_sync_scheduler():
     """Loops every 5 minutes to sync all remote stores."""
