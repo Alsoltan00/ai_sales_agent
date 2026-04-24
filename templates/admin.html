@@ -387,9 +387,13 @@
             const formData = new FormData(e.target);
             let bridgeUrl = formData.get('bridge_url');
             
-            // Auto-append filename if only domain is provided
+            // Normalize URL
+            if (!bridgeUrl.endsWith('/')) bridgeUrl += '/';
+            
+            // If it doesn't end in .php, we try to detect if it's in /api/ or root
             if (!bridgeUrl.endsWith('.php')) {
-                if (!bridgeUrl.endsWith('/')) bridgeUrl += '/';
+                // We'll pass the base URL and the backend will try both
+                // But for now, let's just append the filename
                 bridgeUrl += 'ai-sales.php';
             }
 
@@ -403,8 +407,25 @@
                     body: JSON.stringify({ bridge_url: bridgeUrl })
                 });
                 const data = await res.json();
-                if (data.status === 'success') showToast(data.message);
-                else showToast(data.message, 'error');
+                if (data.status === 'success') {
+                    showToast(data.message);
+                } else {
+                    // If failed, try to auto-detect /api/ folder
+                    if (data.message.includes('404') && !bridgeUrl.includes('/api/')) {
+                        const altUrl = bridgeUrl.replace('ai-sales.php', 'api/ai-sales.php');
+                        btn.innerText = 'فحص مجلد api...';
+                        const res2 = await fetch(`/admin/sync/bridge/${storeId}`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ bridge_url: altUrl })
+                        });
+                        const data2 = await res2.json();
+                        if (data2.status === 'success') showToast(data2.message);
+                        else showToast(data2.message, 'error');
+                    } else {
+                        showToast(data.message, 'error');
+                    }
+                }
             } catch (err) { showToast('خطأ في الاتصال بالجسر', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'ربط وتجاوز الحماية'; }
         }
