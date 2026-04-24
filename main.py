@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Header
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from agent.evolution_api import handle_incoming_message
+from agent.conversation_manager import handle_incoming_message
 import requests
 
 app = FastAPI()
