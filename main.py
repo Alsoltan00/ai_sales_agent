@@ -193,6 +193,21 @@ async def sync_mysql(store_id: str, payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.post("/admin/api/sync/push/{store_id}")
+async def receive_pushed_data(store_id: str, payload: dict):
+    """Receives data pushed from a remote bridge script (e.g. for InfinityFree bypass)."""
+    products = payload.get("products", [])
+    if not products:
+        return {"status": "error", "message": "لم يتم استلام أي بيانات"}
+        
+    try:
+        delete_store_products(store_id)
+        for p in products: p["store_id"] = store_id
+        upload_products_bulk(products, store_id)
+        return {"status": "success", "message": f"تم استلام وتحديث {len(products)} منتج بنجاح!"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/admin/sync/bridge/{store_id}")
 async def sync_bridge(store_id: str, payload: dict):
     """
@@ -283,28 +298,70 @@ async def download_bridge_file(host: str = "", user: str = "", password: str = "
     from fastapi.responses import Response
     
     php_template = f"""<?php
-header('Content-Type: application/json');
+/**
+ * AI Sales Agent - Smart Bridge (Push Mode)
+ * This file allows you to PUSH data to the platform to bypass hosting firewalls.
+ */
+
 $db_host = "{host}"; 
 $db_user = "{user}";
 $db_pass = "{password}";
 $db_name = "{db}";
 $table_name = "{table}";
+$store_id = "{store_id}"; // Dynamic store ID
+$platform_url = "https://ai-sales-agent-dreu.onrender.com/admin/api/sync/push/$store_id";
 
-$conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
-if ($conn->connect_error) {{
-    die(json_encode(["error" => "Connection failed: " . $conn->connect_error]));
-}}
-$conn->set_charset("utf8mb4");
-$result = $conn->query("SELECT * FROM $table_name LIMIT 1000");
-$data = [];
-if ($result) {{
-    while($row = $result->fetch_assoc()) {{
-        $data[] = $row;
+if (isset($_GET['push'])) {{
+    $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+    if ($conn->connect_error) {{
+        die("خطأ في الاتصال بالقاعدة: " . $conn->connect_error);
     }}
+    $conn->set_charset("utf8mb4");
+    $result = $conn->query("SELECT * FROM $table_name LIMIT 1000");
+    $products = [];
+    while($row = $result->fetch_assoc()) {{
+        $keys = array_keys($row);
+        $name_key = $keys[0];
+        foreach($keys as $k) {{ if(stripos($k, 'name') !== false || stripos($k, 'اسم') !== false) {{ $name_key = $k; break; }} }}
+        $details = $row;
+        unset($details[$name_key]);
+        $products[] = ["name" => $row[$name_key], "details" => $details];
+    }}
+    $conn->close();
+
+    // Push to Platform via CURL
+    $ch = curl_init($platform_url);
+    $payload = json_encode(["products" => $products]);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type:application/json'));
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $response = curl_exec($ch);
+    curl_close($ch);
+    
+    die("<h1>✅ تمت المزامنة!</h1><p>الرد من المنصة: $response</p><a href='?'>العودة</a>");
 }}
-echo json_encode($data, JSON_UNESCAPED_UNICODE);
-$conn->close();
-?>"""
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>مزامنة البيانات - AI Sales Agent</title>
+    <style>
+        body {{ font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f0f2f5; margin: 0; }}
+        .card {{ background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }}
+        .btn {{ background: #f59e0b; color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; text-decoration: none; display: inline-block; }}
+        .btn:hover {{ background: #d97706; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>جسر المزامنة الذكي 🚀</h2>
+        <p>اضغط على الزر أدناه لإرسال بياناتك (MySQL) إلى منصة الذكاء الاصطناعي فوراً.</p>
+        <a href="?push=1" class="btn">إرسال البيانات للمنصة الآن</a>
+    </div>
+</body>
+</html>
+"""
     return Response(
         content=php_template,
         media_type="application/x-httpd-php",
