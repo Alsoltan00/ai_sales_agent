@@ -150,15 +150,45 @@
             </div>
         </div>
 
-        <!-- Products Tab -->
+        <!-- Products Management Tab -->
         <div id="products-tab" class="tab-pane">
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-upload"></i> رفع منتجات للمتجر المحدد</div>
-                <p style="margin-bottom: 20px; color: var(--text-muted);">سيتم رفع هذه المنتجات حصرياً للمتجر المختار في الأعلى.</p>
-                <form id="uploadForm" onsubmit="uploadProducts(event)">
-                    <input type="file" id="productFile" class="input" style="margin-bottom: 20px;" accept=".csv, .xlsx">
-                    <button type="submit" class="btn btn-primary" id="uploadBtn"><i class="fa-solid fa-cloud-arrow-up"></i> بدء الرفع</button>
-                </form>
+            <div class="page-header" style="margin-bottom: 20px;">
+                <h1>إدارة ومزامنة البيانات</h1>
+                <p>اختر الطريقة المناسبة لربط منتجاتك أو مقالاتك بالنظام.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                <!-- Method 1: Local File -->
+                <div class="card" style="display: flex; flex-direction: column;">
+                    <div class="card-header"><i class="fa-solid fa-file-excel" style="color:#10b981"></i> رفع ملف محلي</div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; flex: 1;">ارفع ملف Excel أو CSV من جهازك مباشرة. النظام سيقوم بتحليل الأعمدة تلقائياً.</p>
+                    <form onsubmit="uploadProducts(event)">
+                        <input type="file" id="productFile" class="input" style="margin-bottom: 15px; font-size: 0.8rem;" accept=".csv, .xlsx">
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;" id="uploadBtn">رفع الملف الآن</button>
+                    </form>
+                </div>
+
+                <!-- Method 2: Google Sheets -->
+                <div class="card" style="display: flex; flex-direction: column;">
+                    <div class="card-header"><i class="fa-solid fa-table" style="color:#34a853"></i> Google Sheets</div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; flex: 1;">ضع رابط "جوجل شيت" العام، وسيقوم النظام بمزامنة البيانات منه تلقائياً.</p>
+                    <form onsubmit="syncGoogleSheets(event)">
+                        <input type="url" name="sheet_url" class="input" placeholder="https://docs.google.com/spreadsheets/d/..." style="margin-bottom: 15px; font-size: 0.8rem;" required>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #34a853;" id="gsyncBtn">مزامنة من جوجل</button>
+                    </form>
+                </div>
+
+                <!-- Method 3: Supabase External -->
+                <div class="card" style="display: flex; flex-direction: column;">
+                    <div class="card-header"><i class="fa-solid fa-database" style="color:#3ecf8e"></i> Supabase الخارجي</div>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 20px; flex: 1;">مزامنة البيانات من قاعدة بيانات Supabase خارجية إلى نظامك مباشرة.</p>
+                    <form onsubmit="syncExternalSupabase(event)">
+                        <input type="text" name="sb_url" class="input" placeholder="Supabase URL" style="margin-bottom: 10px; font-size: 0.8rem;" required>
+                        <input type="password" name="sb_key" class="input" placeholder="Anon / Service Key" style="margin-bottom: 10px; font-size: 0.8rem;" required>
+                        <input type="text" name="sb_table" class="input" placeholder="Table Name (اسم الجدول)" style="margin-bottom: 15px; font-size: 0.8rem;" required>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #3ecf8e;" id="sbsyncBtn">بدء المزامنة</button>
+                    </form>
+                </div>
             </div>
         </div>
 
@@ -224,6 +254,47 @@
         function onStoreChange() {
             const tab = document.querySelector('.tab-pane.active').id;
             if (tab === 'users-tab') loadNumbers();
+        }
+
+        async function syncGoogleSheets(e) {
+            e.preventDefault();
+            const storeId = document.getElementById('storeSelector').value;
+            const url = e.target.sheet_url.value;
+            const btn = document.getElementById('gsyncBtn');
+            btn.disabled = true; btn.innerText = 'جاري المزامنة...';
+
+            try {
+                const res = await fetch(`/admin/sync/gsheet/${storeId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                if (res.ok) showToast('تمت المزامنة من جوجل بنجاح');
+                else showToast(data.message, 'error');
+            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+            finally { btn.disabled = false; btn.innerText = 'مزامنة من جوجل'; }
+        }
+
+        async function syncExternalSupabase(e) {
+            e.preventDefault();
+            const storeId = document.getElementById('storeSelector').value;
+            const formData = new FormData(e.target);
+            const body = Object.fromEntries(formData.entries());
+            const btn = document.getElementById('sbsyncBtn');
+            btn.disabled = true; btn.innerText = 'جاري المزامنة...';
+
+            try {
+                const res = await fetch(`/admin/sync/supabase/${storeId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (res.ok) showToast('تمت المزامنة من سوبر بيس بنجاح');
+                else showToast(data.message, 'error');
+            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+            finally { btn.disabled = false; btn.innerText = 'بدء المزامنة'; }
         }
 
         async function uploadProducts(e) {
