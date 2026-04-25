@@ -67,7 +67,11 @@ async def root_redirect():
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+    try:
+        return templates.TemplateResponse("login.html", {"request": request})
+    except Exception as e:
+        import traceback
+        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
 
 @app.post("/admin/api/login")
 async def api_login(request: Request, payload: dict):
