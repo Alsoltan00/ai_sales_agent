@@ -64,9 +64,17 @@ def initialize_database():
             system_prompt   TEXT DEFAULT '',
             sync_source     TEXT DEFAULT 'local',
             sync_config     JSONB DEFAULT '{}',
+            whatsapp_config JSONB DEFAULT '{"provider": "evolution", "evolution_api_url": "", "evolution_api_key": "", "evolution_instance_name": "", "meta_phone_number_id": "", "meta_access_token": "", "meta_verify_token": ""}'::jsonb,
             created_at      TIMESTAMPTZ DEFAULT NOW()
         )
     """)
+    
+    # Auto-migration: ensure the new column exists if updating from old version
+    try:
+        cursor.execute("ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_config JSONB DEFAULT '{\"provider\": \"evolution\"}'::jsonb;")
+    except Exception as e:
+        print(f"Migration error (whatsapp_config): {e}")
+
     conn.commit()
     conn.close()
     print("[+] Database initialized: public.stores ready.")
@@ -200,6 +208,17 @@ def update_store_sync_db(store_id, source: str, config: dict):
     cursor.execute(
         "UPDATE public.stores SET sync_source = %s, sync_config = %s WHERE id = %s",
         (source, Json(config), store_id)
+    )
+    conn.commit()
+    conn.close()
+
+def update_store_whatsapp_config(store_id, config: dict):
+    """Updates the WhatsApp API configuration for a specific store."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE public.stores SET whatsapp_config = %s WHERE id = %s",
+        (Json(config), store_id)
     )
     conn.commit()
     conn.close()
@@ -482,7 +501,8 @@ def get_store_config(instance_name: str):
             "id": str(store["id"]),
             "name": store["name"],
             "system_prompt": store.get("system_prompt", ""),
-            "evolution_instance_name": store.get("evolution_instance_name", "")
+            "evolution_instance_name": store.get("evolution_instance_name", ""),
+            "whatsapp_config": store.get("whatsapp_config", {})
         }
     return None
 

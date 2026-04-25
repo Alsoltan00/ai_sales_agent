@@ -139,20 +139,13 @@
                             <label class="label">اسم المتجر</label>
                             <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
-                        <div class="form-group">
-                            <label class="label">معرف الواتساب</label>
-                            <div style="display: flex; gap: 10px;">
-                                <input type="text" id="currentStoreInstance" name="evolution_instance_name" class="input">
-                                <button type="button" class="btn btn-outline" onclick="linkWhatsApp()" style="white-space: nowrap;"><i class="fa-brands fa-whatsapp"></i> استخراج كود QR</button>
-                            </div>
+                        <div class="form-group" style="grid-column: 1/-1;">
+                            <label class="label">اسم المتجر</label>
+                            <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
                     </div>
                     
-                    <div id="qrCodeContainer" style="display: none; text-align: center; margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed var(--primary);">
-                        <h4 style="margin-bottom: 15px; color: var(--primary);">امسح الكود لربط الواتساب</h4>
-                        <img id="qrCodeImg" src="" style="width: 250px; height: 250px; display: inline-block;">
-                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بعد مسح الكود، المتجر مربوط بالواتساب بنجاح</p>
-                    </div>
+
 
                     <h3 style="margin: 30px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                         <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
@@ -182,14 +175,8 @@
                             <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
                             <textarea id="currentFaq" name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
                         </div>
-                    </div>
-                    
-                    <div style="margin-top: 15px;">
+                    </div>                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ إعدادات المتجر الحالي</button>
-                        <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger); float: left;" onclick="deleteCurrentStore()">
-                            <i class="fa-solid fa-trash"></i> حذف هذا المتجر
-                        </button>
-                    </div>
                 </form>
             </div>
         </div>
@@ -620,11 +607,21 @@
                     const store = data.store;
                     document.getElementById('currentStoreId').value = store.id;
                     document.getElementById('currentStoreName').value = store.name;
-                    document.getElementById('currentStoreInstance').value = store.evolution_instance_name || '';
                     document.getElementById('currentAbout').value = store.ai_config.about || '';
                     document.getElementById('currentTone').value = store.ai_config.tone || '';
                     document.getElementById('currentPolicy').value = store.ai_config.policy || '';
                     document.getElementById('currentFaq').value = store.ai_config.faq || '';
+                    
+                    // Load WhatsApp Config
+                    const wa = store.whatsapp_config || {};
+                    document.getElementById('waProvider').value = wa.provider || 'evolution';
+                    document.getElementById('waEvoUrl').value = wa.evolution_api_url || '';
+                    document.getElementById('waEvoKey').value = wa.evolution_api_key || '';
+                    document.getElementById('waEvoInstance').value = wa.evolution_instance_name || store.evolution_instance_name || '';
+                    document.getElementById('waMetaPhoneId').value = wa.meta_phone_number_id || '';
+                    document.getElementById('waMetaToken').value = wa.meta_access_token || '';
+                    document.getElementById('waMetaVerify').value = wa.meta_verify_token || '';
+                    toggleWaProvider();
                     
                     // Fetch dynamic columns for this store
                     const colsRes = await fetch(`/admin/api/columns?store_id=${storeId}`);
@@ -715,23 +712,73 @@
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
         }
 
+        function toggleWaProvider() {
+            const provider = document.getElementById('waProvider').value;
+            if (provider === 'meta') {
+                document.getElementById('waEvolutionFields').style.display = 'none';
+                document.getElementById('waMetaFields').style.display = 'grid';
+                document.getElementById('waLinkBtn').style.display = 'none';
+                document.getElementById('qrCodeContainer').style.display = 'none';
+            } else {
+                document.getElementById('waEvolutionFields').style.display = 'grid';
+                document.getElementById('waMetaFields').style.display = 'none';
+                document.getElementById('waLinkBtn').style.display = 'inline-block';
+            }
+        }
+
+        async function saveWhatsAppConfig(e) {
+            e.preventDefault();
+            const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) return showToast('يرجى اختيار المتجر', 'error');
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            data.store_id = storeId;
+            
+            const btn = document.getElementById('waSaveBtn');
+            btn.disabled = true; btn.innerText = 'جاري الحفظ...';
+            
+            try {
+                const res = await fetch('/admin/api/whatsapp/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                const resData = await res.json();
+                if (res.ok) {
+                    showToast(resData.message || 'تم حفظ الإعدادات');
+                } else {
+                    showToast(resData.message || 'فشل الحفظ', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال', 'error');
+            } finally {
+                btn.disabled = false; btn.innerText = 'حفظ إعدادات الواتساب';
+            }
+        }
+
         async function linkWhatsApp() {
-            const instanceName = document.getElementById('currentStoreInstance').value;
-            if (!instanceName) {
-                showToast('يرجى كتابة معرف الواتساب أولاً في الحقل الخاص به', 'error');
+            const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) {
+                showToast('يرجى اختيار المتجر أولاً', 'error');
                 return;
             }
             
-            showToast('جاري إنشاء جلسة الواتساب...');
+            const btn = document.getElementById('waLinkBtn');
+            btn.disabled = true;
+            
+            showToast('جاري استخراج كود QR...');
             try {
+                // Must pass the instance_name from the form to link_whatsapp API just in case it wasn't saved yet
+                const instanceName = document.getElementById('waEvoInstance').value;
                 const res = await fetch('/admin/api/whatsapp/link', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ instance_name: instanceName })
+                    body: JSON.stringify({ store_id: storeId, instance_name: instanceName })
                 });
                 const data = await res.json();
                 
-                if (data.status === 'success' && data.qr) {
+                if (res.ok && data.status === 'success' && data.qr) {
                     document.getElementById('qrCodeImg').src = data.qr;
                     document.getElementById('qrCodeContainer').style.display = 'block';
                     showToast('تم استخراج الكود! امسحه من تطبيق الواتساب');
@@ -740,6 +787,8 @@
                 }
             } catch (err) {
                 showToast('خطأ في الاتصال بالخادم', 'error');
+            } finally {
+                btn.disabled = false;
             }
         }
         async function deleteNumber(phone) {

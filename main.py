@@ -24,7 +24,8 @@ from agent.database import (
     update_store_sync_db, delete_store_products, upload_products_bulk,
     fetch_products_by_store, fetch_authorized_numbers, add_authorized_number,
     delete_authorized_number, get_store_columns, save_store_columns,
-    search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
+    search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge,
+    update_store_whatsapp_config
 )
 
 app = FastAPI(title="AI Sales Platform", version="2.0")
@@ -168,15 +169,55 @@ async def api_delete_store(store_id: str):
 #  WHATSAPP INTEGRATION API (EVOLUTION)
 # =============================================================================
 
+@app.post("/admin/api/whatsapp/config")
+async def save_whatsapp_config(payload: dict):
+    """Saves the WhatsApp API configuration for a store."""
+    store_id = payload.get("store_id")
+    if not store_id:
+        return {"status": "error", "message": "store_id is required"}
+    
+    config = {
+        "provider": payload.get("provider", "evolution"),
+        "evolution_api_url": payload.get("evolution_api_url", "").strip().rstrip('/'),
+        "evolution_api_key": payload.get("evolution_api_key", "").strip(),
+        "evolution_instance_name": payload.get("evolution_instance_name", "").strip(),
+        "meta_phone_number_id": payload.get("meta_phone_number_id", "").strip(),
+        "meta_access_token": payload.get("meta_access_token", "").strip(),
+        "meta_verify_token": payload.get("meta_verify_token", "").strip()
+    }
+    
+    try:
+        update_store_whatsapp_config(store_id, config)
+        return {"status": "success", "message": "تم حفظ إعدادات الواتساب بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/admin/api/whatsapp/link")
 async def link_whatsapp(payload: dict):
     """Creates an Evolution instance and returns the QR code base64."""
-    instance_name = payload.get("instance_name")
+    store_id = payload.get("store_id")
+    if not store_id:
+        return {"status": "error", "message": "Store ID is required"}
+        
+    store = fetch_store_by_id(store_id)
+    if not store:
+        return {"status": "error", "message": "المتجر غير موجود"}
+        
+    config = store.get("whatsapp_config", {})
+    provider = config.get("provider", "evolution")
+    
+    if provider != "evolution":
+        return {"status": "error", "message": "طريقة الربط الحالية لا تدعم استخراج كود QR. يرجى اختيار Evolution API."}
+        
+    api_url = config.get("evolution_api_url") or EVOLUTION_API_URL
+    api_key = config.get("evolution_api_key") or EVOLUTION_API_KEY
+    instance_name = config.get("evolution_instance_name") or payload.get("instance_name")
+    
     if not instance_name:
-        return {"status": "error", "message": "اسم النسخة مطلوب"}
+        return {"status": "error", "message": "اسم النسخة مطلوب في الإعدادات"}
         
     headers = {
-        "apikey": EVOLUTION_API_KEY,
+        "apikey": api_key,
         "Content-Type": "application/json"
     }
     
@@ -189,9 +230,9 @@ async def link_whatsapp(payload: dict):
     
     try:
         # Force delete if exists to get a fresh QR
-        requests.delete(f"{EVOLUTION_API_URL}/instance/delete/{instance_name}", headers=headers)
+        requests.delete(f"{api_url}/instance/delete/{instance_name}", headers=headers)
         
-        res = requests.post(f"{EVOLUTION_API_URL}/instance/create", json=create_payload, headers=headers)
+        res = requests.post(f"{api_url}/instance/create", json=create_payload, headers=headers)
         if res.status_code not in [200, 201]:
             return {"status": "error", "message": f"فشل إنشاء النسخة: {res.text}"}
             
@@ -208,7 +249,7 @@ async def link_whatsapp(payload: dict):
                 "events": ["MESSAGES_UPSERT"]
             }
         }
-        requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers)
+        requests.post(f"{api_url}/webhook/set/{instance_name}", json=webhook_payload, headers=headers)
         
         return {"status": "success", "qr": qr_base64}
         
@@ -463,6 +504,32 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks)
     data = await request.json()
     background_tasks.add_task(handle_incoming_message, data)
     return {"status": "received"}
+
+@app.get("/webhook_meta")
+async def meta_webhook_verify(request: Request):
+    """Verifies the webhook for Meta Cloud API."""
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+    
+    # We could strictly verify the token against our stores, but typically 
+    # it's fine to just return the challenge if a token is present during setup.
+    if mode == "subscribe" and challenge:
+        return Response(content=challenge, media_type="text/plain")
+    return Response(content="Forbidden", status_code=403)
+
+@app.post("/webhook_meta")
+async def meta_webhook_receive(request: Request, background_tasks: BackgroundTasks):
+    """Receives messages from Meta Cloud API."""
+    try:
+        data = await request.json()
+        # In the future, parse Meta payload and adapt it for handle_incoming_message
+        # background_tasks.add_task(handle_incoming_message, adapted_data)
+        print("Received Meta Webhook:", json.dumps(data, indent=2))
+        return {"status": "received"}
+    except Exception as e:
+        print(f"Meta webhook error: {e}")
+        return {"status": "error"}
 
 
 # =============================================================================
