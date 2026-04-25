@@ -276,9 +276,42 @@ async def api_delete_number(phone: str, store_id: str):
 #  DATA SYNC ROUTES
 # =============================================================================
 
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Header, UploadFile, File
+import pandas as pd
+import io
+
+@app.post("/admin/upload/{store_id}")
+async def upload_file_direct(store_id: str, file: UploadFile = File(...)):
+    """Handles direct Excel/CSV file upload and parses it."""
+    try:
+        content = await file.read()
+        filename = file.filename.lower()
+        
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(content))
+        elif filename.endswith((".xls", ".xlsx")):
+            df = pd.read_excel(io.BytesIO(content))
+        else:
+            return {"status": "error", "message": "صيغة الملف غير مدعومة. يرجى رفع ملف إكسيل أو CSV"}
+            
+        # Convert df to list of dicts, replacing NaN with None
+        df = df.where(pd.notnull(df), None)
+        products = df.to_dict(orient='records')
+        
+        if not products:
+            return {"status": "error", "message": "لا توجد بيانات في الملف"}
+            
+        update_store_sync_db(store_id, "local", {})
+        delete_store_products(store_id)
+        upload_products_bulk(products, store_id)
+        
+        return {"status": "success", "message": f"تم استيراد {len(products)} منتج بنجاح!"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ أثناء معالجة الملف: {str(e)}"}
+
 @app.post("/admin/sync/excel/{store_id}")
 async def sync_excel(store_id: str, request: Request):
-    """Handles Excel/CSV file upload and synchronization."""
+    """Handles JSON payload with products (legacy or API integration)."""
     data = await request.json()
     products = data.get("products", [])
     if not products:
