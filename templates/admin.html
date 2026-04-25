@@ -345,31 +345,7 @@
                         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>
                     </form>
                 </div>
-            </div>
-        </div>
-
-        <!-- Data View Tab -->
-        <div id="data-view-tab" class="tab-pane">
-            <div class="page-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <div>
-                    <h1>استعراض بيانات العميل المستوردة</h1>
-                    <p>هذه هي البيانات التي يراها الذكاء الاصطناعي حالياً من المصدر المربوط.</p>
-                </div>
-                <div style="width: 300px;">
-                    <input type="text" id="dataSearch" class="input" placeholder="بحث في البيانات..." oninput="filterCards()">
-                </div>
-            </div>
-
-            <div id="dataCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-                <!-- Cards will be injected here -->
-                <div style="text-align: center; grid-column: 1/-1; padding: 50px; color: var(--text-muted);">
-                    <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 15px;"></i>
-                    <p>جاري تحميل البيانات الحية...</p>
-                </div>
-            </div>
-        </div>
-
-        {% if user.role == 'admin' %}
+         {% if user.role == 'admin' %}
         <!-- User Management Tab -->
         <div id="admin-users-tab" class="tab-pane">
             <div class="page-header" style="margin-bottom: 20px;">
@@ -418,6 +394,33 @@
                             <tbody id="usersListBody">
                                 <!-- سيتم التحميل بالجافا سكريبت -->
                             </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Settings Tab -->
+        <div id="settings-tab" class="tab-pane">
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
+                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 1.5rem;"></i>
+                        <strong style="font-size: 1.1rem; color: #166534;">متصل بقاعدة بيانات Aiven PostgreSQL</strong>
+                    </div>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">النظام يعمل بهيكلة معزولة: كل متجر يملك بيئة بيانات خاصة به (Schema) منفصلة تماماً عن المتاجر الأخرى.</p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-shield-halved"></i> ملاحظات أمان</div>
+                <p style="color: var(--text-muted); line-height: 1.8;">• جميع مفاتيح API (مثل GROQ_API_KEY) يتم إدارتها من خلال <b>متغيرات البيئة في Render</b> لضمان الأمان.<br>
+                • لتعديل أي مفتاح، ادخل على <b>Render Dashboard → Environment</b>.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div> <!-- End of main-content -->
+</div> <!-- End of main-layout -->                         </tbody>
                         </table>
                     </div>
                 </div>
