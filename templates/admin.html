@@ -104,9 +104,12 @@
             </div>
 
             {% if user.role == 'admin' %}
-            <div class="nav-label" style="margin-top: 20px;">الإدارة</div>
+            <div class="nav-label" style="margin-top: 20px;">الإدارة والنظام</div>
             <div class="nav-item" onclick="showTab('admin-users', this)">
                 <i class="fa-solid fa-user-shield"></i> إدارة المستخدمين
+            </div>
+            <div class="nav-item" onclick="showTab('settings', this)">
+                <i class="fa-solid fa-gears"></i> إعدادات النظام
             </div>
             {% endif %}
         </div>
