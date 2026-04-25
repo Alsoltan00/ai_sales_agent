@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from agent.conversation_manager import handle_incoming_message
 import requests
-from agent.supabase_db import (
+from agent.database import (
     fetch_stores, fetch_store_by_id, update_store_sync_db, 
     delete_store_products, upload_products_bulk, fetch_products_by_store,
     search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge

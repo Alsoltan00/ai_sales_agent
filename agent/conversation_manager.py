@@ -6,7 +6,7 @@ EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-latest
 EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "Aseel.709293")
 
 from agent.llm_router import classify_intent_and_extract_keywords, generate_sales_reply
-from agent.supabase_db import search_products, get_store_config, check_authorized_number
+from agent.database import search_products, get_store_config, check_authorized_number
 from agent.voice_handler import recognize_speech, text_to_speech
 import base64
 import uuid
