@@ -23,8 +23,46 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     """Renders the main admin dashboard."""
-    stores = fetch_stores()
-    return templates.TemplateResponse("admin.html", {"request": request, "stores": stores})
+    try:
+        stores = fetch_stores()
+        return templates.TemplateResponse("admin.html", {"request": request, "stores": stores})
+    except Exception as e:
+        return HTMLResponse(content=f"<h1 style='color:red;'>Database Connection Error</h1><p><b>{str(e)}</b></p><p>Please check your DB_HOST, DB_PASS, and DB_USER in Render environment variables.</p>", status_code=500)
+
+@app.post("/admin/api/stores")
+async def add_store(payload: dict):
+    try:
+        from agent.database import get_db_connection
+        from psycopg2.extras import Json
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        sync_config = {
+            "system_prompt": payload.get("system_prompt", ""),
+            "evolution_instance_name": payload.get("evolution_instance_name", "")
+        }
+        cursor.execute(
+            "INSERT INTO stores (name, sync_source, sync_config) VALUES (%s, 'local', %s)",
+            (payload.get("name", "Store"), Json(sync_config))
+        )
+        conn.commit()
+        conn.close()
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.delete("/admin/api/stores/{store_id}")
+async def delete_store_route(store_id: str):
+    try:
+        from agent.database import get_db_connection
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM products WHERE store_id = %s", (store_id,))
+        cursor.execute("DELETE FROM stores WHERE id = %s", (store_id,))
+        conn.commit()
+        conn.close()
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/excel/{store_id}")
 async def sync_excel(store_id: str, request: Request):

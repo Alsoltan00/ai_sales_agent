@@ -27,6 +27,12 @@ def fetch_stores():
     cursor.execute("SELECT * FROM stores")
     stores = cursor.fetchall()
     conn.close()
+    
+    for s in stores:
+        cfg = s.get("sync_config", {}) or {}
+        s["evolution_instance_name"] = cfg.get("evolution_instance_name", s["name"])
+        s["system_prompt"] = cfg.get("system_prompt", "")
+        
     return stores
 
 def fetch_store_by_id(store_id: str):
