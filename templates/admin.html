@@ -102,9 +102,6 @@
             <div class="nav-item" onclick="showTab('users', this)">
                 <i class="fa-solid fa-users"></i> الأرقام المصرحة
             </div>
-            <div class="nav-item" onclick="showTab('settings', this)">
-                <i class="fa-solid fa-gears"></i> الإعدادات الرئيسية
-            </div>
         </div>
     </div>
 
@@ -139,9 +136,6 @@
                             <label class="label">اسم المتجر</label>
                             <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
-                        <div class="form-group" style="grid-column: 1/-1;">
-                            <label class="label">اسم المتجر</label>
-                            <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
                     </div>
                     
@@ -175,9 +169,74 @@
                             <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
                             <textarea id="currentFaq" name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
                         </div>
-                    </div>                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ إعدادات المتجر الحالي</button>
+                        <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deleteCurrentStore()">
+                            <i class="fa-solid fa-trash"></i> حذف هذا المتجر
+                        </button>
+                    </div>
                 </form>
+            </div>
+
+            <!-- إعدادات ربط الواتساب -->
+            <div class="card" style="margin-top: 20px; border-top: 4px solid #25D366;">
+                <h3 style="margin-bottom: 15px; color: #25D366;"><i class="fa-brands fa-whatsapp"></i> إعدادات ربط الواتساب</h3>
+                <form id="whatsappConfigForm" onsubmit="saveWhatsAppConfig(event)">
+                    <div class="form-group">
+                        <label class="label">مزود الخدمة</label>
+                        <select id="waProvider" name="provider" class="input" onchange="toggleWaProvider()">
+                            <option value="evolution">Evolution API (غير رسمي - كود QR)</option>
+                            <option value="meta">Meta Cloud API (رسمي)</option>
+                        </select>
+                    </div>
+
+                    <!-- Evolution Fields -->
+                    <div id="waEvolutionFields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="label">رابط خادم Evolution</label>
+                            <input type="text" id="waEvoUrl" name="evolution_api_url" class="input" placeholder="https://your-evo-server.com">
+                        </div>
+                        <div class="form-group">
+                            <label class="label">مفتاح Global API Key</label>
+                            <input type="password" id="waEvoKey" name="evolution_api_key" class="input" placeholder="Global API Key">
+                        </div>
+                        <div class="form-group" style="grid-column: 1/-1;">
+                            <label class="label">اسم النسخة (Instance Name)</label>
+                            <input type="text" id="waEvoInstance" name="evolution_instance_name" class="input" placeholder="my-store-1">
+                        </div>
+                    </div>
+
+                    <!-- Meta Fields -->
+                    <div id="waMetaFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="label">Phone Number ID</label>
+                            <input type="text" id="waMetaPhoneId" name="meta_phone_number_id" class="input" placeholder="مثال: 1234567890">
+                        </div>
+                        <div class="form-group">
+                            <label class="label">Verify Token (للويب هوك)</label>
+                            <input type="text" id="waMetaVerify" name="meta_verify_token" class="input" placeholder="أي كلمة سر تختارها">
+                        </div>
+                        <div class="form-group" style="grid-column: 1/-1;">
+                            <label class="label">Access Token</label>
+                            <input type="password" id="waMetaToken" name="meta_access_token" class="input" placeholder="EAAB...">
+                        </div>
+                        <div class="form-group" style="grid-column: 1/-1;">
+                            <label class="label">رابط Webhook (قم بنسخه إلى منصة ميتا)</label>
+                            <input type="text" class="input" value="https://ai-sales-agent-dreu.onrender.com/webhook_meta" readonly style="background: var(--bg-color); cursor: copy; color: var(--primary); font-weight: bold;" onclick="this.select(); document.execCommand('copy'); showToast('تم نسخ رابط الويب هوك بنجاح');" title="انقر للنسخ">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px; margin-top: 20px;">
+                        <button type="submit" class="btn btn-primary" id="waSaveBtn">حفظ إعدادات الواتساب</button>
+                        <button type="button" class="btn btn-outline" id="waLinkBtn" onclick="linkWhatsApp()"><i class="fa-brands fa-whatsapp"></i> استخراج كود QR</button>
+                    </div>
+                </form>
+                
+                <div id="qrCodeContainer" style="display: none; text-align: center; margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed #25D366;">
+                    <h4 style="margin-bottom: 15px; color: #25D366;">امسح الكود لربط الواتساب</h4>
+                    <img id="qrCodeImg" src="" style="width: 250px; height: 250px; display: inline-block;">
+                    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بعد مسح الكود، المتجر مربوط بالواتساب بنجاح</p>
+                </div>
             </div>
         </div>
 
