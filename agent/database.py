@@ -24,6 +24,7 @@ import json
 import requests
 import os
 import re
+import bcrypt
 
 # --- AIVEN POSTGRESQL CONFIGURATION ---
 DB_CONFIG = {
@@ -68,12 +69,34 @@ def initialize_database():
             created_at      TIMESTAMPTZ DEFAULT NOW()
         )
     """)
+    # Users Table (Global Access Control)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS public.users (
+            id              SERIAL PRIMARY KEY,
+            username        TEXT UNIQUE NOT NULL,
+            password_hash   TEXT NOT NULL,
+            role            TEXT NOT NULL DEFAULT 'merchant', -- 'admin' or 'merchant'
+            store_id        INTEGER REFERENCES public.stores(id) ON DELETE SET NULL,
+            is_active       BOOLEAN DEFAULT TRUE,
+            created_at      TIMESTAMPTZ DEFAULT NOW()
+        )
+    """)
     
     # Auto-migration: ensure the new column exists if updating from old version
     try:
         cursor.execute("ALTER TABLE public.stores ADD COLUMN IF NOT EXISTS whatsapp_config JSONB DEFAULT '{\"provider\": \"evolution\"}'::jsonb;")
     except Exception as e:
         print(f"Migration error (whatsapp_config): {e}")
+
+    # Seed Admin User if not exists
+    cursor.execute("SELECT COUNT(*) FROM public.users WHERE role = 'admin'")
+    if cursor.fetchone()[0] == 0:
+        admin_pass = "admin123" # User should change this
+        hashed = bcrypt.hashpw(admin_pass.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        cursor.execute(
+            "INSERT INTO public.users (username, password_hash, role) VALUES (%s, %s, %s)",
+            ("admin", hashed, "admin")
+        )
 
     conn.commit()
     conn.close()
@@ -220,6 +243,61 @@ def update_store_whatsapp_config(store_id, config: dict):
         "UPDATE public.stores SET whatsapp_config = %s WHERE id = %s",
         (Json(config), store_id)
     )
+    conn.commit()
+    conn.close()
+
+# =============================================================================
+#  USER & AUTHENTICATION
+# =============================================================================
+
+def authenticate_user(username, password):
+    """Verifies user credentials. Returns user dict or None."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM public.users WHERE username = %s AND is_active = TRUE", (username,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+        return dict(user)
+    return None
+
+def create_user(username, password, role='merchant', store_id=None):
+    """Creates a new user with hashed password."""
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO public.users (username, password_hash, role, store_id) VALUES (%s, %s, %s, %s)",
+            (username, hashed, role, store_id)
+        )
+        conn.commit()
+        return True
+    except:
+        return False
+    finally:
+        conn.close()
+
+def fetch_users():
+    """Fetches all users for admin management."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("""
+        SELECT u.*, s.name as store_name 
+        FROM public.users u 
+        LEFT JOIN public.stores s ON u.store_id = s.id 
+        ORDER BY u.created_at DESC
+    """)
+    users = cursor.fetchall()
+    conn.close()
+    return [dict(u) for u in users]
+
+def toggle_user_status(user_id, status: bool):
+    """Enables or disables a user account."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE public.users SET is_active = %s WHERE id = %s", (status, user_id))
     conn.commit()
     conn.close()
 

@@ -12,10 +12,11 @@ import json
 import asyncio
 import logging
 from typing import List, Optional
-from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Header
+from fastapi import FastAPI, Request, BackgroundTasks, HTTPException, Header, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 from agent.conversation_manager import handle_incoming_message
 import requests
 from agent.database import (
@@ -25,10 +26,12 @@ from agent.database import (
     fetch_products_by_store, fetch_authorized_numbers, add_authorized_number,
     delete_authorized_number, get_store_columns, save_store_columns,
     search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge,
-    update_store_whatsapp_config
+    update_store_whatsapp_config,
+    authenticate_user, create_user, fetch_users, toggle_user_status
 )
 
 app = FastAPI(title="AI Sales Platform", version="2.0")
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "super-secret-key-123"))
 templates = Jinja2Templates(directory="templates")
 
 
@@ -57,24 +60,63 @@ async def startup_event():
 async def root_redirect():
     return RedirectResponse(url="/admin")
 
+# =============================================================================
+#  AUTHENTICATION ROUTES
+# =============================================================================
+
+@app.get("/login", response_class=HTMLResponse)
+async def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/admin/api/login")
+async def api_login(request: Request, payload: dict):
+    username = payload.get("username")
+    password = payload.get("password")
+    user = authenticate_user(username, password)
+    
+    if user:
+        request.session["user"] = {
+            "id": user["id"],
+            "username": user["username"],
+            "role": user["role"],
+            "store_id": user["store_id"]
+        }
+        return {"status": "success"}
+    return {"status": "error", "message": "اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل"}
+
+@app.get("/logout")
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login")
+
+def get_current_user(request: Request):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return user
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
-    """Renders the main admin dashboard."""
+    """Renders the main admin dashboard with multi-tenant filtering."""
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse(url="/login")
+        
     try:
-        stores = fetch_stores()
+        if user["role"] == "admin":
+            stores = fetch_stores()
+        else:
+            # Merchant only sees their assigned store
+            if not user["store_id"]:
+                return HTMLResponse("Account not linked to any store. Contact Admin.")
+            store = fetch_store_by_id(user["store_id"])
+            stores = [store] if store else []
+            
         return templates.TemplateResponse(
-            request=request, name="admin.html", context={"stores": stores}
+            request=request, name="admin.html", context={"stores": stores, "user": user}
         )
     except Exception as e:
-        return HTMLResponse(
-            content=f"""<html><body style='font-family:sans-serif;padding:40px;'>
-            <h1 style='color:#ef4444;'>⚠️ Database Connection Error</h1>
-            <p style='font-size:1.2rem;'><b>{str(e)}</b></p>
-            <hr><p>Check your environment variables: <code>DB_HOST</code>, <code>DB_PORT</code>, 
-            <code>DB_USER</code>, <code>DB_PASS</code>, <code>DB_NAME</code></p>
-            </body></html>""",
-            status_code=500
-        )
+        return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
 
 
 import os
@@ -530,6 +572,39 @@ async def meta_webhook_receive(request: Request, background_tasks: BackgroundTas
     except Exception as e:
         print(f"Meta webhook error: {e}")
         return {"status": "error"}
+
+
+# =============================================================================
+#  USER MANAGEMENT API (ADMIN ONLY)
+# =============================================================================
+
+@app.get("/admin/api/users")
+async def api_fetch_users(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    return fetch_users()
+
+@app.post("/admin/api/users")
+async def api_create_user(payload: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    success = create_user(
+        payload["username"], 
+        payload["password"], 
+        store_id=payload.get("store_id")
+    )
+    if success:
+        return {"status": "success"}
+    return {"status": "error", "message": "اسم المستخدم موجود مسبقاً"}
+
+@app.post("/admin/api/users/status")
+async def api_toggle_user(payload: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    toggle_user_status(payload["user_id"], payload["status"])
+    return {"status": "success"}
 
 
 # =============================================================================

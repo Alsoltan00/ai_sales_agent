@@ -102,6 +102,28 @@
             <div class="nav-item" onclick="showTab('users', this)">
                 <i class="fa-solid fa-users"></i> الأرقام المصرحة
             </div>
+
+            {% if user.role == 'admin' %}
+            <div class="nav-label" style="margin-top: 20px;">الإدارة</div>
+            <div class="nav-item" onclick="showTab('admin-users', this)">
+                <i class="fa-solid fa-user-shield"></i> إدارة المستخدمين
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="margin-top: auto; padding: 20px; border-top: 1px solid var(--glass-border);">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800;">
+                    {{ user.username[0] | upper }}
+                </div>
+                <div>
+                    <div style="font-size: 0.9rem; font-weight: 700;">{{ user.username }}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ 'مدير النظام' if user.role == 'admin' else 'تاجر' }}</div>
+                </div>
+            </div>
+            <a href="/logout" style="display: flex; align-items: center; gap: 8px; color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+                <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
+            </a>
         </div>
     </div>
 
@@ -122,9 +144,11 @@
         <div id="stores-tab" class="tab-pane active">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                 <h3 style="color: var(--primary);"><i class="fa-solid fa-sliders"></i> إعدادات المتجر الحالي</h3>
+                {% if user.role == 'admin' %}
                 <button class="btn btn-primary" onclick="document.getElementById('addStoreModal').style.display='flex'">
                     <i class="fa-solid fa-plus-circle"></i> إضافة نشاط / متجر جديد
                 </button>
+                {% endif %}
             </div>
 
             <div class="card">
@@ -168,9 +192,11 @@
                         </div>
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ إعدادات المتجر الحالي</button>
+                        {% if user.role == 'admin' %}
                         <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deleteCurrentStore()">
                             <i class="fa-solid fa-trash"></i> حذف هذا المتجر
                         </button>
+                        {% endif %}
                     </div>
                 </form>
             </div>
@@ -330,33 +356,62 @@
                 </div>
             </div>
 
-            <div id="dataCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
-                <!-- Cards will be injected here -->
-                <div style="text-align: center; grid-column: 1/-1; padding: 50px; color: var(--text-muted);">
-                    <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 15px;"></i>
-                    <p>جاري تحميل البيانات الحية...</p>
+            <div id="dataCardsGrid" style="d        {% if user.role == 'admin' %}
+        <!-- User Management Tab -->
+        <div id="admin-users-tab" class="tab-pane">
+            <div class="page-header" style="margin-bottom: 20px;">
+                <h1>إدارة حسابات التجار</h1>
+                <p>يمكنك من هنا إضافة تجار جدد، ربطهم بمتاجرهم، وتفعيل أو تعطيل حساباتهم.</p>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start;">
+                <div class="card">
+                    <div class="card-header"><i class="fa-solid fa-user-plus"></i> إضافة تاجر جديد</div>
+                    <form onsubmit="addNewUser(event)">
+                        <div class="form-group">
+                            <label class="label">اسم المستخدم</label>
+                            <input type="text" name="username" class="input" placeholder="مثلاً: asseel_store" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">كلمة المرور</label>
+                            <input type="password" name="password" class="input" placeholder="••••••••" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">ربط بالمتجر</label>
+                            <select name="store_id" class="input" required>
+                                <option value="">--- اختر المتجر ---</option>
+                                {% for store in stores %}
+                                <option value="{{ store.id }}">{{ store.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">إنشاء الحساب</button>
+                    </form>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fa-solid fa-users-gear"></i> قائمة المستخدمين</div>
+                    <div id="usersTableContainer" style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; text-align: right;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid var(--border);">
+                                    <th style="padding: 12px;">المستخدم</th>
+                                    <th style="padding: 12px;">المتجر</th>
+                                    <th style="padding: 12px;">الدور</th>
+                                    <th style="padding: 12px;">الحالة</th>
+                                    <th style="padding: 12px;">الإجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersListBody">
+                                <!-- سيتم التحميل بالجافا سكريبت -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Users Tab -->
-        <div id="users-tab" class="tab-pane">
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-user-plus"></i> إضافة رقم مصرح له لهذا المتجر</div>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="newPhone" class="input" placeholder="9665XXXXXXXX">
-                    <button class="btn btn-primary" onclick="addNumber()">إضافة +</button>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header">الأرقام المصرحة</div>
-                <div id="numbersList">
-                    <p style="color: var(--text-muted);">اختر متجراً لعرض أرقامه المصرحة...</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Global Settings Tab -->
+        {% endif %}
+    </div>-- Global Settings Tab -->
         <div id="settings-tab" class="tab-pane">
             <div class="card">
                 <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
@@ -407,6 +462,76 @@
             
             if(tabId === 'users') loadNumbers();
             if(tabId === 'data-view') loadStoreData();
+            if(tabId === 'admin-users') loadAllUsers();
+        }
+
+        async function loadAllUsers() {
+            const tbody = document.getElementById('usersListBody');
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
+            
+            try {
+                const res = await fetch('/admin/api/users');
+                const users = await res.json();
+                
+                tbody.innerHTML = users.map(user => `
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 12px;"><strong>${user.username}</strong></td>
+                        <td style="padding: 12px;">${user.store_name || '-'}</td>
+                        <td style="padding: 12px;"><span class="badge ${user.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">${user.role === 'admin' ? 'مدير' : 'تاجر'}</span></td>
+                        <td style="padding: 12px;">
+                            <span style="color: ${user.is_active ? 'var(--success)' : 'var(--danger)'}; font-weight: bold;">
+                                ${user.is_active ? 'نشط' : 'معطل'}
+                            </span>
+                        </td>
+                        <td style="padding: 12px;">
+                            ${user.role !== 'admin' ? `
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 0.75rem; color: ${user.is_active ? 'var(--danger)' : 'var(--success)'};" onclick="toggleUserStatus(${user.id}, ${!user.is_active})">
+                                ${user.is_active ? 'تعطيل' : 'تفعيل'}
+                            </button>` : '-'}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">فشل في تحميل المستخدمين</td></tr>';
+            }
+        }
+
+        async function addNewUser(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const payload = Object.fromEntries(formData.entries());
+            
+            try {
+                const res = await fetch('/admin/api/users', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('تم إنشاء حساب التاجر بنجاح');
+                    e.target.reset();
+                    loadAllUsers();
+                } else {
+                    showToast(data.message || 'فشل في إنشاء الحساب', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالخادم', 'error');
+            }
+        }
+
+        async function toggleUserStatus(userId, newStatus) {
+            try {
+                await fetch(`/admin/api/users/status`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: userId, status: newStatus })
+                });
+                showToast('تم تحديث حالة الحساب');
+                loadAllUsers();
+            } catch (err) {
+                showToast('فشل في تحديث الحالة', 'error');
+            }
         }
 
         async function loadStoreData() {

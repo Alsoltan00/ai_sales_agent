@@ -12,3 +12,5 @@ mysql-connector-python
 psycopg2-binary
 pandas
 openpyxl
+bcrypt
+python-multipart
