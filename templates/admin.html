@@ -22,71 +22,64 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
-        body { background: var(--bg-body); color: var(--text-main); display: flex; min-height: 100vh; }
+        body { background: var(--bg-body); color: var(--text-main); display: flex; min-height: 100vh; overflow: hidden; }
 
         /* Sidebar */
-        .sidebar { width: 280px; background: var(--bg-sidebar); color: white; display: flex; flex-direction: column; }
+        .sidebar { width: 280px; background: var(--bg-sidebar); color: white; display: flex; flex-direction: column; flex-shrink: 0; }
         .sidebar-header { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px; color: #60a5fa; }
-        .nav-section { padding: 20px 0; }
+        .nav-section { padding: 20px 0; overflow-y: auto; flex: 1; }
         .nav-label { padding: 0 25px 10px; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
         .nav-item { padding: 12px 25px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.2s; color: #cbd5e1; }
         .nav-item:hover { background: rgba(255,255,255,0.05); color: white; }
         .nav-item.active { background: var(--primary); color: white; border-left: 4px solid #fff; }
 
-        /* Main Content */
-        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
-        .header-box { margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center; }
-        .store-selector { background: white; border: 1px solid var(--border); padding: 8px 15px; border-radius: 8px; font-weight: 600; outline: none; }
+        /* Main Content Area */
+        .main-container { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .header-bar { background: white; padding: 20px 40px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .content-area { flex: 1; padding: 40px; overflow-y: auto; background: var(--bg-body); position: relative; }
 
-        /* Cards */
+        /* Shared Components */
         .card { background: var(--bg-card); border-radius: var(--radius); padding: 30px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 30px; border: 1px solid var(--border); }
         .card-header { font-size: 1.2rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; color: var(--text-main); border-bottom: 1px solid var(--border); padding-bottom: 15px; }
         
-        /* Forms */
-        .form-group { margin-bottom: 20px; }
-        .label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
-        .input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
-        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
-        .textarea { min-height: 120px; resize: vertical; }
-
-        .btn { padding: 12px 25px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { background: var(--primary-hover); }
-        .btn-outline { background: transparent; border: 1px solid var(--border); }
-        .btn-outline:hover { background: #f1f5f9; }
-
-        /* Tables & Lists */
-        .data-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--border); }
-        .data-row:last-child { border-bottom: none; }
-
-        /* Tabs */
         .tab-pane { display: none; }
         .tab-pane.active { display: block !important; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Toast */
-        .toast { position: fixed; bottom: 30px; left: 30px; padding: 15px 25px; border-radius: 8px; color: white; font-weight: 700; transform: translateY(100px); transition: 0.3s; z-index: 1000; }
+        .btn { padding: 12px 25px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; font-size: 0.9rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); }
+        
+        .input { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; outline: none; transition: 0.2s; }
+        .textarea { min-height: 100px; resize: vertical; }
+        .label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
+        .form-group { margin-bottom: 20px; }
+
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .badge-success { background: #f0fdf4; color: #166534; }
+        .badge-warning { background: #fffbeb; color: #92400e; }
+        .badge-danger { background: #fef2f2; color: #991b1b; }
+
+        /* Modal Overlay */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; backdrop-filter: blur(4px); }
+        .modal { background: white; width: 90%; max-width: 600px; border-radius: 16px; padding: 30px; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+        .close-btn { cursor: pointer; font-size: 1.5rem; border: none; background: transparent; color: var(--text-muted); }
+
+        .toast { position: fixed; bottom: 30px; left: 30px; padding: 15px 25px; border-radius: 12px; color: white; font-weight: 700; transform: translateY(150px); transition: 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28); z-index: 3000; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
         .toast.show { transform: translateY(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
-
-        /* Modal */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal { background: var(--bg-card); width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: var(--radius); padding: 30px; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
-        .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
-        .close-btn { cursor: pointer; font-size: 1.5rem; color: var(--text-muted); border: none; background: transparent; }
-        
-        .column-tag { display: inline-block; background: #e0f2fe; color: #0284c7; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; margin: 4px; cursor: pointer; transition: 0.2s; border: 1px solid #bae6fd; font-weight: 600; }
-        .column-tag:hover { background: #bae6fd; transform: translateY(-1px); }
     </style>
 </head>
 <body>
 
+    <!-- Sidebar Navigation -->
     <div class="sidebar">
         <div class="sidebar-header">
             <i class="fa-solid fa-layer-group"></i>
-            منصة الذكاء الاصطناعي
+            منصة المبيعات
         </div>
         
         <div class="nav-section">
@@ -100,7 +93,7 @@
             <div class="nav-item" onclick="showTab('data-view', this)">
                 <i class="fa-solid fa-magnifying-glass-chart"></i> استعراض البيانات
             </div>
-            <div class="nav-item" onclick="showTab('users', this)">
+            <div class="nav-item" onclick="showTab('authorized', this)">
                 <i class="fa-solid fa-users"></i> الأرقام المصرحة
             </div>
 
@@ -115,28 +108,30 @@
             {% endif %}
         </div>
 
-        <div style="margin-top: auto; padding: 20px; border-top: 1px solid var(--glass-border);">
+        <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
             <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
-                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800;">
+                <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; font-weight: 800; color: white;">
                     {{ user.username[0] | upper }}
                 </div>
                 <div>
                     <div style="font-size: 0.9rem; font-weight: 700;">{{ user.username }}</div>
-                    <div style="font-size: 0.75rem; color: var(--text-muted);">{{ 'مدير النظام' if user.role == 'admin' else 'تاجر' }}</div>
+                    <div style="font-size: 0.7rem; color: #94a3b8;">{{ 'المدير العام' if user.role == 'admin' else 'تاجر معتمد' }}</div>
                 </div>
             </div>
-            <a href="/logout" style="display: flex; align-items: center; gap: 8px; color: #ef4444; text-decoration: none; font-size: 0.9rem; font-weight: 600;">
+            <a href="/logout" style="color: #ef4444; text-decoration: none; font-size: 0.85rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
                 <i class="fa-solid fa-right-from-bracket"></i> تسجيل الخروج
             </a>
         </div>
     </div>
 
-    <div class="main-content">
-        <div class="header-box">
-            <h2 id="page-title">إدارة المتاجر والأنشطة</h2>
-            <div>
-                <span style="font-size: 0.9rem; color: var(--text-muted); margin-left: 10px;">المتجر الحالي:</span>
-                <select class="store-selector" id="storeSelector" onchange="onStoreChange()">
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <!-- Persistent Header Bar -->
+        <div class="header-bar">
+            <h2 id="current-tab-title">إدارة المتاجر</h2>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <span style="font-size: 0.85rem; color: var(--text-muted);">المتجر الحالي:</span>
+                <select class="input" style="width: 200px; padding: 8px;" id="storeSelector" onchange="onGlobalStoreChange()">
                     {% for store in stores %}
                     <option value="{{ store.id }}" data-instance="{{ store.evolution_instance_name }}">{{ store.name }}</option>
                     {% endfor %}
@@ -144,952 +139,286 @@
             </div>
         </div>
 
-        <!-- Stores Tab (Now acts as Current Store Settings) -->
-        <div id="stores-tab" class="tab-pane active">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h3 style="color: var(--primary);"><i class="fa-solid fa-sliders"></i> إعدادات المتجر الحالي</h3>
-                {% if user.role == 'admin' %}
-                <button class="btn btn-primary" onclick="document.getElementById('addStoreModal').style.display='flex'">
-                    <i class="fa-solid fa-plus-circle"></i> إضافة نشاط / متجر جديد
-                </button>
-                {% endif %}
-            </div>
-
-            <div class="card">
-                <form id="currentStoreForm" onsubmit="updateCurrentStore(event)">
-                    <input type="hidden" id="currentStoreId" name="store_id">
-                    
-                    <div class="form-group" style="grid-column: 1/-1;">
-                        <label class="label">اسم المتجر</label>
-                        <input type="text" id="currentStoreName" name="name" class="input" required>
-                    </div>
-                    
-
-
-                    <h3 style="margin: 30px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                        <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
-                    </h3>
-                    
-                    <!-- Dynamic Columns Area -->
-                    <div style="margin-bottom: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
-                        <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #166534;"><i class="fa-solid fa-table-columns"></i> الأعمدة المتوفرة في قاعدة بيانات هذا المتجر:</div>
-                        <p style="font-size: 0.8rem; color: #15803d; margin-bottom: 10px;">(اضغط على أي عمود لإدراجه في نصوص التدريب بالأسفل ليتعرف عليه الذكاء الاصطناعي)</p>
-                        <div id="currentColumnsList">جاري التحميل...</div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <!-- Scrollable Content -->
+        <div class="content-area">
+            
+            <!-- Tab: Stores -->
+            <div id="stores-tab" class="tab-pane active">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                    <h3>تعديل بيانات المتجر</h3>
+                    {% if user.role == 'admin' %}
+                    <button class="btn btn-primary" onclick="document.getElementById('addStoreModal').style.display='flex'">
+                        <i class="fa-solid fa-plus-circle"></i> إضافة متجر جديد
+                    </button>
+                    {% endif %}
+                </div>
+                
+                <div class="card">
+                    <form onsubmit="updateCurrentStore(event)">
                         <div class="form-group">
-                            <label class="label">وصف النشاط العام</label>
-                            <textarea id="currentAbout" name="about" class="input textarea" style="min-height: 80px;" placeholder="نحن متجر متخصص في بيع..."></textarea>
+                            <label class="label">اسم المتجر / النشاط</label>
+                            <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
-                        <div class="form-group">
-                            <label class="label">نبرة الصوت وأسلوب التحدث</label>
-                            <textarea id="currentTone" name="tone" class="input textarea" style="min-height: 80px;" placeholder="تحدث بلهجة سعودية لبقة ومحترمة..."></textarea>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group"><label class="label">وصف النشاط</label><textarea id="currentAbout" name="about" class="input textarea"></textarea></div>
+                            <div class="form-group"><label class="label">أسلوب التحدث</label><textarea id="currentTone" name="tone" class="input textarea"></textarea></div>
                         </div>
-                        <div class="form-group">
-                            <label class="label">سياسة الاسترجاع والضمان</label>
-                            <textarea id="currentPolicy" name="policy" class="input textarea" style="min-height: 80px;" placeholder="الاسترجاع متاح خلال 3 أيام..."></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
-                            <textarea id="currentFaq" name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
-                        </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ إعدادات المتجر الحالي</button>
-                        {% if user.role == 'admin' %}
-                        <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger);" onclick="deleteCurrentStore()">
-                            <i class="fa-solid fa-trash"></i> حذف هذا المتجر
-                        </button>
-                        {% endif %}
-                    </div>
-                </form>
-            </div>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ التغييرات</button>
+                    </form>
+                </div>
 
-            <!-- إعدادات ربط الواتساب -->
-            <div class="card" style="margin-top: 20px; border-top: 4px solid #25D366;">
-                <h3 style="margin-bottom: 15px; color: #25D366;"><i class="fa-brands fa-whatsapp"></i> إعدادات ربط الواتساب</h3>
-                <form id="whatsappConfigForm" onsubmit="saveWhatsAppConfig(event)">
-                    <div class="form-group">
-                        <label class="label">مزود الخدمة</label>
-                        <select id="waProvider" name="provider" class="input" onchange="toggleWaProvider()">
-                            <option value="evolution">Evolution API (غير رسمي - كود QR)</option>
-                            <option value="meta">Meta Cloud API (رسمي)</option>
-                        </select>
-                    </div>
-
-                    <!-- Evolution Fields -->
-                    <div id="waEvolutionFields" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <div class="card" style="border-top: 4px solid #25D366;">
+                    <div class="card-header"><i class="fa-brands fa-whatsapp"></i> إعدادات الربط والواتساب</div>
+                    <form onsubmit="saveWhatsAppConfig(event)">
                         <div class="form-group">
                             <label class="label">رابط خادم Evolution</label>
-                            <input type="text" id="waEvoUrl" name="evolution_api_url" class="input" placeholder="https://your-evo-server.com">
+                            <input type="text" id="waEvoUrl" name="evolution_api_url" class="input" placeholder="https://...">
                         </div>
                         <div class="form-group">
-                            <label class="label">مفتاح Global API Key</label>
-                            <input type="password" id="waEvoKey" name="evolution_api_key" class="input" placeholder="Global API Key">
+                            <label class="label">Instance Name</label>
+                            <input type="text" id="waEvoInstance" name="evolution_instance_name" class="input">
                         </div>
-                        <div class="form-group" style="grid-column: 1/-1;">
-                            <label class="label">اسم النسخة (Instance Name)</label>
-                            <input type="text" id="waEvoInstance" name="evolution_instance_name" class="input" placeholder="my-store-1">
+                        <div style="display: flex; gap: 10px;">
+                            <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
+                            <button type="button" class="btn btn-outline" onclick="linkWhatsApp()" style="color:#25D366; border-color:#25D366;"><i class="fa-solid fa-qrcode"></i> استخراج QR</button>
                         </div>
-                        <div class="form-group" style="grid-column: 1/-1;">
-                            <label class="label">رابط Webhook (لإعدادات Evolution يدوياً)</label>
-                            <input type="text" class="input" value="https://ai-sales-agent-dreu.onrender.com/webhook" readonly style="background: var(--bg-color); cursor: copy; color: #25D366; font-weight: bold;" onclick="this.select(); document.execCommand('copy'); showToast('تم نسخ رابط ويب هوك Evolution');" title="انقر للنسخ">
-                        </div>
+                    </form>
+                    <div id="qrContainer" style="display:none; text-align:center; margin-top:20px; padding:20px; border:2px dashed #25D366; border-radius:12px;">
+                        <img id="qrImg" src="" style="width:200px;">
+                        <p style="margin-top:10px; font-size:0.8rem; color:var(--text-muted);">امسح الكود عبر واتساب الجوال</p>
                     </div>
-
-                    <!-- Meta Fields -->
-                    <div id="waMetaFields" style="display: none; grid-template-columns: 1fr 1fr; gap: 20px;">
-                        <div class="form-group">
-                            <label class="label">Phone Number ID</label>
-                            <input type="text" id="waMetaPhoneId" name="meta_phone_number_id" class="input" placeholder="مثال: 1234567890">
-                        </div>
-                        <div class="form-group">
-                            <label class="label">Verify Token (للويب هوك)</label>
-                            <input type="text" id="waMetaVerify" name="meta_verify_token" class="input" placeholder="أي كلمة سر تختارها">
-                        </div>
-                        <div class="form-group" style="grid-column: 1/-1;">
-                            <label class="label">Access Token</label>
-                            <input type="password" id="waMetaToken" name="meta_access_token" class="input" placeholder="EAAB...">
-                        </div>
-                        <div class="form-group" style="grid-column: 1/-1;">
-                            <label class="label">رابط Webhook (قم بنسخه إلى منصة ميتا)</label>
-                            <input type="text" class="input" value="https://ai-sales-agent-dreu.onrender.com/webhook_meta" readonly style="background: var(--bg-color); cursor: copy; color: var(--primary); font-weight: bold;" onclick="this.select(); document.execCommand('copy'); showToast('تم نسخ رابط الويب هوك بنجاح');" title="انقر للنسخ">
-                        </div>
-                    </div>
-
-                    <div style="display: flex; gap: 10px; margin-top: 20px;">
-                        <button type="submit" class="btn btn-primary" id="waSaveBtn">حفظ إعدادات الواتساب</button>
-                        <button type="button" class="btn btn-outline" id="waLinkBtn" onclick="linkWhatsApp()"><i class="fa-brands fa-whatsapp"></i> استخراج كود QR</button>
-                    </div>
-                </form>
-                
-                <div id="qrCodeContainer" style="display: none; text-align: center; margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed #25D366;">
-                    <h4 style="margin-bottom: 15px; color: #25D366;">امسح الكود لربط الواتساب</h4>
-                    <img id="qrCodeImg" src="" style="width: 250px; height: 250px; display: inline-block;">
-                    <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بعد مسح الكود، المتجر مربوط بالواتساب بنجاح</p>
                 </div>
             </div>
-        </div>
 
-        <!-- Products Management Tab -->
-        <div id="products-tab" class="tab-pane">
-            <div class="page-header" style="margin-bottom: 20px;">
-                <h1>إدارة ومزامنة البيانات</h1>
-                <p>اختر الطريقة المناسبة لربط منتجاتك أو مقالاتك بالنظام.</p>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
-                <!-- Method 1: Local File -->
-                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-file-excel" style="color:#10b981"></i> رفع ملف محلي</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">رفع ملف Excel أو CSV مباشر.</p>
-                    <form onsubmit="uploadProducts(event)">
-                        <input type="file" id="productFile" class="input" style="margin-bottom: 10px; font-size: 0.75rem;" accept=".csv, .xlsx">
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; font-size: 0.85rem;" id="uploadBtn">رفع الآن</button>
-                    </form>
-                </div>
-
-                <!-- Method 2: Google Sheets -->
-                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-table" style="color:#34a853"></i> Google Sheets</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">مزامنة من رابط جوجل شيت عام.</p>
-                    <form onsubmit="syncGoogleSheets(event)">
-                        <input type="url" name="sheet_url" class="input" placeholder="https://docs.google.com/..." style="margin-bottom: 10px; font-size: 0.75rem;" required>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #34a853; font-size: 0.85rem;" id="gsyncBtn">ربط ومزامنة</button>
-                    </form>
-                </div>
-
-                <!-- Method 3: Supabase External -->
-                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-database" style="color:#3ecf8e"></i> Supabase</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">مزامنة من قاعدة Supabase خارجية.</p>
-                    <form onsubmit="syncExternalSupabase(event)">
-                        <input type="text" name="sb_url" class="input" placeholder="URL" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="password" name="sb_key" class="input" placeholder="Key" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="text" name="sb_table" class="input" placeholder="Table" style="margin-bottom: 10px; font-size: 0.75rem;" required>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #3ecf8e; font-size: 0.85rem;" id="sbsyncBtn">ربط ومزامنة</button>
-                    </form>
-                </div>
-
-                <!-- Method 4: MySQL External -->
-                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-server" style="color:#00758f"></i> MySQL</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px; flex: 1;">مزامنة مباشرة (قد تتطلب فتح الـ Firewall).</p>
-                    <form onsubmit="syncMySQL(event)">
-                        <input type="text" name="host" class="input" placeholder="Host" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="text" name="user" class="input" placeholder="User" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="password" name="password" class="input" placeholder="Password" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="text" name="db_name" class="input" placeholder="DB Name" style="margin-bottom: 5px; font-size: 0.75rem;" required>
-                        <input type="text" name="table_name" class="input" placeholder="Table Name" style="margin-bottom: 10px; font-size: 0.75rem;" required>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #00758f; font-size: 0.85rem;" id="mysqlsyncBtn">ربط ومزامنة</button>
-                    </form>
-                </div>
-
-                <!-- Method 5: API Bridge (The Solution) -->
-                <div class="card" style="display: flex; flex-direction: column; padding: 20px;">
-                    <div class="card-header"><i class="fa-solid fa-bridge" style="color:#f59e0b"></i> API Bridge (توليد ذكي)</div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">أدخل بيانات MySQL لتوليد ملف جاهز للرفع.</p>
-                    <div id="bridgeConfig" style="background: #fffbeb; padding: 10px; border-radius: 8px; margin-bottom: 10px; border: 1px solid #fef3c7;">
-                        <input type="text" id="b_host" class="input" placeholder="Host" value="sql100.infinityfree.com" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
-                        <input type="text" id="b_user" class="input" placeholder="User" value="if0_41719311" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
-                        <input type="password" id="b_pass" class="input" placeholder="Password" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
-                        <input type="text" id="b_db" class="input" placeholder="DB Name" value="if0_41719311_pickline" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
-                        <input type="text" id="b_table" class="input" placeholder="Table Name" value="products" style="margin-bottom: 5px; font-size: 0.7rem; padding: 8px;">
-                        <button onclick="downloadSmartBridge()" class="btn btn-outline" style="width: 100%; justify-content: center; font-size: 0.75rem; border-color: #f59e0b; color: #f59e0b; padding: 8px;">
-                            <i class="fa-solid fa-magic"></i> توليد وتحميل الملف جاهزاً
-                        </button>
-                    </div>
-                    <form onsubmit="syncBridge(event)">
-                        <label class="label" style="font-size: 0.75rem;">رابط الموقع (سيتم إضافة /ai-sales.php تلقائياً):</label>
-                        <input type="url" name="bridge_url" class="input" placeholder="https://your-site.com/" style="margin-bottom: 10px; font-size: 0.75rem;" required>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; background: #f59e0b; font-size: 0.85rem;" id="bridgesyncBtn">ربط وتجاوز الحماية</button>
-                    </form>
-                </div>
-         {% if user.role == 'admin' %}
-        <!-- User Management Tab -->
-        <div id="admin-users-tab" class="tab-pane">
-            <div class="page-header" style="margin-bottom: 20px;">
-                <h1>إدارة حسابات التجار</h1>
-                <p>يمكنك من هنا إضافة تجار جدد، ربطهم بمتاجرهم، وتفعيل أو تعطيل حساباتهم.</p>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 350px 1fr; gap: 20px; align-items: start;">
+            <!-- Tab: Products Sync -->
+            <div id="products-tab" class="tab-pane">
                 <div class="card">
-                    <div class="card-header"><i class="fa-solid fa-user-plus"></i> إضافة تاجر جديد</div>
-                    <form onsubmit="addNewUser(event)">
-                        <div class="form-group">
-                            <label class="label">اسم المستخدم</label>
-                            <input type="text" name="username" class="input" placeholder="مثلاً: asseel_store" required>
+                    <div class="card-header"><i class="fa-solid fa-cloud-arrow-down"></i> مزامنة البيانات من مصادر خارجية</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div style="padding:15px; border:1px solid var(--border); border-radius:12px;">
+                            <h4 style="margin-bottom:10px;"><i class="fa-solid fa-file-excel"></i> ملف محلي</h4>
+                            <input type="file" id="productFile" class="input" style="font-size:0.8rem; margin-bottom:10px;">
+                            <button class="btn btn-primary" onclick="uploadProducts(event)" style="width:100%; justify-content:center;">رفع الآن</button>
                         </div>
-                        <div class="form-group">
-                            <label class="label">كلمة المرور</label>
-                            <input type="password" name="password" class="input" placeholder="••••••••" required>
+                        <div style="padding:15px; border:1px solid var(--border); border-radius:12px;">
+                            <h4 style="margin-bottom:10px;"><i class="fa-solid fa-table"></i> Google Sheets</h4>
+                            <form onsubmit="syncGoogleSheets(event)">
+                                <input type="url" name="sheet_url" class="input" placeholder="رابط الملف..." style="font-size:0.8rem; margin-bottom:10px;" required>
+                                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; background:#34a853;">مزامنة</button>
+                            </form>
                         </div>
-                        <div class="form-group">
-                            <label class="label">ربط بالمتجر</label>
-                            <select name="store_id" class="input" required>
-                                <option value="">--- اختر المتجر ---</option>
-                                {% for store in stores %}
-                                <option value="{{ store.id }}">{{ store.name }}</option>
-                                {% endfor %}
-                            </select>
+                        <div style="padding:15px; border:1px solid var(--border); border-radius:12px;">
+                            <h4 style="margin-bottom:10px;"><i class="fa-solid fa-bridge"></i> API Bridge</h4>
+                            <button class="btn btn-outline" onclick="showToast('يرجى ضبط الإعدادات في الأسفل', 'info')" style="width:100%; justify-content:center;">ضبط الجسر</button>
                         </div>
-                        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">إنشاء الحساب</button>
-                    </form>
+                    </div>
                 </div>
+            </div>
 
+            <!-- Tab: Data View -->
+            <div id="data-view-tab" class="tab-pane">
+                <div class="header-box" style="margin-bottom:20px;">
+                    <h3>استعراض البيانات المستوردة</h3>
+                    <input type="text" id="dataSearch" class="input" placeholder="بحث..." style="width:300px;" oninput="filterCards()">
+                </div>
+                <div id="dataCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
+                    <!-- Data injected by JS -->
+                </div>
+            </div>
+
+            <!-- Tab: Authorized Numbers -->
+            <div id="authorized-tab" class="tab-pane">
                 <div class="card">
-                    <div class="card-header"><i class="fa-solid fa-users-gear"></i> قائمة المستخدمين</div>
-                    <div id="usersTableContainer" style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; text-align: right;">
-                            <thead>
-                                <tr style="border-bottom: 2px solid var(--border);">
-                                    <th style="padding: 12px;">المستخدم</th>
-                                    <th style="padding: 12px;">المتجر</th>
-                                    <th style="padding: 12px;">الدور</th>
-                                    <th style="padding: 12px;">الحالة</th>
-                                    <th style="padding: 12px;">الإجراء</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersListBody">
-                                <!-- سيتم التحميل بالجافا سكريبت -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <div class="card-header">الأرقام المصرح لها بالتحدث مع الذكاء الاصطناعي</div>
+                    <form onsubmit="addNumber(event)" style="display:flex; gap:10px; margin-bottom:20px;">
+                        <input type="text" name="phone" class="input" placeholder="مثلاً: 966500000000" required>
+                        <button type="submit" class="btn btn-primary">إضافة رقم</button>
+                    </form>
+                    <div id="numbersList"></div>
                 </div>
             </div>
-        </div>
 
-        <!-- Global Settings Tab -->
-        <div id="settings-tab" class="tab-pane">
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
-                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 1.5rem;"></i>
-                        <strong style="font-size: 1.1rem; color: #166534;">متصل بقاعدة بيانات Aiven PostgreSQL</strong>
+            {% if user.role == 'admin' %}
+            <!-- Tab: Admin User Management -->
+            <div id="admin-users-tab" class="tab-pane">
+                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 30px;">
+                    <div class="card">
+                        <div class="card-header">إضافة تاجر يدوي</div>
+                        <form onsubmit="addNewUser(event)">
+                            <div class="form-group"><label class="label">المستخدم</label><input type="text" name="username" class="input" required></div>
+                            <div class="form-group"><label class="label">كلمة السر</label><input type="password" name="password" class="input" required></div>
+                            <div class="form-group">
+                                <label class="label">الربط بمتجر</label>
+                                <select name="store_id" class="input">
+                                    <option value="">--- لا يوجد ---</option>
+                                    {% for s in stores %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">إنشاء الحساب</button>
+                        </form>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">النظام يعمل بهيكلة معزولة: كل متجر يملك بيئة بيانات خاصة به (Schema) منفصلة تماماً عن المتاجر الأخرى.</p>
+                    <div class="card">
+                        <div class="card-header">قائمة المشتركين والطلبات</div>
+                        <div style="overflow-x:auto;">
+                            <table style="width:100%; border-collapse:collapse; text-align:right;">
+                                <thead style="background:#f1f5f9;">
+                                    <tr><th style="padding:15px;">المستخدم</th><th style="padding:15px;">الدور</th><th style="padding:15px;">الحالة</th><th style="padding:15px;">الإجراء</th></tr>
+                                </thead>
+                                <tbody id="usersListBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-shield-halved"></i> ملاحظات أمان</div>
-                <p style="color: var(--text-muted); line-height: 1.8;">• جميع مفاتيح API (مثل GROQ_API_KEY) يتم إدارتها من خلال <b>متغيرات البيئة في Render</b> لضمان الأمان.<br>
-                • لتعديل أي مفتاح، ادخل على <b>Render Dashboard → Environment</b>.</p>
-            </div>
-        </div>
-        {% endif %}
-    </div> <!-- End of main-content -->
-</div> <!-- End of main-layout -->                         </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        {% endif %}
 
-        <!-- Global Settings Tab -->
-        <div id="settings-tab" class="tab-pane">
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
-                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
-                        <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 1.5rem;"></i>
-                        <strong style="font-size: 1.1rem; color: #166534;">متصل بقاعدة بيانات Aiven PostgreSQL</strong>
+            <!-- Tab: System Settings -->
+            <div id="settings-tab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header">حالة النظام والأمان</div>
+                    <div style="padding:20px; background:#f0fdf4; border-radius:12px; border:1px solid #bbf7d0; margin-bottom:20px;">
+                        <h4 style="color:#166534; margin-bottom:10px;"><i class="fa-solid fa-circle-check"></i> قاعدة البيانات نشطة</h4>
+                        <p style="font-size:0.9rem; color:#15803d;">متصل بنجاح بـ Aiven PostgreSQL. جميع البيانات مشفرة ومعزولة لكل متجر.</p>
                     </div>
-                    <p style="color: var(--text-muted); font-size: 0.9rem;">النظام يعمل بهيكلة معزولة: كل متجر يملك بيئة بيانات خاصة به (Schema) منفصلة تماماً عن المتاجر الأخرى.</p>
+                    <div class="card-header" style="font-size:1rem;">إدارة التراخيص</div>
+                    <p style="color:var(--text-muted); font-size:0.9rem;">يمكنك التحكم في التراخيص من خلال واجهة المستخدمين أعلاه.</p>
                 </div>
             </div>
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-shield-halved"></i> ملاحظات أمان</div>
-                <p style="color: var(--text-muted); line-height: 1.8;">• جميع مفاتيح API (مثل GROQ_API_KEY) يتم إدارتها من خلال <b>متغيرات البيئة في Render</b> لضمان الأمان.<br>
-                • لتعديل أي مفتاح، ادخل على <b>Render Dashboard → Environment</b>.</p>
-            </div>
-        </div>
-    </div>
+            {% endif %}
+
+        </div> <!-- End Content Area -->
+    </div> <!-- End Main Container -->
 
     <div id="toast" class="toast"></div>
 
-    <!-- Add New Store Modal -->
+    <!-- Modals -->
     <div id="addStoreModal" class="modal-overlay">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-plus-circle"></i> إضافة متجر / نشاط جديد</div>
-                <button class="close-btn" onclick="document.getElementById('addStoreModal').style.display='none'">&times;</button>
-            </div>
+        <div class="modal">
+            <div class="modal-header"><div class="modal-title">إضافة نشاط جديد</div><button class="close-btn" onclick="this.closest('.modal-overlay').style.display='none'">&times;</button></div>
             <form onsubmit="saveNewStore(event)">
-                <div class="form-group">
-                    <label class="label">اسم المتجر</label>
-                    <input type="text" name="name" class="input" placeholder="مثلاً: متجر العطور الفاخرة" required>
-                </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">
-                    <i class="fa-solid fa-circle-info"></i> بعد إنشاء المتجر، يمكنك ضبط إعدادات الواتساب (Evolution أو Meta) من صفحة الإعدادات.
-                </p>
-                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">إنشاء المتجر الآن</button>
+                <div class="form-group"><label class="label">الاسم</label><input type="text" name="name" class="input" required></div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">تأكيد الإضافة</button>
             </form>
         </div>
-    <!-- User Activation Modal -->
+    </div>
+
     <div id="activateUserModal" class="modal-overlay">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-key"></i> تفعيل العميل وتحديد الصلاحيات</div>
-                <button class="close-btn" onclick="document.getElementById('activateUserModal').style.display='none'">&times;</button>
-            </div>
+        <div class="modal" style="max-width:450px;">
+            <div class="modal-header"><div class="modal-title">تفعيل اشتراك العميل</div><button class="close-btn" onclick="this.closest('.modal-overlay').style.display='none'">&times;</button></div>
             <form id="activateUserForm" onsubmit="saveUserActivation(event)">
                 <input type="hidden" id="activateUserId" name="user_id">
                 <div class="form-group">
-                    <label class="label">تحديد الدور (Role)</label>
-                    <select name="role" class="input" required>
-                        <option value="owner">مالك (صلاحيات كاملة)</option>
-                        <option value="merchant" selected>تاجر (إدارة متجر محدد)</option>
-                        <option value="staff">موظف (صلاحيات محدودة)</option>
-                        <option value="admin">مدير نظام (مثلك)</option>
+                    <label class="label">الدور</label>
+                    <select name="role" class="input">
+                        <option value="merchant" selected>تاجر</option>
+                        <option value="owner">مالك</option>
+                        <option value="staff">موظف</option>
+                        <option value="admin">مدير نظام</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label class="label">ربط بالمتجر</label>
-                    <select name="store_id" class="input">
-                        <option value="">--- لا يوجد (أو اختر متجر) ---</option>
-                        {% for store in stores %}
-                        <option value="{{ store.id }}">{{ store.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label class="label">مدة الاشتراك (بالأيام)</label>
-                    <input type="number" name="days" class="input" value="30" min="1" required>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">تفعيل الحساب الآن</button>
+                <div class="form-group"><label class="label">عدد الأيام</label><input type="number" name="days" value="30" class="input"></div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">تفعيل الآن</button>
             </form>
         </div>
     </div>
 
     <script>
         function showTab(tabId, el) {
-            console.log("Switching to tab:", tabId);
-            
-            // Hide all panes
-            document.querySelectorAll('.tab-pane').forEach(t => {
-                t.classList.remove('active');
-                t.style.display = 'none';
-            });
-            
-            // Deactivate all nav items
+            document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             
-            // Show target pane
-            const targetId = tabId.endsWith('-tab') ? tabId : tabId + '-tab';
-            const targetPane = document.getElementById(targetId);
-            
-            if (targetPane) {
-                targetPane.classList.add('active');
-                targetPane.style.display = 'block';
+            const pane = document.getElementById(tabId + '-tab');
+            if (pane) {
+                pane.classList.add('active');
                 if (el) el.classList.add('active');
-                console.log("Tab activated successfully");
-            } else {
-                console.error("CRITICAL: Tab pane not found in DOM:", targetId);
+                document.getElementById('current-tab-title').innerText = el.innerText.trim();
             }
             
-            if(tabId === 'users') loadNumbers();
-            if(tabId === 'data-view') loadStoreData();
-            if(tabId === 'admin-users') loadAllUsers();
+            if (tabId === 'admin-users') loadAllUsers();
+            if (tabId === 'data-view') loadStoreData();
+            if (tabId === 'authorized') loadNumbers();
         }
 
+        // Global State Logic
         async function loadAllUsers() {
             const tbody = document.getElementById('usersListBody');
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
-            
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:30px;"><i class="fa-solid fa-spinner fa-spin"></i> جاري التحميل...</td></tr>';
             try {
                 const res = await fetch('/admin/api/users');
                 const users = await res.json();
-                
-                tbody.innerHTML = users.map(user => `
-                    <tr style="border-bottom: 1px solid var(--border);">
-                        <td style="padding: 12px;"><strong>${user.username}</strong></td>
-                        <td style="padding: 12px;">${user.store_name || '-'}</td>
-                        <td style="padding: 12px;"><span class="badge ${user.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">${user.role === 'admin' ? 'مدير' : 'تاجر'}</span></td>
-                        <td style="padding: 12px;">
-                            <span style="display: block; font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; text-align: center; 
-                                background: ${user.status === 'active' ? '#f0fdf4' : user.status === 'pending' ? '#fffbeb' : '#fef2f2'}; 
-                                color: ${user.status === 'active' ? '#166534' : user.status === 'pending' ? '#92400e' : '#991b1b'};">
-                                ${user.status === 'active' ? 'نشط' : user.status === 'pending' ? 'بانتظار الموافقة' : 'معطل'}
-                            </span>
-                            ${user.subscription_end ? `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">ينتهي: ${new Date(user.subscription_end).toLocaleDateString('ar-SA')}</div>` : ''}
+                tbody.innerHTML = users.map(u => `
+                    <tr style="border-bottom:1px solid var(--border);">
+                        <td style="padding:15px;"><strong>${u.username}</strong><div style="font-size:0.7rem; color:var(--text-muted);">ID: ${u.id}</div></td>
+                        <td style="padding:15px;"><span class="badge ${u.role==='admin'?'badge-success':'badge-warning'}">${u.role}</span></td>
+                        <td style="padding:15px;">
+                            <span class="badge ${u.status==='active'?'badge-success':u.status==='pending'?'badge-warning':'badge-danger'}">${u.status}</span>
+                            ${u.subscription_end?`<div style="font-size:0.6rem; margin-top:4px;">ينتهي: ${new Date(u.subscription_end).toLocaleDateString('ar-SA')}</div>`:''}
                         </td>
-                        <td style="padding: 12px;">
-                            ${user.role !== 'admin' ? `
-                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.75rem;" onclick="openActivationModal(${user.id})">
-                                <i class="fa-solid fa-bolt"></i> ${user.status === 'pending' ? 'تفعيل' : 'تجديد'}
-                            </button>
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 0.75rem; color: var(--danger);" onclick="toggleUserStatus(${user.id}, 'suspended')">
-                                <i class="fa-solid fa-ban"></i> تعطيل
-                            </button>` : '-'}
+                        <td style="padding:15px;">
+                            ${u.role!=='admin'?`
+                                <button class="btn btn-outline" style="padding:5px 10px; font-size:0.7rem;" onclick="openActivationModal(${u.id})">تفعيل</button>
+                                <button class="btn btn-outline" style="padding:5px 10px; font-size:0.7rem; color:red;" onclick="toggleUserStatus(${u.id},'suspended')">تعطيل</button>
+                            `:'-'}
                         </td>
                     </tr>
                 `).join('');
-            } catch (err) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">فشل في تحميل المستخدمين</td></tr>';
-            }
+            } catch(e) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">خطأ في التحميل</td></tr>'; }
         }
 
-        async function addNewUser(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
-            
-            try {
-                const res = await fetch('/admin/api/users', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast('تم إنشاء حساب التاجر بنجاح');
-                    e.target.reset();
-                    loadAllUsers();
-                } else {
-                    showToast(data.message || 'فشل في إنشاء الحساب', 'error');
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال بالخادم', 'error');
-            }
-        }
-
-        function openActivationModal(userId) {
-            document.getElementById('activateUserId').value = userId;
+        function openActivationModal(id) {
+            document.getElementById('activateUserId').value = id;
             document.getElementById('activateUserModal').style.display = 'flex';
         }
 
         async function saveUserActivation(e) {
             e.preventDefault();
-            const formData = new FormData(e.target);
-            const payload = Object.fromEntries(formData.entries());
-            
-            try {
-                const res = await fetch('/admin/api/users/activate', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast('تم تفعيل حساب العميل بنجاح');
-                    document.getElementById('activateUserModal').style.display = 'none';
-                    loadAllUsers();
-                }
-            } catch (err) {
-                showToast('فشل في التفعيل', 'error');
-            }
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            const res = await fetch('/admin/api/users/activate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) { showToast('تم التفعيل'); document.getElementById('activateUserModal').style.display='none'; loadAllUsers(); }
         }
 
-        async function toggleUserStatus(userId, newStatus) {
-            try {
-                await fetch(`/admin/api/users/status`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ user_id: userId, status: newStatus })
-                });
-                showToast('تم تحديث حالة الحساب');
-                loadAllUsers();
-            } catch (err) {
-                showToast('فشل في تحديث الحالة', 'error');
-            }
+        async function addNewUser(e) {
+            e.preventDefault();
+            const data = Object.fromEntries(new FormData(e.target).entries());
+            const res = await fetch('/admin/api/users', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            if(res.ok) { showToast('تم الإضافة'); e.target.reset(); loadAllUsers(); }
         }
 
         async function loadStoreData() {
-            const storeId = document.getElementById('storeSelector').value;
             const grid = document.getElementById('dataCardsGrid');
-            grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>';
-            
-            try {
-                const res = await fetch(`/admin/api/products?store_id=${storeId}`);
-                const data = await res.json();
-                
-                if (!data || data.length === 0) {
-                    grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن.</div>';
-                    return;
-                }
-
-                grid.innerHTML = data.map(item => {
-                    // Skip internal fields
-                    const skip = ['id', 'created_at'];
-                    const fields = Object.entries(item).filter(([k]) => !skip.includes(k));
-                    
-                    if (fields.length === 0) return '';
-                    
-                    // First field = card title, rest = details
-                    const [titleKey, titleVal] = fields[0];
-                    const restFields = fields.slice(1);
-                    
-                    let detailsHtml = restFields.map(([key, val]) => `
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85rem;">
-                            <span style="color:var(--text-muted); font-weight:500;">${key}:</span>
-                            <span style="font-weight:600;">${val}</span>
-                        </div>
-                    `).join('');
-
-                    return `
-                        <div class="card data-card" style="margin-bottom:0; transition:0.3s; border-top: 4px solid var(--primary);">
-                            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:5px;">${titleKey}</div>
-                            <h3 style="margin-bottom:15px; font-size:1.1rem; color:var(--primary);">${titleVal}</h3>
-                            <div style="border-top: 1px solid var(--border); padding-top:10px;">
-                                ${detailsHtml}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                grid.innerHTML = '<div style="text-align:center; grid-column:1/-1; padding:50px; color:var(--danger)">فشل في تحميل البيانات</div>';
-            }
-        }
-
-        function filterCards() {
-            const q = document.getElementById('dataSearch').value.toLowerCase();
-            document.querySelectorAll('.data-card').forEach(card => {
-                const text = card.innerText.toLowerCase();
-                card.style.display = text.includes(q) ? 'block' : 'none';
-            });
-        }
-
-        function showToast(msg, type='success') {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.className = `toast show ${type}`;
-            setTimeout(() => t.className = 'toast', 3000);
-        }
-
-        function onStoreChange() {
-            const tab = document.querySelector('.tab-pane.active').id;
-            if (tab === 'users-tab') loadNumbers();
-        }
-
-        async function syncGoogleSheets(e) {
-            e.preventDefault();
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i></div>';
             const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
-            const url = e.target.sheet_url.value;
-            const btn = document.getElementById('gsyncBtn');
-            btn.disabled = true; btn.innerText = 'جاري المزامنة...';
-
-            try {
-                const res = await fetch(`/admin/sync/gsheet/${storeId}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ url })
-                });
-                const data = await res.json();
-                if (res.ok) showToast(data.message || 'تمت المزامنة من جوجل بنجاح');
-                else showToast(data.message || data.detail || 'فشل المزامنة', 'error');
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
-            finally { btn.disabled = false; btn.innerText = 'مزامنة من جوجل'; }
+            const res = await fetch(`/admin/api/products?store_id=${storeId}`);
+            const data = await res.json();
+            grid.innerHTML = data.map(item => `
+                <div class="card" style="padding:15px; margin-bottom:0;">
+                    <h4 style="color:var(--primary);">${Object.values(item)[1] || 'منتج'}</h4>
+                    <div style="font-size:0.8rem; margin-top:10px;">${Object.entries(item).slice(2,5).map(([k,v])=>`<div><b>${k}:</b> ${v}</div>`).join('')}</div>
+                </div>
+            `).join('');
         }
 
-        async function syncBridge(e) {
-            e.preventDefault();
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
-            const formData = new FormData(e.target);
-            let bridgeUrl = formData.get('bridge_url');
-            
-            // Auto-append filename if only domain is provided
-            if (!bridgeUrl.endsWith('.php')) {
-                if (!bridgeUrl.endsWith('/')) bridgeUrl += '/';
-                bridgeUrl += 'ai-sales.php';
-            }
-
-            const btn = document.getElementById('bridgesyncBtn');
-            btn.disabled = true; btn.innerText = 'جاري تجاوز الحماية...';
-
-            try {
-                const res = await fetch(`/admin/sync/bridge/${storeId}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ bridge_url: bridgeUrl })
-                });
-                const data = await res.json();
-                if (res.ok && data.status === 'success') showToast(data.message || 'تم الربط');
-                else showToast(data.message || data.detail || 'فشل الربط', 'error');
-            } catch (err) { showToast('خطأ في الاتصال بالجسر', 'error'); }
-            finally { btn.disabled = false; btn.innerText = 'ربط وتجاوز الحماية'; }
+        function showToast(m, t='success') {
+            const el = document.getElementById('toast');
+            el.innerText = m; el.className = `toast show ${t}`;
+            setTimeout(()=> el.className = 'toast', 3000);
         }
 
-        function downloadSmartBridge() {
-            const storeId = document.getElementById('storeSelector').value;
-            const host = document.getElementById('b_host').value;
-            const user = document.getElementById('b_user').value;
-            const pass = document.getElementById('b_pass').value;
-            const db = document.getElementById('b_db').value;
-            const table = document.getElementById('b_table').value;
-            
-            const url = `/admin/download/bridge?store_id=${storeId}&host=${encodeURIComponent(host)}&user=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}&db=${encodeURIComponent(db)}&table=${encodeURIComponent(table)}`;
-            window.location.href = url;
-        }
-
-        async function syncMySQL(e) {
-            e.preventDefault();
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
-            const formData = new FormData(e.target);
-            const body = Object.fromEntries(formData.entries());
-            const btn = document.getElementById('mysqlsyncBtn');
-            btn.disabled = true; btn.innerText = 'جاري المزامنة...';
-
-            try {
-                const res = await fetch(`/admin/sync/mysql/${storeId}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (res.ok) showToast(data.message || 'تم ربط قاعدة MySQL بنجاح!');
-                else showToast(data.message || data.detail || 'فشل الربط', 'error');
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
-            finally { btn.disabled = false; btn.innerText = 'ربط ومزامنة'; }
-        }
-
-        async function syncExternalSupabase(e) {
-            e.preventDefault();
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
-            const formData = new FormData(e.target);
-            const body = Object.fromEntries(formData.entries());
-            const btn = document.getElementById('sbsyncBtn');
-            btn.disabled = true; btn.innerText = 'جاري المزامنة...';
-
-            try {
-                const res = await fetch(`/admin/sync/supabase/${storeId}`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
-                });
-                const data = await res.json();
-                if (res.ok) showToast(data.message || 'تمت المزامنة من سوبر بيس بنجاح');
-                else showToast(data.message || data.detail || 'فشل المزامنة', 'error');
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
-            finally { btn.disabled = false; btn.innerText = 'بدء المزامنة'; }
-        }
-
-        async function uploadProducts(e) {
-            e.preventDefault();
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) {
-                return showToast('يرجى إضافة/اختيار متجر أولاً من القائمة العلوية', 'error');
-            }
-            
-            const file = document.getElementById('productFile').files[0];
-            if (!file) return showToast('يرجى اختيار ملف أولاً', 'error');
-
-            const btn = document.getElementById('uploadBtn');
-            btn.disabled = true; btn.innerText = 'جاري الرفع...';
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const res = await fetch(`/admin/upload/${storeId}`, { method: 'POST', body: formData });
-                const data = await res.json();
-                if (res.ok) {
-                    showToast(data.message || 'تم الرفع بنجاح');
-                } else {
-                    showToast(data.message || data.detail || 'فشل في الرفع', 'error');
-                }
-            } catch (err) { 
-                showToast('خطأ في الاتصال', 'error'); 
-            }
-            finally { btn.disabled = false; btn.innerText = 'بدء الرفع'; }
-        }
-
-        async function loadNumbers() {
-            const storeId = document.getElementById('storeSelector').value;
-            const container = document.getElementById('numbersList');
-            container.innerHTML = 'جاري التحميل...';
-            try {
-                const res = await fetch(`/admin/api/numbers?store_id=${storeId}`);
-                const data = await res.json();
-                container.innerHTML = data.map(n => `
-                    <div class="data-row">
-                        <span>${n.phone}</span>
-                        <button class="btn btn-outline" style="color:var(--danger)" onclick="deleteNumber('${n.phone}')"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `).join('') || '<p style="color:var(--text-muted)">لا توجد أرقام مسجلة لهذا المتجر.</p>';
-            } catch (err) { container.innerHTML = 'خطأ في التحميل'; }
-        }
-
-        async function addNumber() {
-            const storeId = document.getElementById('storeSelector').value;
-            const phone = document.getElementById('newPhone').value;
-            if (!phone) return;
-            try {
-                const res = await fetch('/admin/api/numbers', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ phone, store_id: storeId })
-                });
-                if (res.ok) { showToast('تمت الإضافة'); loadNumbers(); }
-            } catch (err) { showToast('فشل الإضافة', 'error'); }
-        }
-        
-        function onStoreChange() {
-            const storeId = document.getElementById('storeSelector').value;
-            if(!storeId) return;
-            
-            // If stores tab is active, load its settings
+        function onGlobalStoreChange() {
             const activeTab = document.querySelector('.tab-pane.active').id;
-            if (activeTab === 'stores-tab') loadCurrentStoreSettings(storeId);
-            
-            if (activeTab === 'products-tab') {
-                const sSelect = document.getElementById('syncSource');
-                if(sSelect) { sSelect.value = ''; document.getElementById('syncConfigForm').style.display='none'; }
-            }
             if (activeTab === 'data-view-tab') loadStoreData();
-            if (activeTab === 'users-tab') loadNumbers();
+            if (activeTab === 'authorized-tab') loadNumbers();
         }
 
-        async function loadCurrentStoreSettings(storeId) {
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`);
-                const data = await res.json();
-                if (data.status === 'success') {
-                    const store = data.store;
-                    document.getElementById('currentStoreId').value = store.id;
-                    document.getElementById('currentStoreName').value = store.name;
-                    document.getElementById('currentAbout').value = store.ai_config.about || '';
-                    document.getElementById('currentTone').value = store.ai_config.tone || '';
-                    document.getElementById('currentPolicy').value = store.ai_config.policy || '';
-                    document.getElementById('currentFaq').value = store.ai_config.faq || '';
-                    
-                    // Load WhatsApp Config
-                    const wa = store.whatsapp_config || {};
-                    document.getElementById('waProvider').value = wa.provider || 'evolution';
-                    document.getElementById('waEvoUrl').value = wa.evolution_api_url || '';
-                    document.getElementById('waEvoKey').value = wa.evolution_api_key || '';
-                    document.getElementById('waEvoInstance').value = wa.evolution_instance_name || store.evolution_instance_name || '';
-                    document.getElementById('waMetaPhoneId').value = wa.meta_phone_number_id || '';
-                    document.getElementById('waMetaToken').value = wa.meta_access_token || '';
-                    document.getElementById('waMetaVerify').value = wa.meta_verify_token || '';
-                    toggleWaProvider();
-                    
-                    // Fetch dynamic columns for this store
-                    const colsRes = await fetch(`/admin/api/columns?store_id=${storeId}`);
-                    const colsData = await colsRes.json();
-                    const colsList = document.getElementById('currentColumnsList');
-                    if (colsData.columns && colsData.columns.length > 0) {
-                        colsList.innerHTML = colsData.columns.map(c => `<span class="column-tag" onclick="insertColumn('${c}')">${c}</span>`).join('');
-                    } else {
-                        colsList.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن. قم بمزامنة البيانات أولاً من تبويب (مزامنة البيانات) لاكتشاف الأعمدة.</span>';
-                    }
-                }
-            } catch (err) {
-                console.error("Error loading store:", err);
-            }
-        }
-
-        // Keep track of the last focused textarea for tagging
-        let focusedTextarea = null;
-        document.querySelectorAll('#currentStoreForm textarea').forEach(ta => {
-            ta.addEventListener('focus', function() {
-                focusedTextarea = this;
-            });
-        });
-
-        function insertColumn(colName) {
-            if (!focusedTextarea) {
-                showToast('يرجى النقر على أي مربع نص لتدريب الذكاء الاصطناعي بالأسفل أولاً', 'error');
-                return;
-            }
-            const tag = `[${colName}]`;
-            const startPos = focusedTextarea.selectionStart;
-            const endPos = focusedTextarea.selectionEnd;
-            focusedTextarea.value = focusedTextarea.value.substring(0, startPos) + tag + focusedTextarea.value.substring(endPos, focusedTextarea.value.length);
-            focusedTextarea.focus();
-            focusedTextarea.selectionStart = startPos + tag.length;
-            focusedTextarea.selectionEnd = startPos + tag.length;
-        }
-
-        async function saveNewStore(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            
-            try {
-                const res = await fetch('/admin/api/stores', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) { 
-                    showToast('تم إنشاء المتجر بنجاح'); 
-                    location.reload(); 
-                }
-            } catch (err) { showToast('فشل الإنشاء', 'error'); }
-        }
-
-        async function updateCurrentStore(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            const storeId = data.store_id;
-            
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) {
-                    showToast('تم حفظ إعدادات المتجر بنجاح');
-                }
-            } catch (err) { showToast('فشل الحفظ', 'error'); }
-        }
-
-        async function deleteCurrentStore() {
-            const storeId = document.getElementById('currentStoreId').value;
-            if (!storeId) return;
-            if (!confirm('هل أنت متأكد من حذف هذا المتجر وكل بياناته بشكل نهائي؟ لا يمكن التراجع!')) return;
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast('تم حذف المتجر بنجاح');
-                    location.reload();
-                } else {
-                    showToast(data.message || 'فشل الحذف', 'error');
-                }
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
-        }
-
-        function toggleWaProvider() {
-            const provider = document.getElementById('waProvider').value;
-            if (provider === 'meta') {
-                document.getElementById('waEvolutionFields').style.display = 'none';
-                document.getElementById('waMetaFields').style.display = 'grid';
-                document.getElementById('waLinkBtn').style.display = 'none';
-                document.getElementById('qrCodeContainer').style.display = 'none';
-            } else {
-                document.getElementById('waEvolutionFields').style.display = 'grid';
-                document.getElementById('waMetaFields').style.display = 'none';
-                document.getElementById('waLinkBtn').style.display = 'inline-block';
-            }
-        }
-
-        async function saveWhatsAppConfig(e) {
-            e.preventDefault();
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) return showToast('يرجى اختيار المتجر', 'error');
-            
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            data.store_id = storeId;
-            
-            const btn = document.getElementById('waSaveBtn');
-            btn.disabled = true; btn.innerText = 'جاري الحفظ...';
-            
-            try {
-                const res = await fetch('/admin/api/whatsapp/config', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                const resData = await res.json();
-                if (res.ok) {
-                    showToast(resData.message || 'تم حفظ الإعدادات');
-                } else {
-                    showToast(resData.message || 'فشل الحفظ', 'error');
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال', 'error');
-            } finally {
-                btn.disabled = false; btn.innerText = 'حفظ إعدادات الواتساب';
-            }
-        }
-
-        async function linkWhatsApp() {
-            const storeId = document.getElementById('storeSelector').value;
-            if (!storeId) {
-                showToast('يرجى اختيار المتجر أولاً', 'error');
-                return;
-            }
-            
-            const btn = document.getElementById('waLinkBtn');
-            btn.disabled = true;
-            
-            showToast('جاري استخراج كود QR...');
-            try {
-                // Must pass the instance_name from the form to link_whatsapp API just in case it wasn't saved yet
-                const instanceName = document.getElementById('waEvoInstance').value;
-                const res = await fetch('/admin/api/whatsapp/link', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ store_id: storeId, instance_name: instanceName })
-                });
-                const data = await res.json();
-                
-                if (res.ok && data.status === 'success' && data.qr) {
-                    document.getElementById('qrCodeImg').src = data.qr;
-                    document.getElementById('qrCodeContainer').style.display = 'block';
-                    showToast('تم استخراج الكود! امسحه من تطبيق الواتساب');
-                } else {
-                    showToast(data.message || 'فشل توليد الكود', 'error');
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال بالخادم', 'error');
-            } finally {
-                btn.disabled = false;
-            }
-        }
-        async function deleteNumber(phone) {
-            const storeId = document.getElementById('storeSelector').value;
-            try {
-                const res = await fetch(`/admin/api/numbers/${encodeURIComponent(phone)}?store_id=${storeId}`, { method: 'DELETE' });
-                if (res.ok) { showToast('تم حذف الرقم'); loadNumbers(); }
-            } catch (err) { showToast('فشل الحذف', 'error'); }
-        }
-
-        // Load initial state
         window.onload = () => {
-            const storeId = document.getElementById('storeSelector').value;
-            if(storeId) loadCurrentStoreSettings(storeId);
+            // Initial loads
         };
     </script>
 </body>
