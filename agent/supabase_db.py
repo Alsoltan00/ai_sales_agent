@@ -81,20 +81,27 @@ def fetch_products_by_store(store_id: str):
 # --- EXTERNAL SOURCE FETCHERS (RETAINED) ---
 
 def search_live_gsheet(query_keywords, sheet_url):
-    """Fetches data from Google Sheets (CSV Export)."""
+    """Fetches data from Google Sheets (CSV Export) without heavy dependencies."""
     if not sheet_url: return []
     csv_url = sheet_url.replace('/edit?usp=sharing', '/export?format=csv').replace('/edit#gid=', '/export?format=csv&gid=')
     if '/export?format=csv' not in csv_url: csv_url += '/export?format=csv'
     
     try:
-        import pandas as pd
-        df = pd.read_csv(csv_url)
+        import csv
+        import urllib.request
+        import io
+        
+        req = urllib.request.Request(csv_url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req) as response:
+            csv_data = response.read().decode('utf-8')
+            
+        reader = csv.DictReader(io.StringIO(csv_data))
         results = []
-        for _, row in df.iterrows():
-            row_dict = row.to_dict()
-            name_key = next((k for k in row_dict.keys() if 'name' in k.lower() or 'اسم' in k), list(row_dict.keys())[0])
-            name = str(row_dict[name_key])
-            details = {k: str(v) for k, v in row_dict.items() if k != name_key}
+        for row in reader:
+            if not row: continue
+            name_key = next((k for k in row.keys() if k and ('name' in k.lower() or 'اسم' in k)), list(row.keys())[0])
+            name = str(row[name_key])
+            details = {k: str(v) for k, v in row.items() if k != name_key}
             results.append({"name": name, "details": details})
         return results
     except Exception as e:
