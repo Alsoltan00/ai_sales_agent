@@ -14,3 +14,4 @@ pandas
 openpyxl
 bcrypt
 python-multipart
+itsdangerous
