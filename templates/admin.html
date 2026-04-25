@@ -316,8 +316,17 @@
                 }
 
                 grid.innerHTML = data.map(item => {
-                    const details = item.details || {};
-                    let detailsHtml = Object.entries(details).map(([key, val]) => `
+                    // Skip internal fields
+                    const skip = ['id', 'created_at'];
+                    const fields = Object.entries(item).filter(([k]) => !skip.includes(k));
+                    
+                    if (fields.length === 0) return '';
+                    
+                    // First field = card title, rest = details
+                    const [titleKey, titleVal] = fields[0];
+                    const restFields = fields.slice(1);
+                    
+                    let detailsHtml = restFields.map(([key, val]) => `
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.85rem;">
                             <span style="color:var(--text-muted); font-weight:500;">${key}:</span>
                             <span style="font-weight:600;">${val}</span>
@@ -326,7 +335,8 @@
 
                     return `
                         <div class="card data-card" style="margin-bottom:0; transition:0.3s; border-top: 4px solid var(--primary);">
-                            <h3 style="margin-bottom:15px; font-size:1.1rem; color:var(--primary);">${item.name}</h3>
+                            <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:5px;">${titleKey}</div>
+                            <h3 style="margin-bottom:15px; font-size:1.1rem; color:var(--primary);">${titleVal}</h3>
                             <div style="border-top: 1px solid var(--border); padding-top:10px;">
                                 ${detailsHtml}
                             </div>

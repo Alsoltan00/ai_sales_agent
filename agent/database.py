@@ -82,12 +82,11 @@ def _create_store_schema(store_id):
     
     cursor.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     
-    # Products catalog
+    # Products/Data rows - fully dynamic, no fixed columns
     cursor.execute(f"""
         CREATE TABLE IF NOT EXISTS "{schema}".products (
             id          SERIAL PRIMARY KEY,
-            name        TEXT NOT NULL,
-            details     JSONB DEFAULT '{{}}'::jsonb,
+            data        JSONB NOT NULL DEFAULT '{{}}'::jsonb,
             created_at  TIMESTAMPTZ DEFAULT NOW()
         )
     """)
@@ -207,26 +206,47 @@ def update_store_sync_db(store_id, source: str, config: dict):
 
 
 # =============================================================================
-#  PRODUCT OPERATIONS (store-isolated schema)
+#  PRODUCT OPERATIONS (store-isolated schema) - Fully Dynamic Columns
 # =============================================================================
 
 def fetch_products_by_store(store_id):
-    """Fetches all products from a store's isolated schema."""
+    """Fetches all data rows from a store's isolated schema."""
     schema = _safe_schema_name(store_id)
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     try:
-        cursor.execute(f'SELECT * FROM "{schema}".products ORDER BY id')
-        products = cursor.fetchall()
-        return [dict(p) for p in products]
+        cursor.execute(f'SELECT id, data, created_at FROM "{schema}".products ORDER BY id')
+        rows = cursor.fetchall()
+        result = []
+        for r in rows:
+            item = dict(r)
+            # Flatten: merge data fields into the top level for easy display
+            data = item.pop("data", {}) or {}
+            item.update(data)
+            result.append(item)
+        return result
     except Exception as e:
         print(f"[!] fetch_products error for store {store_id}: {e}")
         return []
     finally:
         conn.close()
 
+def fetch_products_raw(store_id):
+    """Fetches raw JSONB data rows (for AI/search - returns just the data dicts)."""
+    schema = _safe_schema_name(store_id)
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cursor.execute(f'SELECT data FROM "{schema}".products ORDER BY id')
+        return [dict(r["data"]) for r in cursor.fetchall() if r.get("data")]
+    except Exception as e:
+        print(f"[!] fetch_products_raw error: {e}")
+        return []
+    finally:
+        conn.close()
+
 def delete_store_products(store_id):
-    """Purges all products in a store's schema."""
+    """Purges all data rows in a store's schema."""
     schema = _safe_schema_name(store_id)
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -240,20 +260,50 @@ def delete_store_products(store_id):
         conn.close()
 
 def upload_products_bulk(products: list, store_id):
-    """Uploads a list of products into a store's isolated schema."""
+    """
+    Uploads data rows into a store's schema.
+    Accepts any format:
+      - [{"name": "x", "details": {...}}]  (old format - auto-converted)
+      - [{"col1": "val1", "col2": "val2"}] (new flat format)
+    Auto-detects and saves column order.
+    """
     schema = _safe_schema_name(store_id)
     conn = get_db_connection()
     cursor = conn.cursor()
+    columns_detected = []
+    
     try:
         for p in products:
-            details = p.get("details", {})
-            if isinstance(details, str):
-                try: details = json.loads(details)
-                except: details = {"raw": details}
+            # Handle old format: {name, details}
+            if "name" in p and "details" in p and isinstance(p["details"], dict):
+                row_data = {"name": p["name"]}
+                row_data.update(p["details"])
+            elif "name" in p and "details" in p and isinstance(p["details"], str):
+                try:
+                    details = json.loads(p["details"])
+                    row_data = {"name": p["name"]}
+                    row_data.update(details)
+                except:
+                    row_data = dict(p)
+            else:
+                # New flat format - already perfect
+                row_data = dict(p)
+            
+            # Remove internal keys
+            row_data.pop("store_id", None)
+            
+            if not columns_detected and row_data:
+                columns_detected = list(row_data.keys())
+            
             cursor.execute(
-                f'INSERT INTO "{schema}".products (name, details) VALUES (%s, %s)',
-                (p.get("name", ""), Json(details))
+                f'INSERT INTO "{schema}".products (data) VALUES (%s)',
+                (Json(row_data),)
             )
+        
+        # Auto-save detected columns for this store
+        if columns_detected:
+            save_store_columns(store_id, columns_detected, conn=conn)
+        
         conn.commit()
     except Exception as e:
         print(f"[!] upload_products error: {e}")
@@ -262,30 +312,74 @@ def upload_products_bulk(products: list, store_id):
         conn.close()
 
 def search_products(keywords: list, store_id):
-    """Searches products by keywords within a store's isolated schema."""
+    """Searches across ALL fields in the JSONB data column."""
     if not keywords:
-        return fetch_products_by_store(store_id)
+        return fetch_products_raw(store_id)
     
     schema = _safe_schema_name(store_id)
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
     
+    # Search across the entire JSONB text
     query_parts = []
     params = []
     for kw in keywords:
-        query_parts.append("(name ILIKE %s OR details::text ILIKE %s)")
-        params.extend([f"%{kw}%", f"%{kw}%"])
+        query_parts.append("data::text ILIKE %s")
+        params.append(f"%{kw}%")
     
     where_clause = " AND ".join(query_parts)
     
     try:
-        cursor.execute(f'SELECT * FROM "{schema}".products WHERE {where_clause}', params)
-        return [dict(p) for p in cursor.fetchall()]
+        cursor.execute(f'SELECT data FROM "{schema}".products WHERE {where_clause}', params)
+        return [dict(r["data"]) for r in cursor.fetchall() if r.get("data")]
     except Exception as e:
         print(f"[!] search_products error: {e}")
         return []
     finally:
         conn.close()
+
+
+# =============================================================================
+#  COLUMN MANAGEMENT (auto-detected + manual)
+# =============================================================================
+
+def save_store_columns(store_id, columns: list, conn=None):
+    """Saves the column order/names for a store."""
+    schema = _safe_schema_name(store_id)
+    should_close = False
+    if conn is None:
+        conn = get_db_connection()
+        should_close = True
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            f"""INSERT INTO "{schema}".settings (key, value) VALUES ('columns', %s)
+                ON CONFLICT (key) DO UPDATE SET value = %s""",
+            (json.dumps(columns, ensure_ascii=False), json.dumps(columns, ensure_ascii=False))
+        )
+        if should_close:
+            conn.commit()
+    except Exception as e:
+        print(f"[!] save_columns error: {e}")
+    finally:
+        if should_close:
+            conn.close()
+
+def get_store_columns(store_id):
+    """Gets the column names for a store."""
+    schema = _safe_schema_name(store_id)
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(f"SELECT value FROM \"{schema}\".settings WHERE key = 'columns'")
+        row = cursor.fetchone()
+        if row:
+            return json.loads(row[0])
+    except Exception as e:
+        print(f"[!] get_columns error: {e}")
+    finally:
+        conn.close()
+    return []
 
 
 # =============================================================================

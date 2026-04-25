@@ -23,7 +23,7 @@ from agent.database import (
     create_store, fetch_stores, fetch_store_by_id, update_store, delete_store,
     update_store_sync_db, delete_store_products, upload_products_bulk,
     fetch_products_by_store, fetch_authorized_numbers, add_authorized_number,
-    delete_authorized_number,
+    delete_authorized_number, get_store_columns, save_store_columns,
     search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
 )
 
@@ -125,6 +125,21 @@ async def api_delete_store(store_id: str):
 async def api_get_products(store_id: str):
     """Fetches all products for a store from its isolated schema."""
     return fetch_products_by_store(store_id)
+
+@app.get("/admin/api/columns")
+async def api_get_columns(store_id: str):
+    """Returns the column names for a store (auto-detected or manually set)."""
+    return {"columns": get_store_columns(store_id)}
+
+@app.put("/admin/api/columns")
+async def api_update_columns(payload: dict):
+    """Allows the merchant to rename/reorder columns."""
+    store_id = payload.get("store_id")
+    columns = payload.get("columns", [])
+    if store_id and columns:
+        save_store_columns(store_id, columns)
+        return {"status": "success"}
+    return {"status": "error", "message": "store_id and columns required"}
 
 
 # =============================================================================
