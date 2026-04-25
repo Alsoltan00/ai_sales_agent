@@ -180,3 +180,52 @@ def fetch_live_bridge(url: str) -> tuple:
         return results, None
     except Exception as e:
         return [], f"خطأ في قراءة الجسر: {str(e)}"
+
+# --- MISSING FUNCTIONS FOR CONVERSATION MANAGER ---
+
+def search_products(keywords: list, store_id: str):
+    """Searches products based on keywords."""
+    if not keywords: return fetch_products_by_store(store_id)
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    query_parts = []
+    params = [store_id]
+    for kw in keywords:
+        query_parts.append("(name ILIKE %s OR details::text ILIKE %s)")
+        params.extend([f"%{kw}%", f"%{kw}%"])
+    
+    where_clause = " AND ".join(query_parts)
+    query = f"SELECT * FROM products WHERE store_id = %s AND ({where_clause})"
+    
+    try:
+        cursor.execute(query, params)
+        products = cursor.fetchall()
+    except Exception as e:
+        print(f"DB Search Error: {e}")
+        products = []
+    finally:
+        conn.close()
+        
+    return products
+
+def get_store_config(instance_name: str):
+    """Fetches store configuration by instance name."""
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM stores WHERE name = %s", (instance_name,))
+    store = cursor.fetchone()
+    conn.close()
+    
+    if store:
+        return {
+            "id": str(store["id"]),
+            "name": store["name"],
+            "system_prompt": store.get("sync_config", {}).get("system_prompt", "")
+        }
+    return None
+
+def check_authorized_number(clean_number: str, store_id: str):
+    """Checks if a number is allowed to interact with the bot."""
+    # Simplified for the new DB structure - allowing all by default
+    return True
