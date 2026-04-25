@@ -152,8 +152,9 @@
         <p>قم بتسجيل الدخول للوصول إلى لوحة التحكم</p>
 
         <div id="errorBox" class="error-msg"></div>
+        <div id="successBox" style="background: rgba(34, 197, 94, 0.1); color: #22c55e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; display: none;"></div>
 
-        <form onsubmit="handleLogin(event)">
+        <form id="loginForm" onsubmit="handleAuth(event)">
             <div class="form-group">
                 <label class="label">اسم المستخدم</label>
                 <div class="input-wrapper">
@@ -168,7 +169,12 @@
                     <input type="password" id="password" class="input" placeholder="••••••••" required>
                 </div>
             </div>
-            <button type="submit" class="btn" id="loginBtn">تسجيل الدخول</button>
+            <button type="submit" class="btn" id="authBtn">تسجيل الدخول</button>
+            
+            <div style="margin-top: 20px; font-size: 0.9rem;">
+                <span id="toggleText" style="color: var(--text-muted);">ليس لديك حساب؟</span>
+                <a href="#" onclick="toggleMode(event)" id="toggleLink" style="color: var(--primary); font-weight: 700; text-decoration: none; margin-right: 5px;">إنشاء حساب جديد</a>
+            </div>
         </form>
 
         <div style="margin-top: 30px; font-size: 0.85rem; color: var(--text-muted);">
@@ -177,19 +183,49 @@
     </div>
 
     <script>
-        async function handleLogin(e) {
+        let isLogin = true;
+
+        function toggleMode(e) {
+            e.preventDefault();
+            isLogin = !isLogin;
+            const h1 = document.querySelector('h1');
+            const p = document.querySelector('p');
+            const authBtn = document.getElementById('authBtn');
+            const toggleText = document.getElementById('toggleText');
+            const toggleLink = document.getElementById('toggleLink');
+
+            if (isLogin) {
+                h1.innerText = 'مرحباً بك مجدداً';
+                p.innerText = 'قم بتسجيل الدخول للوصول إلى لوحة التحكم';
+                authBtn.innerText = 'تسجيل الدخول';
+                toggleText.innerText = 'ليس لديك حساب؟';
+                toggleLink.innerText = 'إنشاء حساب جديد';
+            } else {
+                h1.innerText = 'انضم إلينا اليوم';
+                p.innerText = 'أنشئ حسابك وابدأ تجربتك مع الذكاء الاصطناعي';
+                authBtn.innerText = 'إنشاء حساب جديد';
+                toggleText.innerText = 'لديك حساب بالفعل؟';
+                toggleLink.innerText = 'تسجيل الدخول';
+            }
+        }
+
+        async function handleAuth(e) {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
             const errorBox = document.getElementById('errorBox');
-            const loginBtn = document.getElementById('loginBtn');
+            const successBox = document.getElementById('successBox');
+            const authBtn = document.getElementById('authBtn');
 
             errorBox.style.display = 'none';
-            loginBtn.innerText = 'جاري التحقق...';
-            loginBtn.disabled = true;
+            successBox.style.display = 'none';
+            authBtn.innerText = 'جاري المعالجة...';
+            authBtn.disabled = true;
+
+            const endpoint = isLogin ? '/admin/api/login' : '/admin/api/register';
 
             try {
-                const res = await fetch('/admin/api/login', {
+                const res = await fetch(endpoint, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ username, password })
@@ -197,17 +233,23 @@
                 const data = await res.json();
 
                 if (data.status === 'success') {
-                    window.location.href = '/admin';
+                    if (isLogin) {
+                        window.location.href = '/admin';
+                    } else {
+                        successBox.innerText = 'تم تقديم طلبك بنجاح! بانتظار موافقة الإدارة.';
+                        successBox.style.display = 'block';
+                        e.target.reset();
+                    }
                 } else {
-                    errorBox.innerText = data.message || 'خطأ في تسجيل الدخول';
+                    errorBox.innerText = data.message || 'فشل في العملية';
                     errorBox.style.display = 'block';
                 }
             } catch (err) {
                 errorBox.innerText = 'خطأ في الاتصال بالخادم';
                 errorBox.style.display = 'block';
             } finally {
-                loginBtn.innerText = 'تسجيل الدخول';
-                loginBtn.disabled = false;
+                authBtn.innerText = isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
+                authBtn.disabled = false;
             }
         }
     </script>

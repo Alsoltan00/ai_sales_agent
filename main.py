@@ -27,7 +27,8 @@ from agent.database import (
     delete_authorized_number, get_store_columns, save_store_columns,
     search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge,
     update_store_whatsapp_config,
-    authenticate_user, create_user, fetch_users, toggle_user_status
+    authenticate_user, create_user, fetch_users, toggle_user_status,
+    register_user, activate_user_subscription
 )
 
 app = FastAPI(title="AI Sales Platform", version="2.0")
@@ -75,6 +76,9 @@ async def api_login(request: Request, payload: dict):
     user = authenticate_user(username, password)
     
     if user:
+        if user.get("id") == -1: # Custom error object
+            return {"status": "error", "message": user["status_error"]}
+            
         request.session["user"] = {
             "id": user["id"],
             "username": user["username"],
@@ -82,7 +86,15 @@ async def api_login(request: Request, payload: dict):
             "store_id": user["store_id"]
         }
         return {"status": "success"}
-    return {"status": "error", "message": "اسم المستخدم أو كلمة المرور غير صحيحة أو الحساب غير مفعل"}
+    return {"status": "error", "message": "اسم المستخدم أو كلمة المرور غير صحيحة"}
+
+@app.post("/admin/api/register")
+async def api_register(payload: dict):
+    username = payload.get("username")
+    password = payload.get("password")
+    if register_user(username, password):
+        return {"status": "success"}
+    return {"status": "error", "message": "اسم المستخدم موجود بالفعل"}
 
 @app.get("/logout")
 async def logout(request: Request):
@@ -598,12 +610,17 @@ async def api_create_user(payload: dict, current_user: dict = Depends(get_curren
         return {"status": "success"}
     return {"status": "error", "message": "اسم المستخدم موجود مسبقاً"}
 
-@app.post("/admin/api/users/status")
-async def api_toggle_user(payload: dict, current_user: dict = Depends(get_current_user)):
+@app.post("/admin/api/users/activate")
+async def api_activate_user(payload: dict, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Forbidden")
     
-    toggle_user_status(payload["user_id"], payload["status"])
+    activate_user_subscription(
+        payload["user_id"],
+        payload["role"],
+        payload["store_id"],
+        int(payload["days"])
+    )
     return {"status": "success"}
 
 

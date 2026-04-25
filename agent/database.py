@@ -69,18 +69,27 @@ def initialize_database():
             created_at      TIMESTAMPTZ DEFAULT NOW()
         )
     """)
-    # Users Table (Global Access Control)
+    # Users Table (Enhanced SaaS Access Control)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS public.users (
             id              SERIAL PRIMARY KEY,
             username        TEXT UNIQUE NOT NULL,
             password_hash   TEXT NOT NULL,
-            role            TEXT NOT NULL DEFAULT 'merchant', -- 'admin' or 'merchant'
+            role            TEXT NOT NULL DEFAULT 'merchant', -- 'admin', 'owner', 'merchant', 'staff'
             store_id        INTEGER REFERENCES public.stores(id) ON DELETE SET NULL,
-            is_active       BOOLEAN DEFAULT TRUE,
+            status          TEXT DEFAULT 'pending', -- 'pending', 'active', 'suspended'
+            permissions     JSONB DEFAULT '{}', -- Fine-grained access for 'staff'
+            subscription_end TIMESTAMPTZ,
             created_at      TIMESTAMPTZ DEFAULT NOW()
         )
     """)
+    
+    # Ensure columns exist for existing installations
+    try:
+        cursor.execute("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';")
+        cursor.execute("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb;")
+        cursor.execute("ALTER TABLE public.users ADD COLUMN IF NOT EXISTS subscription_end TIMESTAMPTZ;")
+    except: pass
     
     # Auto-migration: ensure the new column exists if updating from old version
     try:
@@ -251,16 +260,60 @@ def update_store_whatsapp_config(store_id, config: dict):
 # =============================================================================
 
 def authenticate_user(username, password):
-    """Verifies user credentials. Returns user dict or None."""
+    """Verifies user credentials and checks subscription/status."""
     conn = get_db_connection()
     cursor = conn.cursor(cursor_factory=RealDictCursor)
-    cursor.execute("SELECT * FROM public.users WHERE username = %s AND is_active = TRUE", (username,))
+    cursor.execute("SELECT * FROM public.users WHERE username = %s", (username,))
     user = cursor.fetchone()
     conn.close()
     
-    if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
-        return dict(user)
-    return None
+    if not user: return None
+    
+    # Check Password
+    if not bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
+        return None
+        
+    # Check Status
+    if user['status'] != 'active' and user['role'] != 'admin':
+        return {"id": -1, "status_error": f"حسابك في حالة: {user['status']}. يرجى مراجعة الإدارة."}
+        
+    # Check Subscription
+    from datetime import datetime, timezone
+    if user['subscription_end'] and user['role'] != 'admin':
+        if datetime.now(timezone.utc) > user['subscription_end']:
+            return {"id": -1, "status_error": "انتهت فترة اشتراكك. يرجى التجديد."}
+            
+    return dict(user)
+
+def register_user(username, password):
+    """Initial self-registration by a new customer."""
+    hashed = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute(
+            "INSERT INTO public.users (username, password_hash, role, status) VALUES (%s, %s, %s, %s)",
+            (username, hashed, 'merchant', 'pending')
+        )
+        conn.commit()
+        return True
+    except: return False
+    finally: conn.close()
+
+def activate_user_subscription(user_id, role, store_id, days):
+    """Admin activates user with specific role and duration."""
+    from datetime import datetime, timedelta, timezone
+    end_date = datetime.now(timezone.utc) + timedelta(days=days)
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE public.users 
+        SET role = %s, store_id = %s, status = 'active', subscription_end = %s 
+        WHERE id = %s
+    """, (role, store_id, end_date, user_id))
+    conn.commit()
+    conn.close()
 
 def create_user(username, password, role='merchant', store_id=None):
     """Creates a new user with hashed password."""

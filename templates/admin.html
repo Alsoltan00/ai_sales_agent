@@ -451,6 +451,40 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">إنشاء المتجر الآن</button>
             </form>
         </div>
+    <!-- User Activation Modal -->
+    <div id="activateUserModal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-key"></i> تفعيل العميل وتحديد الصلاحيات</div>
+                <button class="close-btn" onclick="document.getElementById('activateUserModal').style.display='none'">&times;</button>
+            </div>
+            <form id="activateUserForm" onsubmit="saveUserActivation(event)">
+                <input type="hidden" id="activateUserId" name="user_id">
+                <div class="form-group">
+                    <label class="label">تحديد الدور (Role)</label>
+                    <select name="role" class="input" required>
+                        <option value="owner">مالك (صلاحيات كاملة)</option>
+                        <option value="merchant" selected>تاجر (إدارة متجر محدد)</option>
+                        <option value="staff">موظف (صلاحيات محدودة)</option>
+                        <option value="admin">مدير نظام (مثلك)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="label">ربط بالمتجر</label>
+                    <select name="store_id" class="input">
+                        <option value="">--- لا يوجد (أو اختر متجر) ---</option>
+                        {% for store in stores %}
+                        <option value="{{ store.id }}">{{ store.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="label">مدة الاشتراك (بالأيام)</label>
+                    <input type="number" name="days" class="input" value="30" min="1" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">تفعيل الحساب الآن</button>
+            </form>
+        </div>
     </div>
 
     <script>
@@ -479,14 +513,20 @@
                         <td style="padding: 12px;">${user.store_name || '-'}</td>
                         <td style="padding: 12px;"><span class="badge ${user.role === 'admin' ? 'badge-primary' : 'badge-secondary'}">${user.role === 'admin' ? 'مدير' : 'تاجر'}</span></td>
                         <td style="padding: 12px;">
-                            <span style="color: ${user.is_active ? 'var(--success)' : 'var(--danger)'}; font-weight: bold;">
-                                ${user.is_active ? 'نشط' : 'معطل'}
+                            <span style="display: block; font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; text-align: center; 
+                                background: ${user.status === 'active' ? '#f0fdf4' : user.status === 'pending' ? '#fffbeb' : '#fef2f2'}; 
+                                color: ${user.status === 'active' ? '#166534' : user.status === 'pending' ? '#92400e' : '#991b1b'};">
+                                ${user.status === 'active' ? 'نشط' : user.status === 'pending' ? 'بانتظار الموافقة' : 'معطل'}
                             </span>
+                            ${user.subscription_end ? `<div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 4px;">ينتهي: ${new Date(user.subscription_end).toLocaleDateString('ar-SA')}</div>` : ''}
                         </td>
                         <td style="padding: 12px;">
                             ${user.role !== 'admin' ? `
-                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 0.75rem; color: ${user.is_active ? 'var(--danger)' : 'var(--success)'};" onclick="toggleUserStatus(${user.id}, ${!user.is_active})">
-                                ${user.is_active ? 'تعطيل' : 'تفعيل'}
+                            <button class="btn btn-primary" style="padding: 5px 10px; font-size: 0.75rem;" onclick="openActivationModal(${user.id})">
+                                <i class="fa-solid fa-bolt"></i> ${user.status === 'pending' ? 'تفعيل' : 'تجديد'}
+                            </button>
+                            <button class="btn btn-outline" style="padding: 5px 10px; font-size: 0.75rem; color: var(--danger);" onclick="toggleUserStatus(${user.id}, 'suspended')">
+                                <i class="fa-solid fa-ban"></i> تعطيل
                             </button>` : '-'}
                         </td>
                     </tr>
@@ -517,6 +557,33 @@
                 }
             } catch (err) {
                 showToast('خطأ في الاتصال بالخادم', 'error');
+            }
+        }
+
+        function openActivationModal(userId) {
+            document.getElementById('activateUserId').value = userId;
+            document.getElementById('activateUserModal').style.display = 'flex';
+        }
+
+        async function saveUserActivation(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const payload = Object.fromEntries(formData.entries());
+            
+            try {
+                const res = await fetch('/admin/api/users/activate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('تم تفعيل حساب العميل بنجاح');
+                    document.getElementById('activateUserModal').style.display = 'none';
+                    loadAllUsers();
+                }
+            } catch (err) {
+                showToast('فشل في التفعيل', 'error');
             }
         }
 
