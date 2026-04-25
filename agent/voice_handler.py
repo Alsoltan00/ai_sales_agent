@@ -2,16 +2,23 @@ import os
 from groq import Groq
 from edge_tts import Communicate
 
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-client = Groq(api_key=GROQ_API_KEY)
+def get_groq_client():
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if api_key:
+        try:
+            return Groq(api_key=api_key)
+        except Exception:
+            pass
+    return None
 
 def recognize_speech(audio_file_path: str) -> str:
     """
     Uses Groq's Whisper-large-v3 API to transcribe WhatsApp voice notes instantly.
     """
+    client = get_groq_client()
     try:
-        if not GROQ_API_KEY:
-            return "Error: No GROQ_API_KEY found."
+        if not client:
+            return "Error: No GROQ_API_KEY found or valid."
 
         with open(audio_file_path, "rb") as file:
             transcription = client.audio.transcriptions.create(
