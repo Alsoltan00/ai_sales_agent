@@ -620,11 +620,16 @@ async def api_activate_user(payload: dict, current_user: dict = Depends(get_curr
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Forbidden")
     
+    # Default to merchant if role not provided
+    role = payload.get("role", "merchant")
+    store_id = payload.get("store_id") # Can be null, merchant creates it later
+    days = int(payload.get("days", 30))
+    
     activate_user_subscription(
         payload["user_id"],
-        payload["role"],
-        payload["store_id"],
-        int(payload["days"])
+        role,
+        store_id,
+        days
     )
     return {"status": "success"}
 
