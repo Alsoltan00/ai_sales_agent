@@ -157,8 +157,8 @@ def _create_store_schema(store_id):
 #  STORE MANAGEMENT (public schema)
 # =============================================================================
 
-def create_store(name: str, instance_name: str = "", system_prompt: str = ""):
-    """Creates a new store and its isolated schema."""
+def create_store(name: str, instance_name: str = "", system_prompt: str = "", owner_id: int = None):
+    """Creates a new store and its isolated schema. Links to owner if provided."""
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute(
@@ -168,6 +168,11 @@ def create_store(name: str, instance_name: str = "", system_prompt: str = ""):
         (name, instance_name, system_prompt)
     )
     store_id = cursor.fetchone()[0]
+    
+    # Link to user if owner_id is provided
+    if owner_id:
+        cursor.execute("UPDATE public.users SET store_id = %s WHERE id = %s", (store_id, owner_id))
+        
     conn.commit()
     conn.close()
     

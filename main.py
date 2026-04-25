@@ -153,10 +153,15 @@ async def api_add_store(payload: dict):
             "faq": payload.get("faq", "")
         }
         
+        # Get current user from session to set as owner
+        user = request.session.get("user")
+        owner_id = user["id"] if user and user.get("role") != "admin" else None
+
         store_id = create_store(
             name=payload.get("name", "متجر جديد"),
             instance_name=payload.get("evolution_instance_name", ""),
-            system_prompt=json.dumps(ai_config, ensure_ascii=False)
+            system_prompt=json.dumps(ai_config, ensure_ascii=False),
+            owner_id=owner_id
         )
         return {"status": "success", "store_id": store_id}
     except Exception as e:
