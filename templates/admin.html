@@ -307,16 +307,14 @@
             <form id="activateUserForm" onsubmit="saveUserActivation(event)">
                 <input type="hidden" id="activateUserId" name="user_id">
                 <div class="form-group">
-                    <label class="label">الدور</label>
-                    <select name="role" class="input">
-                        <option value="merchant" selected>تاجر</option>
-                        <option value="owner">مالك</option>
-                        <option value="staff">موظف</option>
-                        <option value="admin">مدير نظام</option>
+                    <label class="label">تحديد المتجر لهذا العميل (اختياري)</label>
+                    <select name="store_id" class="input">
+                        <option value="">--- لا يوجد (أو اختر متجر لربطه) ---</option>
+                        {% for s in stores %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
                     </select>
                 </div>
-                <div class="form-group"><label class="label">عدد الأيام</label><input type="number" name="days" value="30" class="input"></div>
-                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">تفعيل الآن</button>
+                <div class="form-group"><label class="label">عدد الأيام</label><input type="number" name="days" value="30" class="input" min="1"></div>
+                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" id="activateSubmitBtn">تفعيل الآن</button>
             </form>
         </div>
     </div>
@@ -371,13 +369,34 @@
 
         async function saveUserActivation(e) {
             e.preventDefault();
+            const btn = document.getElementById('activateSubmitBtn');
+            btn.disabled = true;
+            btn.innerText = 'جاري التفعيل...';
+            
             const data = Object.fromEntries(new FormData(e.target).entries());
-            const res = await fetch('/admin/api/users/activate', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            if(res.ok) { showToast('تم التفعيل'); document.getElementById('activateUserModal').style.display='none'; loadAllUsers(); }
+            
+            try {
+                const res = await fetch('/admin/api/users/activate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                
+                if(res.ok && result.status === 'success') {
+                    showToast('✅ تم تفعيل اشتراك العميل بنجاح');
+                    document.getElementById('activateUserModal').style.display = 'none';
+                    loadAllUsers();
+                } else {
+                    showToast(result.message || 'فشل التفعيل', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالسيرفر', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'تفعيل الآن';
+            }
         }
 
         async function addNewUser(e) {
