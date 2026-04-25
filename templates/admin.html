@@ -433,6 +433,7 @@
         async function syncGoogleSheets(e) {
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
             const url = e.target.sheet_url.value;
             const btn = document.getElementById('gsyncBtn');
             btn.disabled = true; btn.innerText = 'جاري المزامنة...';
@@ -444,8 +445,8 @@
                     body: JSON.stringify({ url })
                 });
                 const data = await res.json();
-                if (res.ok) showToast('تمت المزامنة من جوجل بنجاح');
-                else showToast(data.message, 'error');
+                if (res.ok) showToast(data.message || 'تمت المزامنة من جوجل بنجاح');
+                else showToast(data.message || data.detail || 'فشل المزامنة', 'error');
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'مزامنة من جوجل'; }
         }
@@ -453,6 +454,7 @@
         async function syncBridge(e) {
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
             const formData = new FormData(e.target);
             let bridgeUrl = formData.get('bridge_url');
             
@@ -472,8 +474,8 @@
                     body: JSON.stringify({ bridge_url: bridgeUrl })
                 });
                 const data = await res.json();
-                if (data.status === 'success') showToast(data.message);
-                else showToast(data.message, 'error');
+                if (res.ok && data.status === 'success') showToast(data.message || 'تم الربط');
+                else showToast(data.message || data.detail || 'فشل الربط', 'error');
             } catch (err) { showToast('خطأ في الاتصال بالجسر', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'ربط وتجاوز الحماية'; }
         }
@@ -493,6 +495,7 @@
         async function syncMySQL(e) {
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
             const formData = new FormData(e.target);
             const body = Object.fromEntries(formData.entries());
             const btn = document.getElementById('mysqlsyncBtn');
@@ -505,8 +508,8 @@
                     body: JSON.stringify(body)
                 });
                 const data = await res.json();
-                if (res.ok) showToast('تم ربط قاعدة MySQL بنجاح!');
-                else showToast(data.message, 'error');
+                if (res.ok) showToast(data.message || 'تم ربط قاعدة MySQL بنجاح!');
+                else showToast(data.message || data.detail || 'فشل الربط', 'error');
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'ربط ومزامنة'; }
         }
@@ -514,6 +517,7 @@
         async function syncExternalSupabase(e) {
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) return showToast('يرجى اختيار متجر أولاً', 'error');
             const formData = new FormData(e.target);
             const body = Object.fromEntries(formData.entries());
             const btn = document.getElementById('sbsyncBtn');
@@ -526,8 +530,8 @@
                     body: JSON.stringify(body)
                 });
                 const data = await res.json();
-                if (res.ok) showToast('تمت المزامنة من سوبر بيس بنجاح');
-                else showToast(data.message, 'error');
+                if (res.ok) showToast(data.message || 'تمت المزامنة من سوبر بيس بنجاح');
+                else showToast(data.message || data.detail || 'فشل المزامنة', 'error');
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
             finally { btn.disabled = false; btn.innerText = 'بدء المزامنة'; }
         }
@@ -535,6 +539,10 @@
         async function uploadProducts(e) {
             e.preventDefault();
             const storeId = document.getElementById('storeSelector').value;
+            if (!storeId) {
+                return showToast('يرجى إضافة/اختيار متجر أولاً من القائمة العلوية', 'error');
+            }
+            
             const file = document.getElementById('productFile').files[0];
             if (!file) return showToast('يرجى اختيار ملف أولاً', 'error');
 
@@ -547,9 +555,14 @@
             try {
                 const res = await fetch(`/admin/upload/${storeId}`, { method: 'POST', body: formData });
                 const data = await res.json();
-                if (res.ok) showToast('تم الرفع بنجاح');
-                else showToast(data.message, 'error');
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+                if (res.ok) {
+                    showToast(data.message || 'تم الرفع بنجاح');
+                } else {
+                    showToast(data.message || data.detail || 'فشل في الرفع', 'error');
+                }
+            } catch (err) { 
+                showToast('خطأ في الاتصال', 'error'); 
+            }
             finally { btn.disabled = false; btn.innerText = 'بدء الرفع'; }
         }
 
