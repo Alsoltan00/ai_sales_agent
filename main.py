@@ -9,50 +9,21 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from agent.conversation_manager import handle_incoming_message
 import requests
+from agent.supabase_db import (
+    fetch_stores, fetch_store_by_id, update_store_sync_db, 
+    delete_store_products, upload_products_bulk, fetch_products_by_store,
+    search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
+)
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-
-# --- UTILS & DATABASE OPERATIONS ---
-
-def get_store_config(store_id: str):
-    """Fetches store configuration from Supabase."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=*"
-    res = requests.get(url, headers=get_headers())
-    if res.status_code == 200 and res.json():
-        return res.json()[0]
-    return None
-
-def delete_store_products(store_id: str):
-    """Purges all products for a specific store."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    url = f"{get_supabase_url()}/rest/v1/products?store_id=eq.{store_id}"
-    requests.delete(url, headers=get_headers())
-
-def upload_products_bulk(products: List[dict], store_id: str):
-    """Uploads a list of products to Supabase."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    url = f"{get_supabase_url()}/rest/v1/products"
-    headers = get_headers()
-    headers["Prefer"] = "return=representation"
-    requests.post(url, json=products, headers=headers)
-
-def update_store_sync_db(store_id: str, source: str, config: dict):
-    """Updates the sync source and config for a store in Supabase."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    url = f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}"
-    payload = {"sync_source": source, "sync_config": config}
-    requests.patch(url, json=payload, headers=get_headers())
 
 # --- ROUTES ---
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     """Renders the main admin dashboard."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    stores_res = requests.get(f"{get_supabase_url()}/rest/v1/stores?select=*", headers=get_headers())
-    stores = stores_res.json() if stores_res.status_code == 200 else []
+    stores = fetch_stores()
     return templates.TemplateResponse("admin.html", {"request": request, "stores": stores})
 
 @app.post("/admin/sync/excel/{store_id}")
@@ -124,10 +95,11 @@ async def receive_pushed_data(store_id: str, payload: dict):
     if not products: return {"status": "error"}
     try:
         delete_store_products(store_id)
-        for p in products: p["store_id"] = store_id
+        # store_id is already passed, but we ensure it's in the dict
         upload_products_bulk(products, store_id)
         return {"status": "success"}
-    except: return {"status": "error"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.post("/admin/sync/bridge/{store_id}")
 async def sync_bridge(store_id: str, payload: dict):
@@ -148,15 +120,10 @@ async def sync_bridge(store_id: str, payload: dict):
 
 async def perform_single_store_sync(store_id: str):
     """Fetches remote data and replaces local data. Returns (success, msg, count)."""
-    from agent.supabase_db import get_supabase_url, get_headers, search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
-    import requests
-    
-    # 1. Get Store Config
-    res = requests.get(f"{get_supabase_url()}/rest/v1/stores?id=eq.{store_id}&select=*", headers=get_headers())
-    if res.status_code != 200 or not res.json(): 
+    store = fetch_store_by_id(store_id)
+    if not store: 
         return False, "لم يتم العثور على إعدادات المتجر", 0
     
-    store = res.json()[0]
     source = store.get("sync_source")
     config = store.get("sync_config")
     
@@ -165,7 +132,7 @@ async def perform_single_store_sync(store_id: str):
     try:
         if source == "gsheet":
             products = search_live_gsheet([], config.get("url"))
-            if not products: error_msg = "لم يتم العور على بيانات في الرابط أو الرابط غير صالح"
+            if not products: error_msg = "لم يتم العثور على بيانات في الرابط أو الرابط غير صالح"
         elif source == "supabase":
             products = search_live_external_supabase([], config)
             if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
@@ -182,7 +149,6 @@ async def perform_single_store_sync(store_id: str):
     
     if products:
         delete_store_products(store_id)
-        for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
         return True, "Success", len(products)
     else:
@@ -190,17 +156,11 @@ async def perform_single_store_sync(store_id: str):
 
 async def background_sync_scheduler():
     """Loops every 5 minutes to sync all remote stores."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    import requests
-    
     while True:
         try:
-            # Get all stores that are NOT local
-            url = f"{get_supabase_url()}/rest/v1/stores?sync_source=neq.local&select=id"
-            res = requests.get(url, headers=get_headers())
-            if res.status_code == 200:
-                stores = res.json()
-                for s in stores:
+            stores = fetch_stores()
+            for s in stores:
+                if s["sync_source"] != "local":
                     await perform_single_store_sync(s["id"])
         except Exception as e:
             print(f"[!] Sync Scheduler Error: {e}")
@@ -267,15 +227,8 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks)
     background_tasks.add_task(handle_incoming_message, data)
     return {"status": "received"}
 
-# --- SECURE PROXY ENDPOINTS FOR AUTHORIZED NUMBERS ---
+# --- DATABASE API FOR ADMIN UI ---
 @app.get("/admin/api/products")
 async def get_store_products_api(store_id: str):
     """Fetches all products for a specific store to display in the admin UI."""
-    from agent.supabase_db import get_supabase_url, get_headers
-    import requests
-    url = f"{get_supabase_url()}/rest/v1/products?store_id=eq.{store_id}&select=*"
-    try:
-        res = requests.get(url, headers=get_headers())
-        return res.json()
-    except Exception as e:
-        return []
+    return fetch_products_by_store(store_id)
