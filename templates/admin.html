@@ -68,6 +68,16 @@
         .toast.show { transform: translateY(0); }
         .toast.success { background: var(--success); }
         .toast.error { background: var(--danger); }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
+        .modal { background: var(--bg-card); width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; border-radius: var(--radius); padding: 30px; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 15px; margin-bottom: 20px; }
+        .modal-title { font-size: 1.2rem; font-weight: 700; color: var(--primary); }
+        .close-btn { cursor: pointer; font-size: 1.5rem; color: var(--text-muted); border: none; background: transparent; }
+        
+        .column-tag { display: inline-block; background: #e0f2fe; color: #0284c7; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; margin: 4px; cursor: pointer; transition: 0.2s; border: 1px solid #bae6fd; font-weight: 600; }
+        .column-tag:hover { background: #bae6fd; transform: translateY(-1px); }
     </style>
 </head>
 <body>
@@ -320,6 +330,63 @@
     </div>
 
     <div id="toast" class="toast"></div>
+
+    <!-- Edit Store Modal -->
+    <div id="editStoreModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title"><i class="fa-solid fa-pen-to-square"></i> تعديل إعدادات المتجر</div>
+                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+            </div>
+            
+            <div id="editColumnsContainer" style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;"><i class="fa-solid fa-table-columns"></i> الأعمدة المتوفرة في قاعدة البيانات (اضغط على العمود لإدراجه في النص):</div>
+                <div id="editColumnsList">جاري التحميل...</div>
+            </div>
+
+            <form id="editStoreForm" onsubmit="updateStore(event)">
+                <input type="hidden" id="editStoreId" name="store_id">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label class="label">اسم المتجر</label>
+                        <input type="text" id="editStoreName" name="name" class="input" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">معرف الواتساب</label>
+                        <input type="text" id="editStoreInstance" name="evolution_instance_name" class="input">
+                    </div>
+                </div>
+                
+                <h3 style="margin: 20px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                    <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
+                </h3>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div class="form-group">
+                        <label class="label">وصف النشاط العام</label>
+                        <textarea id="editAbout" name="about" class="input textarea" style="min-height: 80px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">نبرة الصوت وأسلوب التحدث</label>
+                        <textarea id="editTone" name="tone" class="input textarea" style="min-height: 80px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">سياسة الاسترجاع والضمان</label>
+                        <textarea id="editPolicy" name="policy" class="input textarea" style="min-height: 80px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
+                        <textarea id="editFaq" name="faq" class="input textarea" style="min-height: 80px;"></textarea>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px; text-align: left;">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ التعديلات</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script>
         function showTab(tabId, el) {
@@ -610,8 +677,85 @@
             } catch (err) { showToast('خطأ في الاتصال', 'error'); }
         }
 
-        function editStore(storeId) {
-            showToast('ميزة التعديل قادمة قريباً');
+        let focusedTextarea = null;
+
+        // Keep track of the last focused textarea in the edit modal
+        document.querySelectorAll('#editStoreModal textarea').forEach(ta => {
+            ta.addEventListener('focus', function() {
+                focusedTextarea = this;
+            });
+        });
+
+        function insertColumn(colName) {
+            if (!focusedTextarea) {
+                showToast('يرجى النقر على أي مربع نص بالأسفل أولاً', 'error');
+                return;
+            }
+            const tag = `[${colName}]`;
+            const startPos = focusedTextarea.selectionStart;
+            const endPos = focusedTextarea.selectionEnd;
+            focusedTextarea.value = focusedTextarea.value.substring(0, startPos) + tag + focusedTextarea.value.substring(endPos, focusedTextarea.value.length);
+            focusedTextarea.focus();
+            focusedTextarea.selectionStart = startPos + tag.length;
+            focusedTextarea.selectionEnd = startPos + tag.length;
+        }
+
+        function closeEditModal() {
+            document.getElementById('editStoreModal').style.display = 'none';
+        }
+
+        async function editStore(storeId) {
+            showToast('جاري جلب بيانات المتجر...');
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const store = data.store;
+                    document.getElementById('editStoreId').value = store.id;
+                    document.getElementById('editStoreName').value = store.name;
+                    document.getElementById('editStoreInstance').value = store.evolution_instance_name;
+                    document.getElementById('editAbout').value = store.ai_config.about;
+                    document.getElementById('editTone').value = store.ai_config.tone;
+                    document.getElementById('editPolicy').value = store.ai_config.policy;
+                    document.getElementById('editFaq').value = store.ai_config.faq;
+                    
+                    document.getElementById('editStoreModal').style.display = 'flex';
+                    
+                    // Fetch columns
+                    const colsRes = await fetch(`/admin/api/columns?store_id=${storeId}`);
+                    const colsData = await colsRes.json();
+                    const colsList = document.getElementById('editColumnsList');
+                    if (colsData.columns && colsData.columns.length > 0) {
+                        colsList.innerHTML = colsData.columns.map(c => `<span class="column-tag" onclick="insertColumn('${c}')">${c}</span>`).join('');
+                    } else {
+                        colsList.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن. قم بمزامنة البيانات أولاً لاكتشاف الأعمدة.</span>';
+                    }
+                } else {
+                    showToast('فشل جلب البيانات', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        async function updateStore(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const storeId = data.store_id;
+            
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    showToast('تم حفظ التعديلات بنجاح');
+                    closeEditModal();
+                    setTimeout(() => location.reload(), 1000);
+                }
+            } catch (err) { showToast('فشل الحفظ', 'error'); }
         }
 
         async function deleteNumber(phone) {

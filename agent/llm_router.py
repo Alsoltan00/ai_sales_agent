@@ -51,6 +51,12 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list, 
         except:
             # Fallback to plain text for older stores
             system_prompt += f"\n\nتعليمات إضافية خاصة بهذا النشاط:\n{system_prompt_custom}"
+            
+    # Inject Dynamic Columns context
+    from agent.database import get_store_columns
+    store_cols = get_store_columns(store_id)
+    if store_cols:
+        system_prompt += f"\n\nالأعمدة المتاحة في قاعدة البيانات للإجابة على العميل: [{', '.join(store_cols)}]"
     
     messages = [{"role": "system", "content": system_prompt}]
     

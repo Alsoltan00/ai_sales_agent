@@ -107,6 +107,28 @@ async def api_add_store(payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/admin/api/stores/{store_id}")
+async def api_get_store(store_id: str):
+    """Fetches a single store's details including parsed AI config."""
+    store = fetch_store_by_id(store_id)
+    if not store:
+        return {"status": "error", "message": "Store not found"}
+        
+    # Parse the system_prompt back into a dict for the frontend
+    ai_config = {"about": "", "tone": "", "policy": "", "faq": ""}
+    try:
+        if store.get("system_prompt"):
+            parsed = json.loads(store["system_prompt"])
+            if isinstance(parsed, dict):
+                ai_config.update(parsed)
+            else:
+                ai_config["about"] = store["system_prompt"]
+    except:
+        ai_config["about"] = store.get("system_prompt", "")
+        
+    store["ai_config"] = ai_config
+    return {"status": "success", "store": store}
+
 @app.put("/admin/api/stores/{store_id}")
 async def api_update_store(store_id: str, payload: dict):
     """Updates an existing store's configuration."""
