@@ -204,6 +204,10 @@
                             <label class="label">اسم النسخة (Instance Name)</label>
                             <input type="text" id="waEvoInstance" name="evolution_instance_name" class="input" placeholder="my-store-1">
                         </div>
+                        <div class="form-group" style="grid-column: 1/-1;">
+                            <label class="label">رابط Webhook (لإعدادات Evolution يدوياً)</label>
+                            <input type="text" class="input" value="https://ai-sales-agent-dreu.onrender.com/webhook" readonly style="background: var(--bg-color); cursor: copy; color: #25D366; font-weight: bold;" onclick="this.select(); document.execCommand('copy'); showToast('تم نسخ رابط ويب هوك Evolution');" title="انقر للنسخ">
+                        </div>
                     </div>
 
                     <!-- Meta Fields -->
