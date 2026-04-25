@@ -61,7 +61,8 @@
 
         /* Tabs */
         .tab-pane { display: none; }
-        .tab-pane.active { display: block; }
+        .tab-pane.active { display: block !important; animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         /* Toast */
         .toast { position: fixed; bottom: 30px; left: 30px; padding: 15px 25px; border-radius: 8px; color: white; font-weight: 700; transform: translateY(100px); transition: 0.3s; z-index: 1000; }
@@ -502,18 +503,28 @@
 
     <script>
         function showTab(tabId, el) {
-            document.querySelectorAll('.tab-pane').forEach(t => t.classList.remove('active'));
+            console.log("Switching to tab:", tabId);
+            
+            // Hide all panes
+            document.querySelectorAll('.tab-pane').forEach(t => {
+                t.classList.remove('active');
+                t.style.display = 'none';
+            });
+            
+            // Deactivate all nav items
             document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
             
-            // Map simple tab names to actual element IDs
+            // Show target pane
             const targetId = tabId.endsWith('-tab') ? tabId : tabId + '-tab';
             const targetPane = document.getElementById(targetId);
             
             if (targetPane) {
                 targetPane.classList.add('active');
+                targetPane.style.display = 'block';
                 if (el) el.classList.add('active');
+                console.log("Tab activated successfully");
             } else {
-                console.error("Tab pane not found:", targetId);
+                console.error("CRITICAL: Tab pane not found in DOM:", targetId);
             }
             
             if(tabId === 'users') loadNumbers();
