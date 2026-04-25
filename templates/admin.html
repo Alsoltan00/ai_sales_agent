@@ -356,7 +356,16 @@
                 </div>
             </div>
 
-            <div id="dataCardsGrid" style="d        {% if user.role == 'admin' %}
+            <div id="dataCardsGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px;">
+                <!-- Cards will be injected here -->
+                <div style="text-align: center; grid-column: 1/-1; padding: 50px; color: var(--text-muted);">
+                    <i class="fa-solid fa-spinner fa-spin fa-3x" style="margin-bottom: 15px;"></i>
+                    <p>جاري تحميل البيانات الحية...</p>
+                </div>
+            </div>
+        </div>
+
+        {% if user.role == 'admin' %}
         <!-- User Management Tab -->
         <div id="admin-users-tab" class="tab-pane">
             <div class="page-header" style="margin-bottom: 20px;">
@@ -411,7 +420,8 @@
             </div>
         </div>
         {% endif %}
-    </div>-- Global Settings Tab -->
+
+        <!-- Global Settings Tab -->
         <div id="settings-tab" class="tab-pane">
             <div class="card">
                 <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
