@@ -25,7 +25,7 @@ async def admin_panel(request: Request):
     """Renders the main admin dashboard."""
     try:
         stores = fetch_stores()
-        return templates.TemplateResponse("admin.html", {"request": request, "stores": stores})
+        return templates.TemplateResponse(request=request, name="admin.html", context={"stores": stores})
     except Exception as e:
         return HTMLResponse(content=f"<h1 style='color:red;'>Database Connection Error</h1><p><b>{str(e)}</b></p><p>Please check your DB_HOST, DB_PASS, and DB_USER in Render environment variables.</p>", status_code=500)
 
