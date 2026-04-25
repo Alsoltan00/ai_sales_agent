@@ -121,21 +121,29 @@
             </div>
         </div>
 
-        <!-- Stores Tab -->
+        <!-- Stores Tab (Now acts as Current Store Settings) -->
         <div id="stores-tab" class="tab-pane active">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="color: var(--primary);"><i class="fa-solid fa-sliders"></i> إعدادات المتجر الحالي</h3>
+                <button class="btn btn-primary" onclick="document.getElementById('addStoreModal').style.display='flex'">
+                    <i class="fa-solid fa-plus-circle"></i> إضافة نشاط / متجر جديد
+                </button>
+            </div>
+
             <div class="card">
-                <div class="card-header"><i class="fa-solid fa-plus-circle"></i> إضافة متجر / نشاط جديد</div>
-                <form id="addStoreForm" onsubmit="saveStore(event)">
+                <form id="currentStoreForm" onsubmit="updateCurrentStore(event)">
+                    <input type="hidden" id="currentStoreId" name="store_id">
+                    
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="label">اسم المتجر</label>
-                            <input type="text" name="name" class="input" placeholder="مثلاً: متجر العطور الفاخرة" required>
+                            <input type="text" id="currentStoreName" name="name" class="input" required>
                         </div>
                         <div class="form-group">
-                            <label class="label">معرف الواتساب (انجليزي وبدون مسافات)</label>
+                            <label class="label">معرف الواتساب</label>
                             <div style="display: flex; gap: 10px;">
-                                <input type="text" id="instanceNameInput" name="evolution_instance_name" class="input" placeholder="مثلاً: my-store-wa" required>
-                                <button type="button" class="btn btn-outline" onclick="linkWhatsApp()" style="white-space: nowrap;"><i class="fa-brands fa-whatsapp"></i> ربط واتساب</button>
+                                <input type="text" id="currentStoreInstance" name="evolution_instance_name" class="input">
+                                <button type="button" class="btn btn-outline" onclick="linkWhatsApp()" style="white-space: nowrap;"><i class="fa-brands fa-whatsapp"></i> استخراج كود QR</button>
                             </div>
                         </div>
                     </div>
@@ -143,54 +151,46 @@
                     <div id="qrCodeContainer" style="display: none; text-align: center; margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed var(--primary);">
                         <h4 style="margin-bottom: 15px; color: var(--primary);">امسح الكود لربط الواتساب</h4>
                         <img id="qrCodeImg" src="" style="width: 250px; height: 250px; display: inline-block;">
-                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بمجرد مسح الكود بنجاح، قم بحفظ المتجر</p>
+                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بعد مسح الكود، المتجر مربوط بالواتساب بنجاح</p>
                     </div>
 
-                    <h3 style="margin: 20px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                    <h3 style="margin: 30px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
                         <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
                     </h3>
+                    
+                    <!-- Dynamic Columns Area -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                        <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; color: #166534;"><i class="fa-solid fa-table-columns"></i> الأعمدة المتوفرة في قاعدة بيانات هذا المتجر:</div>
+                        <p style="font-size: 0.8rem; color: #15803d; margin-bottom: 10px;">(اضغط على أي عمود لإدراجه في نصوص التدريب بالأسفل ليتعرف عليه الذكاء الاصطناعي)</p>
+                        <div id="currentColumnsList">جاري التحميل...</div>
+                    </div>
                     
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                         <div class="form-group">
                             <label class="label">وصف النشاط العام</label>
-                            <textarea name="about" class="input textarea" style="min-height: 80px;" placeholder="نحن متجر متخصص في بيع..."></textarea>
+                            <textarea id="currentAbout" name="about" class="input textarea" style="min-height: 80px;" placeholder="نحن متجر متخصص في بيع..."></textarea>
                         </div>
                         <div class="form-group">
                             <label class="label">نبرة الصوت وأسلوب التحدث</label>
-                            <textarea name="tone" class="input textarea" style="min-height: 80px;" placeholder="تحدث بلهجة سعودية لبقة ومحترمة..."></textarea>
+                            <textarea id="currentTone" name="tone" class="input textarea" style="min-height: 80px;" placeholder="تحدث بلهجة سعودية لبقة ومحترمة..."></textarea>
                         </div>
                         <div class="form-group">
                             <label class="label">سياسة الاسترجاع والضمان</label>
-                            <textarea name="policy" class="input textarea" style="min-height: 80px;" placeholder="الاسترجاع متاح خلال 3 أيام..."></textarea>
+                            <textarea id="currentPolicy" name="policy" class="input textarea" style="min-height: 80px;" placeholder="الاسترجاع متاح خلال 3 أيام..."></textarea>
                         </div>
                         <div class="form-group">
                             <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
-                            <textarea name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
+                            <textarea id="currentFaq" name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
                         </div>
                     </div>
                     
                     <div style="margin-top: 15px;">
-                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ المتجر وبدء العمل</button>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ إعدادات المتجر الحالي</button>
+                        <button type="button" class="btn btn-outline" style="color: var(--danger); border-color: var(--danger); float: left;" onclick="deleteCurrentStore()">
+                            <i class="fa-solid fa-trash"></i> حذف هذا المتجر
+                        </button>
                     </div>
                 </form>
-            </div>
-
-            <div class="card">
-                <div class="card-header"><i class="fa-solid fa-list"></i> المتاجر المسجلة حالياً</div>
-                <div id="storesList">
-                    {% for store in stores %}
-                    <div class="data-row">
-                        <div>
-                            <strong style="font-size: 1.1rem;">{{ store.name }}</strong>
-                            <div style="font-size: 0.85rem; color: var(--text-muted);">Instance: {{ store.evolution_instance_name }}</div>
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <button class="btn btn-outline" onclick="editStore('{{ store.id }}')"><i class="fa-solid fa-edit"></i></button>
-                            <button class="btn btn-outline" style="color: var(--danger);" onclick="deleteStore('{{ store.id }}')"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
             </div>
         </div>
 
@@ -331,59 +331,23 @@
 
     <div id="toast" class="toast"></div>
 
-    <!-- Edit Store Modal -->
-    <div id="editStoreModal" class="modal-overlay">
-        <div class="modal">
+    <!-- Add New Store Modal -->
+    <div id="addStoreModal" class="modal-overlay">
+        <div class="modal" style="max-width: 500px;">
             <div class="modal-header">
-                <div class="modal-title"><i class="fa-solid fa-pen-to-square"></i> تعديل إعدادات المتجر</div>
-                <button class="close-btn" onclick="closeEditModal()">&times;</button>
+                <div class="modal-title"><i class="fa-solid fa-plus-circle"></i> إضافة متجر / نشاط جديد</div>
+                <button class="close-btn" onclick="document.getElementById('addStoreModal').style.display='none'">&times;</button>
             </div>
-            
-            <div id="editColumnsContainer" style="margin-bottom: 20px; padding: 15px; background: #f8fafc; border-radius: 8px; border: 1px solid var(--border);">
-                <div style="font-size: 0.9rem; font-weight: 600; margin-bottom: 10px;"><i class="fa-solid fa-table-columns"></i> الأعمدة المتوفرة في قاعدة البيانات (اضغط على العمود لإدراجه في النص):</div>
-                <div id="editColumnsList">جاري التحميل...</div>
-            </div>
-
-            <form id="editStoreForm" onsubmit="updateStore(event)">
-                <input type="hidden" id="editStoreId" name="store_id">
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <div class="form-group">
-                        <label class="label">اسم المتجر</label>
-                        <input type="text" id="editStoreName" name="name" class="input" required>
-                    </div>
-                    <div class="form-group">
-                        <label class="label">معرف الواتساب</label>
-                        <input type="text" id="editStoreInstance" name="evolution_instance_name" class="input">
-                    </div>
+            <form onsubmit="saveNewStore(event)">
+                <div class="form-group">
+                    <label class="label">اسم المتجر</label>
+                    <input type="text" name="name" class="input" placeholder="مثلاً: متجر العطور الفاخرة" required>
                 </div>
-                
-                <h3 style="margin: 20px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
-                    <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
-                </h3>
-                
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <div class="form-group">
-                        <label class="label">وصف النشاط العام</label>
-                        <textarea id="editAbout" name="about" class="input textarea" style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="label">نبرة الصوت وأسلوب التحدث</label>
-                        <textarea id="editTone" name="tone" class="input textarea" style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="label">سياسة الاسترجاع والضمان</label>
-                        <textarea id="editPolicy" name="policy" class="input textarea" style="min-height: 80px;"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
-                        <textarea id="editFaq" name="faq" class="input textarea" style="min-height: 80px;"></textarea>
-                    </div>
+                <div class="form-group">
+                    <label class="label">معرف الواتساب (انجليزي وبدون مسافات)</label>
+                    <input type="text" name="evolution_instance_name" class="input" placeholder="مثلاً: my-store-wa" required>
                 </div>
-                
-                <div style="margin-top: 15px; text-align: left;">
-                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ التعديلات</button>
-                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">إنشاء المتجر</button>
             </form>
         </div>
     </div>
@@ -619,10 +583,129 @@
             } catch (err) { showToast('فشل الإضافة', 'error'); }
         }
         
+        function onStoreChange() {
+            const storeId = document.getElementById('storeSelector').value;
+            if(!storeId) return;
+            
+            // If stores tab is active, load its settings
+            const activeTab = document.querySelector('.tab-pane.active').id;
+            if (activeTab === 'stores-tab') loadCurrentStoreSettings(storeId);
+            
+            if (activeTab === 'products-tab') {
+                const sSelect = document.getElementById('syncSource');
+                if(sSelect) { sSelect.value = ''; document.getElementById('syncConfigForm').style.display='none'; }
+            }
+            if (activeTab === 'data-view-tab') loadStoreData();
+            if (activeTab === 'users-tab') loadNumbers();
+        }
+
+        async function loadCurrentStoreSettings(storeId) {
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`);
+                const data = await res.json();
+                if (data.status === 'success') {
+                    const store = data.store;
+                    document.getElementById('currentStoreId').value = store.id;
+                    document.getElementById('currentStoreName').value = store.name;
+                    document.getElementById('currentStoreInstance').value = store.evolution_instance_name || '';
+                    document.getElementById('currentAbout').value = store.ai_config.about || '';
+                    document.getElementById('currentTone').value = store.ai_config.tone || '';
+                    document.getElementById('currentPolicy').value = store.ai_config.policy || '';
+                    document.getElementById('currentFaq').value = store.ai_config.faq || '';
+                    
+                    // Fetch dynamic columns for this store
+                    const colsRes = await fetch(`/admin/api/columns?store_id=${storeId}`);
+                    const colsData = await colsRes.json();
+                    const colsList = document.getElementById('currentColumnsList');
+                    if (colsData.columns && colsData.columns.length > 0) {
+                        colsList.innerHTML = colsData.columns.map(c => `<span class="column-tag" onclick="insertColumn('${c}')">${c}</span>`).join('');
+                    } else {
+                        colsList.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن. قم بمزامنة البيانات أولاً من تبويب (مزامنة البيانات) لاكتشاف الأعمدة.</span>';
+                    }
+                }
+            } catch (err) {
+                console.error("Error loading store:", err);
+            }
+        }
+
+        // Keep track of the last focused textarea for tagging
+        let focusedTextarea = null;
+        document.querySelectorAll('#currentStoreForm textarea').forEach(ta => {
+            ta.addEventListener('focus', function() {
+                focusedTextarea = this;
+            });
+        });
+
+        function insertColumn(colName) {
+            if (!focusedTextarea) {
+                showToast('يرجى النقر على أي مربع نص لتدريب الذكاء الاصطناعي بالأسفل أولاً', 'error');
+                return;
+            }
+            const tag = `[${colName}]`;
+            const startPos = focusedTextarea.selectionStart;
+            const endPos = focusedTextarea.selectionEnd;
+            focusedTextarea.value = focusedTextarea.value.substring(0, startPos) + tag + focusedTextarea.value.substring(endPos, focusedTextarea.value.length);
+            focusedTextarea.focus();
+            focusedTextarea.selectionStart = startPos + tag.length;
+            focusedTextarea.selectionEnd = startPos + tag.length;
+        }
+
+        async function saveNewStore(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            
+            try {
+                const res = await fetch('/admin/api/stores', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) { 
+                    showToast('تم إنشاء المتجر بنجاح'); 
+                    location.reload(); 
+                }
+            } catch (err) { showToast('فشل الإنشاء', 'error'); }
+        }
+
+        async function updateCurrentStore(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData.entries());
+            const storeId = data.store_id;
+            
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    showToast('تم حفظ إعدادات المتجر بنجاح');
+                }
+            } catch (err) { showToast('فشل الحفظ', 'error'); }
+        }
+
+        async function deleteCurrentStore() {
+            const storeId = document.getElementById('currentStoreId').value;
+            if (!storeId) return;
+            if (!confirm('هل أنت متأكد من حذف هذا المتجر وكل بياناته بشكل نهائي؟ لا يمكن التراجع!')) return;
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('تم حذف المتجر بنجاح');
+                    location.reload();
+                } else {
+                    showToast(data.message || 'فشل الحذف', 'error');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+        }
+
         async function linkWhatsApp() {
-            const instanceName = document.getElementById('instanceNameInput').value;
+            const instanceName = document.getElementById('currentStoreInstance').value;
             if (!instanceName) {
-                showToast('يرجى كتابة معرف الواتساب أولاً', 'error');
+                showToast('يرجى كتابة معرف الواتساب أولاً في الحقل الخاص به', 'error');
                 return;
             }
             
@@ -646,118 +729,6 @@
                 showToast('خطأ في الاتصال بالخادم', 'error');
             }
         }
-
-        async function saveStore(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            
-            // This endpoint will be added to main.py
-            try {
-                const res = await fetch('/admin/api/stores', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) { showToast('تم حفظ المتجر بنجاح'); location.reload(); }
-            } catch (err) { showToast('فشل الحفظ', 'error'); }
-        }
-
-        async function deleteStore(storeId) {
-            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟ لا يمكن التراجع!')) return;
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    showToast('تم حذف المتجر بنجاح');
-                    location.reload();
-                } else {
-                    showToast(data.message || 'فشل الحذف', 'error');
-                }
-            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
-        }
-
-        let focusedTextarea = null;
-
-        // Keep track of the last focused textarea in the edit modal
-        document.querySelectorAll('#editStoreModal textarea').forEach(ta => {
-            ta.addEventListener('focus', function() {
-                focusedTextarea = this;
-            });
-        });
-
-        function insertColumn(colName) {
-            if (!focusedTextarea) {
-                showToast('يرجى النقر على أي مربع نص بالأسفل أولاً', 'error');
-                return;
-            }
-            const tag = `[${colName}]`;
-            const startPos = focusedTextarea.selectionStart;
-            const endPos = focusedTextarea.selectionEnd;
-            focusedTextarea.value = focusedTextarea.value.substring(0, startPos) + tag + focusedTextarea.value.substring(endPos, focusedTextarea.value.length);
-            focusedTextarea.focus();
-            focusedTextarea.selectionStart = startPos + tag.length;
-            focusedTextarea.selectionEnd = startPos + tag.length;
-        }
-
-        function closeEditModal() {
-            document.getElementById('editStoreModal').style.display = 'none';
-        }
-
-        async function editStore(storeId) {
-            showToast('جاري جلب بيانات المتجر...');
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`);
-                const data = await res.json();
-                if (data.status === 'success') {
-                    const store = data.store;
-                    document.getElementById('editStoreId').value = store.id;
-                    document.getElementById('editStoreName').value = store.name;
-                    document.getElementById('editStoreInstance').value = store.evolution_instance_name;
-                    document.getElementById('editAbout').value = store.ai_config.about;
-                    document.getElementById('editTone').value = store.ai_config.tone;
-                    document.getElementById('editPolicy').value = store.ai_config.policy;
-                    document.getElementById('editFaq').value = store.ai_config.faq;
-                    
-                    document.getElementById('editStoreModal').style.display = 'flex';
-                    
-                    // Fetch columns
-                    const colsRes = await fetch(`/admin/api/columns?store_id=${storeId}`);
-                    const colsData = await colsRes.json();
-                    const colsList = document.getElementById('editColumnsList');
-                    if (colsData.columns && colsData.columns.length > 0) {
-                        colsList.innerHTML = colsData.columns.map(c => `<span class="column-tag" onclick="insertColumn('${c}')">${c}</span>`).join('');
-                    } else {
-                        colsList.innerHTML = '<span style="color:var(--text-muted); font-size:0.9rem;">لا توجد بيانات مستوردة لهذا المتجر حتى الآن. قم بمزامنة البيانات أولاً لاكتشاف الأعمدة.</span>';
-                    }
-                } else {
-                    showToast('فشل جلب البيانات', 'error');
-                }
-            } catch (err) {
-                showToast('خطأ في الاتصال', 'error');
-            }
-        }
-
-        async function updateStore(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            const storeId = data.store_id;
-            
-            try {
-                const res = await fetch(`/admin/api/stores/${storeId}`, {
-                    method: 'PUT',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
-                if (res.ok) {
-                    showToast('تم حفظ التعديلات بنجاح');
-                    closeEditModal();
-                    setTimeout(() => location.reload(), 1000);
-                }
-            } catch (err) { showToast('فشل الحفظ', 'error'); }
-        }
-
         async function deleteNumber(phone) {
             const storeId = document.getElementById('storeSelector').value;
             try {
@@ -765,6 +736,12 @@
                 if (res.ok) { showToast('تم حذف الرقم'); loadNumbers(); }
             } catch (err) { showToast('فشل الحذف', 'error'); }
         }
+
+        // Load initial state
+        window.onload = () => {
+            const storeId = document.getElementById('storeSelector').value;
+            if(storeId) loadCurrentStoreSettings(storeId);
+        };
     </script>
 </body>
 </html>
