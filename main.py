@@ -67,11 +67,7 @@ async def root_redirect():
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    try:
-        return templates.TemplateResponse("login.html", {"request": request})
-    except Exception as e:
-        import traceback
-        return HTMLResponse(content=f"<pre>{traceback.format_exc()}</pre>", status_code=500)
+    return templates.TemplateResponse(request, "login.html")
 
 @app.post("/admin/api/login")
 async def api_login(request: Request, payload: dict):
@@ -129,7 +125,7 @@ async def admin_panel(request: Request):
             stores = [store] if store else []
             
         return templates.TemplateResponse(
-            request=request, name="admin.html", context={"stores": stores, "user": user}
+            request, "admin.html", {"stores": stores, "user": user}
         )
     except Exception as e:
         return HTMLResponse(content=f"Error: {str(e)}", status_code=500)
