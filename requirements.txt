@@ -10,3 +10,5 @@ pydub
 jinja2
 mysql-connector-python
 psycopg2-binary
+pandas
+openpyxl
