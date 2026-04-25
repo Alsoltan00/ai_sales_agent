@@ -76,6 +76,12 @@ async def admin_panel(request: Request):
         )
 
 
+import os
+import requests
+
+EVOLUTION_API_URL = os.getenv("EVOLUTION_API_URL", "https://evolution-api-latest-qxsg.onrender.com")
+EVOLUTION_API_KEY = os.getenv("EVOLUTION_API_KEY", "Aseel.709293")
+
 # =============================================================================
 #  STORE MANAGEMENT API
 # =============================================================================
@@ -84,10 +90,18 @@ async def admin_panel(request: Request):
 async def api_add_store(payload: dict):
     """Creates a new store with its own isolated database schema."""
     try:
+        # Combine advanced AI settings into a single JSON system_prompt
+        ai_config = {
+            "about": payload.get("about", ""),
+            "tone": payload.get("tone", "احترافي ومحترم"),
+            "policy": payload.get("policy", ""),
+            "faq": payload.get("faq", "")
+        }
+        
         store_id = create_store(
             name=payload.get("name", "متجر جديد"),
             instance_name=payload.get("evolution_instance_name", ""),
-            system_prompt=payload.get("system_prompt", "")
+            system_prompt=json.dumps(ai_config, ensure_ascii=False)
         )
         return {"status": "success", "store_id": store_id}
     except Exception as e:
@@ -97,11 +111,17 @@ async def api_add_store(payload: dict):
 async def api_update_store(store_id: str, payload: dict):
     """Updates an existing store's configuration."""
     try:
+        ai_config = {
+            "about": payload.get("about", ""),
+            "tone": payload.get("tone", "احترافي ومحترم"),
+            "policy": payload.get("policy", ""),
+            "faq": payload.get("faq", "")
+        }
         update_store(
             store_id,
             name=payload.get("name"),
             instance_name=payload.get("evolution_instance_name"),
-            system_prompt=payload.get("system_prompt")
+            system_prompt=json.dumps(ai_config, ensure_ascii=False)
         )
         return {"status": "success"}
     except Exception as e:
@@ -111,8 +131,65 @@ async def api_update_store(store_id: str, payload: dict):
 async def api_delete_store(store_id: str):
     """Deletes a store and ALL its data (schema dropped entirely)."""
     try:
+        # Also try to delete the WhatsApp instance from Evolution API if possible
+        store = fetch_store_by_id(store_id)
+        if store and store.get("evolution_instance_name"):
+            headers = {"apikey": EVOLUTION_API_KEY}
+            requests.delete(f"{EVOLUTION_API_URL}/instance/delete/{store['evolution_instance_name']}", headers=headers)
+            
         delete_store(store_id)
         return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+# =============================================================================
+#  WHATSAPP INTEGRATION API (EVOLUTION)
+# =============================================================================
+
+@app.post("/admin/api/whatsapp/link")
+async def link_whatsapp(payload: dict):
+    """Creates an Evolution instance and returns the QR code base64."""
+    instance_name = payload.get("instance_name")
+    if not instance_name:
+        return {"status": "error", "message": "اسم النسخة مطلوب"}
+        
+    headers = {
+        "apikey": EVOLUTION_API_KEY,
+        "Content-Type": "application/json"
+    }
+    
+    # 1. Create Instance
+    create_payload = {
+        "instanceName": instance_name,
+        "token": instance_name,
+        "qrcode": True
+    }
+    
+    try:
+        # Force delete if exists to get a fresh QR
+        requests.delete(f"{EVOLUTION_API_URL}/instance/delete/{instance_name}", headers=headers)
+        
+        res = requests.post(f"{EVOLUTION_API_URL}/instance/create", json=create_payload, headers=headers)
+        if res.status_code not in [200, 201]:
+            return {"status": "error", "message": f"فشل إنشاء النسخة: {res.text}"}
+            
+        data = res.json()
+        qr_base64 = data.get("qrcode", {}).get("base64")
+        
+        # 2. Set Webhook
+        webhook_payload = {
+            "webhook": {
+                "enabled": True,
+                "url": "https://ai-sales-agent-dreu.onrender.com/webhook",
+                "byEvents": False,
+                "base64": False,
+                "events": ["MESSAGES_UPSERT"]
+            }
+        }
+        requests.post(f"{EVOLUTION_API_URL}/webhook/set/{instance_name}", json=webhook_payload, headers=headers)
+        
+        return {"status": "success", "qr": qr_base64}
+        
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

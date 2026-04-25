@@ -122,15 +122,46 @@
                             <input type="text" name="name" class="input" placeholder="مثلاً: متجر العطور الفاخرة" required>
                         </div>
                         <div class="form-group">
-                            <label class="label">اسم نسخة الواتساب (Evolution Instance)</label>
-                            <input type="text" name="evolution_instance_name" class="input" placeholder="asil-phone" required>
+                            <label class="label">معرف الواتساب (انجليزي وبدون مسافات)</label>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="instanceNameInput" name="evolution_instance_name" class="input" placeholder="مثلاً: my-store-wa" required>
+                                <button type="button" class="btn btn-outline" onclick="linkWhatsApp()" style="white-space: nowrap;"><i class="fa-brands fa-whatsapp"></i> ربط واتساب</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label class="label">شخصية الذكاء الاصطناعي (System Prompt)</label>
-                        <textarea name="system_prompt" class="input textarea" placeholder="صف كيف يجب أن يتحدث البوت مع العملاء في هذا المتجر..."></textarea>
+                    
+                    <div id="qrCodeContainer" style="display: none; text-align: center; margin: 20px 0; padding: 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed var(--primary);">
+                        <h4 style="margin-bottom: 15px; color: var(--primary);">امسح الكود لربط الواتساب</h4>
+                        <img id="qrCodeImg" src="" style="width: 250px; height: 250px; display: inline-block;">
+                        <p style="margin-top: 10px; color: var(--text-muted); font-size: 0.9rem;">بمجرد مسح الكود بنجاح، قم بحفظ المتجر</p>
                     </div>
-                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ المتجر</button>
+
+                    <h3 style="margin: 20px 0 15px 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 10px;">
+                        <i class="fa-solid fa-brain"></i> تدريب الذكاء الاصطناعي الخاص بالمتجر
+                    </h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="label">وصف النشاط العام</label>
+                            <textarea name="about" class="input textarea" style="min-height: 80px;" placeholder="نحن متجر متخصص في بيع..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">نبرة الصوت وأسلوب التحدث</label>
+                            <textarea name="tone" class="input textarea" style="min-height: 80px;" placeholder="تحدث بلهجة سعودية لبقة ومحترمة..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">سياسة الاسترجاع والضمان</label>
+                            <textarea name="policy" class="input textarea" style="min-height: 80px;" placeholder="الاسترجاع متاح خلال 3 أيام..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="label">الأسئلة الشائعة وشروط التوصيل</label>
+                            <textarea name="faq" class="input textarea" style="min-height: 80px;" placeholder="التوصيل يستغرق يومين، الدفع عند الاستلام متاح..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> حفظ المتجر وبدء العمل</button>
+                    </div>
                 </form>
             </div>
 
@@ -521,6 +552,34 @@
             } catch (err) { showToast('فشل الإضافة', 'error'); }
         }
         
+        async function linkWhatsApp() {
+            const instanceName = document.getElementById('instanceNameInput').value;
+            if (!instanceName) {
+                showToast('يرجى كتابة معرف الواتساب أولاً', 'error');
+                return;
+            }
+            
+            showToast('جاري إنشاء جلسة الواتساب...');
+            try {
+                const res = await fetch('/admin/api/whatsapp/link', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ instance_name: instanceName })
+                });
+                const data = await res.json();
+                
+                if (data.status === 'success' && data.qr) {
+                    document.getElementById('qrCodeImg').src = data.qr;
+                    document.getElementById('qrCodeContainer').style.display = 'block';
+                    showToast('تم استخراج الكود! امسحه من تطبيق الواتساب');
+                } else {
+                    showToast(data.message || 'فشل توليد الكود', 'error');
+                }
+            } catch (err) {
+                showToast('خطأ في الاتصال بالخادم', 'error');
+            }
+        }
+
         async function saveStore(e) {
             e.preventDefault();
             const formData = new FormData(e.target);

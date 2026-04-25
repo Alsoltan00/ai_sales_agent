@@ -39,7 +39,18 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list, 
     """
     
     if system_prompt_custom:
-        system_prompt += f"\n\nتعليمات إضافية خاصة بهذا النشاط:\n{system_prompt_custom}"
+        try:
+            # Try to parse it as JSON if it came from the new advanced UI
+            ai_settings = json.loads(system_prompt_custom)
+            system_prompt += f"\n\nمعلومات عن المتجر ({store_name}):\n{ai_settings.get('about', '')}"
+            system_prompt += f"\n\nأسلوب التحدث المطلوب:\n{ai_settings.get('tone', '')}"
+            if ai_settings.get('policy'):
+                system_prompt += f"\n\nسياسة المتجر:\n{ai_settings.get('policy')}"
+            if ai_settings.get('faq'):
+                system_prompt += f"\n\nالأسئلة الشائعة:\n{ai_settings.get('faq')}"
+        except:
+            # Fallback to plain text for older stores
+            system_prompt += f"\n\nتعليمات إضافية خاصة بهذا النشاط:\n{system_prompt_custom}"
     
     messages = [{"role": "system", "content": system_prompt}]
     
