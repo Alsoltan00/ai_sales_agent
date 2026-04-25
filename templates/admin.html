@@ -271,22 +271,19 @@
         <!-- Global Settings Tab -->
         <div id="settings-tab" class="tab-pane">
             <div class="card">
-                <div class="card-header">إعدادات النظام الرئيسية (الرموز السرية)</div>
-                <form onsubmit="saveGlobalSettings(event)">
-                    <div class="form-group">
-                        <label class="label">GROQ API KEY</label>
-                        <input type="password" name="GROQ_API_KEY" value="{{ groq_key }}" class="input">
+                <div class="card-header"><i class="fa-solid fa-database"></i> حالة قاعدة البيانات</div>
+                <div style="padding: 20px; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                        <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 1.5rem;"></i>
+                        <strong style="font-size: 1.1rem; color: #166534;">متصل بقاعدة بيانات Aiven PostgreSQL</strong>
                     </div>
-                    <div class="form-group">
-                        <label class="label">SUPABASE URL</label>
-                        <input type="text" name="SUPABASE_URL" value="{{ supabase_url }}" class="input">
-                    </div>
-                    <div class="form-group">
-                        <label class="label">SUPABASE KEY</label>
-                        <input type="password" name="SUPABASE_KEY" value="{{ supabase_key }}" class="input">
-                    </div>
-                    <button type="submit" class="btn btn-primary">حفظ الإعدادات</button>
-                </form>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">النظام يعمل بهيكلة معزولة: كل متجر يملك بيئة بيانات خاصة به (Schema) منفصلة تماماً عن المتاجر الأخرى.</p>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><i class="fa-solid fa-shield-halved"></i> ملاحظات أمان</div>
+                <p style="color: var(--text-muted); line-height: 1.8;">• جميع مفاتيح API (مثل GROQ_API_KEY) يتم إدارتها من خلال <b>متغيرات البيئة في Render</b> لضمان الأمان.<br>
+                • لتعديل أي مفتاح، ادخل على <b>Render Dashboard → Environment</b>.</p>
             </div>
         </div>
     </div>
@@ -530,16 +527,30 @@
             } catch (err) { showToast('فشل الحفظ', 'error'); }
         }
 
-        async function saveGlobalSettings(e) {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
-            const res = await fetch('/admin/settings', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
-            if (res.ok) showToast('تم التحديث بنجاح');
+        async function deleteStore(storeId) {
+            if (!confirm('هل أنت متأكد من حذف هذا المتجر وجميع بياناته؟ لا يمكن التراجع!')) return;
+            try {
+                const res = await fetch(`/admin/api/stores/${storeId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    showToast('تم حذف المتجر بنجاح');
+                    location.reload();
+                } else {
+                    showToast(data.message || 'فشل الحذف', 'error');
+                }
+            } catch (err) { showToast('خطأ في الاتصال', 'error'); }
+        }
+
+        function editStore(storeId) {
+            showToast('ميزة التعديل قادمة قريباً');
+        }
+
+        async function deleteNumber(phone) {
+            const storeId = document.getElementById('storeSelector').value;
+            try {
+                const res = await fetch(`/admin/api/numbers/${encodeURIComponent(phone)}?store_id=${storeId}`, { method: 'DELETE' });
+                if (res.ok) { showToast('تم حذف الرقم'); loadNumbers(); }
+            } catch (err) { showToast('فشل الحذف', 'error'); }
         }
     </script>
 </body>
