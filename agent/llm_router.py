@@ -2,9 +2,15 @@ import os
 import json
 from groq import Groq
 
-# Use Groq API instead of OpenRouter for fast, free interference
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "YOUR_GROQ_API_KEY_HERE")
-client = Groq(api_key=GROQ_API_KEY)
+# Use Groq API instead of OpenRouter for fast, free inference
+def _get_groq_client():
+    api_key = os.getenv("GROQ_API_KEY", "").strip()
+    if api_key and api_key != "YOUR_GROQ_API_KEY_HERE":
+        try:
+            return Groq(api_key=api_key)
+        except Exception:
+            pass
+    return None
 
 DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
@@ -45,6 +51,9 @@ def classify_intent_and_extract_keywords(user_message: str, chat_history: list, 
     messages.append({"role": "user", "content": user_message})
     
     try:
+        client = _get_groq_client()
+        if not client:
+            return {"action": "search", "reply": "", "keywords": [user_message]}
         response = client.chat.completions.create(
             model=DEFAULT_MODEL,
             messages=messages,
@@ -88,6 +97,9 @@ def generate_sales_reply(user_message: str, filtered_products: list, chat_histor
     messages.append({"role": "user", "content": user_message})
     
     try:
+        client = _get_groq_client()
+        if not client:
+            return "المعذرة طال عمرك، النظام يحتاج إعداد مفتاح الذكاء الاصطناعي."
         response = client.chat.completions.create(
             model=DEFAULT_MODEL,
             messages=messages,

@@ -1,3 +1,12 @@
+"""
+=============================================================================
+  AI Sales Platform - Main Application (FastAPI)
+=============================================================================
+  Multi-tenant architecture with per-store database isolation.
+  All routes organized by feature domain.
+=============================================================================
+"""
+
 import os
 import json
 import asyncio
@@ -10,63 +19,152 @@ from fastapi.templating import Jinja2Templates
 from agent.conversation_manager import handle_incoming_message
 import requests
 from agent.database import (
-    fetch_stores, fetch_store_by_id, update_store_sync_db, 
-    delete_store_products, upload_products_bulk, fetch_products_by_store,
+    initialize_database, migrate_old_data,
+    create_store, fetch_stores, fetch_store_by_id, update_store, delete_store,
+    update_store_sync_db, delete_store_products, upload_products_bulk,
+    fetch_products_by_store, fetch_authorized_numbers, add_authorized_number,
+    delete_authorized_number,
     search_live_gsheet, search_live_external_supabase, fetch_live_mysql, fetch_live_bridge
 )
 
-app = FastAPI()
+app = FastAPI(title="AI Sales Platform", version="2.0")
 templates = Jinja2Templates(directory="templates")
 
-# --- ROUTES ---
+
+# =============================================================================
+#  STARTUP & INITIALIZATION
+# =============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize DB schema and start background tasks."""
+    try:
+        initialize_database()
+        migrate_old_data()
+        print("[+] Database ready.")
+    except Exception as e:
+        print(f"[!] DB Init Warning: {e}")
+    
+    asyncio.create_task(background_sync_scheduler())
+
+
+# =============================================================================
+#  ADMIN DASHBOARD
+# =============================================================================
+
+@app.get("/", response_class=RedirectResponse)
+async def root_redirect():
+    return RedirectResponse(url="/admin")
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_panel(request: Request):
     """Renders the main admin dashboard."""
     try:
         stores = fetch_stores()
-        return templates.TemplateResponse(request=request, name="admin.html", context={"stores": stores})
+        return templates.TemplateResponse(
+            request=request, name="admin.html", context={"stores": stores}
+        )
     except Exception as e:
-        return HTMLResponse(content=f"<h1 style='color:red;'>Database Connection Error</h1><p><b>{str(e)}</b></p><p>Please check your DB_HOST, DB_PASS, and DB_USER in Render environment variables.</p>", status_code=500)
+        return HTMLResponse(
+            content=f"""<html><body style='font-family:sans-serif;padding:40px;'>
+            <h1 style='color:#ef4444;'>⚠️ Database Connection Error</h1>
+            <p style='font-size:1.2rem;'><b>{str(e)}</b></p>
+            <hr><p>Check your environment variables: <code>DB_HOST</code>, <code>DB_PORT</code>, 
+            <code>DB_USER</code>, <code>DB_PASS</code>, <code>DB_NAME</code></p>
+            </body></html>""",
+            status_code=500
+        )
+
+
+# =============================================================================
+#  STORE MANAGEMENT API
+# =============================================================================
 
 @app.post("/admin/api/stores")
-async def add_store(payload: dict):
+async def api_add_store(payload: dict):
+    """Creates a new store with its own isolated database schema."""
     try:
-        from agent.database import get_db_connection
-        from psycopg2.extras import Json
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        sync_config = {
-            "system_prompt": payload.get("system_prompt", ""),
-            "evolution_instance_name": payload.get("evolution_instance_name", "")
-        }
-        cursor.execute(
-            "INSERT INTO stores (name, sync_source, sync_config) VALUES (%s, 'local', %s)",
-            (payload.get("name", "Store"), Json(sync_config))
+        store_id = create_store(
+            name=payload.get("name", "متجر جديد"),
+            instance_name=payload.get("evolution_instance_name", ""),
+            system_prompt=payload.get("system_prompt", "")
         )
-        conn.commit()
-        conn.close()
+        return {"status": "success", "store_id": store_id}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.put("/admin/api/stores/{store_id}")
+async def api_update_store(store_id: str, payload: dict):
+    """Updates an existing store's configuration."""
+    try:
+        update_store(
+            store_id,
+            name=payload.get("name"),
+            instance_name=payload.get("evolution_instance_name"),
+            system_prompt=payload.get("system_prompt")
+        )
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @app.delete("/admin/api/stores/{store_id}")
-async def delete_store_route(store_id: str):
+async def api_delete_store(store_id: str):
+    """Deletes a store and ALL its data (schema dropped entirely)."""
     try:
-        from agent.database import get_db_connection
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM products WHERE store_id = %s", (store_id,))
-        cursor.execute("DELETE FROM stores WHERE id = %s", (store_id,))
-        conn.commit()
-        conn.close()
+        delete_store(store_id)
         return {"status": "success"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
+# =============================================================================
+#  PRODUCTS API
+# =============================================================================
+
+@app.get("/admin/api/products")
+async def api_get_products(store_id: str):
+    """Fetches all products for a store from its isolated schema."""
+    return fetch_products_by_store(store_id)
+
+
+# =============================================================================
+#  AUTHORIZED NUMBERS API
+# =============================================================================
+
+@app.get("/admin/api/numbers")
+async def api_get_numbers(store_id: str):
+    """Fetches authorized numbers for a store."""
+    return fetch_authorized_numbers(store_id)
+
+@app.post("/admin/api/numbers")
+async def api_add_number(payload: dict):
+    """Adds a number to a store's whitelist."""
+    store_id = payload.get("store_id")
+    phone = payload.get("phone", "").strip()
+    if not phone or not store_id:
+        raise HTTPException(status_code=400, detail="phone and store_id required")
+    
+    success = add_authorized_number(phone, store_id)
+    if success:
+        return {"status": "success"}
+    return {"status": "error", "message": "فشل إضافة الرقم"}
+
+@app.delete("/admin/api/numbers/{phone}")
+async def api_delete_number(phone: str, store_id: str):
+    """Removes a number from a store's whitelist."""
+    success = delete_authorized_number(phone, store_id)
+    if success:
+        return {"status": "success"}
+    return {"status": "error", "message": "فشل حذف الرقم"}
+
+
+# =============================================================================
+#  DATA SYNC ROUTES
+# =============================================================================
+
 @app.post("/admin/sync/excel/{store_id}")
 async def sync_excel(store_id: str, request: Request):
-    """Handles Excel file upload and synchronization."""
+    """Handles Excel/CSV file upload and synchronization."""
     data = await request.json()
     products = data.get("products", [])
     if not products:
@@ -75,7 +173,6 @@ async def sync_excel(store_id: str, request: Request):
     try:
         update_store_sync_db(store_id, "local", {})
         delete_store_products(store_id)
-        for p in products: p["store_id"] = store_id
         upload_products_bulk(products, store_id)
         return {"status": "success", "message": f"تم استيراد {len(products)} منتج بنجاح!"}
     except Exception as e:
@@ -83,9 +180,10 @@ async def sync_excel(store_id: str, request: Request):
 
 @app.post("/admin/sync/gsheet/{store_id}")
 async def sync_gsheet(store_id: str, payload: dict):
-    """Enables and performs initial sync for Google Sheets."""
+    """Enables Google Sheets sync for a store."""
     url = payload.get("url", "")
-    if not url: return {"status": "error", "message": "رابط الجدول مطلوب"}
+    if not url:
+        return {"status": "error", "message": "رابط الجدول مطلوب"}
     try:
         update_store_sync_db(store_id, "gsheet", {"url": url})
         success, msg, count = await perform_single_store_sync(store_id)
@@ -98,9 +196,10 @@ async def sync_gsheet(store_id: str, payload: dict):
 
 @app.post("/admin/sync/supabase/{store_id}")
 async def sync_external_supabase(store_id: str, payload: dict):
-    """Enables and performs initial sync for external Supabase."""
+    """Enables external Supabase sync for a store."""
     config = payload.get("config", {})
-    if not config.get("url"): return {"status": "error", "message": "بيانات الاتصال ناقصة"}
+    if not config.get("url"):
+        return {"status": "error", "message": "بيانات الاتصال ناقصة"}
     try:
         update_store_sync_db(store_id, "supabase", config)
         success, msg, count = await perform_single_store_sync(store_id)
@@ -113,9 +212,10 @@ async def sync_external_supabase(store_id: str, payload: dict):
 
 @app.post("/admin/sync/mysql/{store_id}")
 async def sync_mysql(store_id: str, payload: dict):
-    """Enables and performs initial sync for remote MySQL."""
+    """Enables MySQL sync for a store."""
     config = payload.get("config", {})
-    if not config.get("host"): return {"status": "error", "message": "بيانات الاتصال ناقصة"}
+    if not config.get("host"):
+        return {"status": "error", "message": "بيانات الاتصال ناقصة"}
     try:
         update_store_sync_db(store_id, "mysql", config)
         success, msg, count = await perform_single_store_sync(store_id)
@@ -126,24 +226,12 @@ async def sync_mysql(store_id: str, payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-@app.post("/admin/api/sync/push/{store_id}")
-async def receive_pushed_data(store_id: str, payload: dict):
-    """Simple endpoint to receive pushed data from ai-sales.php."""
-    products = payload.get("products", [])
-    if not products: return {"status": "error"}
-    try:
-        delete_store_products(store_id)
-        # store_id is already passed, but we ensure it's in the dict
-        upload_products_bulk(products, store_id)
-        return {"status": "success"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-
 @app.post("/admin/sync/bridge/{store_id}")
 async def sync_bridge(store_id: str, payload: dict):
-    """Enables and performs initial sync via API Bridge."""
+    """Enables API Bridge sync for a store."""
     url = payload.get("bridge_url", "")
-    if not url: return {"status": "error", "message": "رابط الجسر مطلوب"}
+    if not url:
+        return {"status": "error", "message": "رابط الجسر مطلوب"}
     try:
         update_store_sync_db(store_id, "bridge", {"bridge_url": url})
         success, msg, count = await perform_single_store_sync(store_id)
@@ -154,60 +242,23 @@ async def sync_bridge(store_id: str, payload: dict):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-# --- BACKGROUND SYNC LOGIC ---
-
-async def perform_single_store_sync(store_id: str):
-    """Fetches remote data and replaces local data. Returns (success, msg, count)."""
-    store = fetch_store_by_id(store_id)
-    if not store: 
-        return False, "لم يتم العثور على إعدادات المتجر", 0
-    
-    source = store.get("sync_source")
-    config = store.get("sync_config")
-    
-    products = []
-    error_msg = ""
+@app.post("/admin/api/sync/push/{store_id}")
+async def receive_pushed_data(store_id: str, payload: dict):
+    """Receives pushed data from external bridges (ai-sales.php)."""
+    products = payload.get("products", [])
+    if not products:
+        return {"status": "error"}
     try:
-        if source == "gsheet":
-            products = search_live_gsheet([], config.get("url"))
-            if not products: error_msg = "لم يتم العثور على بيانات في الرابط أو الرابط غير صالح"
-        elif source == "supabase":
-            products = search_live_external_supabase([], config)
-            if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
-        elif source == "mysql":
-            products, mysql_err = fetch_live_mysql(config)
-            if mysql_err: error_msg = mysql_err
-            elif not products: error_msg = "لا توجد بيانات في جدول MySQL المختار"
-        elif source == "bridge":
-            products, bridge_err = fetch_live_bridge(config.get("bridge_url"))
-            if bridge_err: error_msg = bridge_err
-            elif not products: error_msg = "الجسر لم يرجع أي بيانات"
-    except Exception as e:
-        error_msg = str(e)
-    
-    if products:
         delete_store_products(store_id)
         upload_products_bulk(products, store_id)
-        return True, "Success", len(products)
-    else:
-        return False, error_msg or "لا توجد بيانات لسحبها", 0
+        return {"status": "success"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
-async def background_sync_scheduler():
-    """Loops every 5 minutes to sync all remote stores."""
-    while True:
-        try:
-            stores = fetch_stores()
-            for s in stores:
-                if s["sync_source"] != "local":
-                    await perform_single_store_sync(s["id"])
-        except Exception as e:
-            print(f"[!] Sync Scheduler Error: {e}")
-        
-        await asyncio.sleep(300) # 5 Minutes
 
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(background_sync_scheduler())
+# =============================================================================
+#  BRIDGE FILE GENERATOR
+# =============================================================================
 
 @app.get("/admin/download/bridge")
 async def download_bridge_file(store_id: str, host: str = "", user: str = "", password: str = "", db: str = "", table: str = "products"):
@@ -255,9 +306,10 @@ echo base64_decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk
         headers={"Content-Disposition": "attachment; filename=ai-sales.php"}
     )
 
-@app.get("/")
-async def root_redirect():
-    return RedirectResponse(url="/admin")
+
+# =============================================================================
+#  WEBHOOK (WhatsApp via Evolution API)
+# =============================================================================
 
 @app.post("/webhook")
 async def evolution_webhook(request: Request, background_tasks: BackgroundTasks):
@@ -265,8 +317,56 @@ async def evolution_webhook(request: Request, background_tasks: BackgroundTasks)
     background_tasks.add_task(handle_incoming_message, data)
     return {"status": "received"}
 
-# --- DATABASE API FOR ADMIN UI ---
-@app.get("/admin/api/products")
-async def get_store_products_api(store_id: str):
-    """Fetches all products for a specific store to display in the admin UI."""
-    return fetch_products_by_store(store_id)
+
+# =============================================================================
+#  BACKGROUND SYNC SCHEDULER
+# =============================================================================
+
+async def perform_single_store_sync(store_id: str):
+    """Fetches remote data and replaces local data. Returns (success, msg, count)."""
+    store = fetch_store_by_id(store_id)
+    if not store: 
+        return False, "لم يتم العثور على إعدادات المتجر", 0
+    
+    source = store.get("sync_source")
+    config = store.get("sync_config") or {}
+    
+    products = []
+    error_msg = ""
+    try:
+        if source == "gsheet":
+            products = search_live_gsheet([], config.get("url"))
+            if not products: error_msg = "لم يتم العثور على بيانات في الرابط أو الرابط غير صالح"
+        elif source == "supabase":
+            products = search_live_external_supabase([], config)
+            if not products: error_msg = "فشل الاتصال بسوبر بيس الخارجي أو الجدول فارغ"
+        elif source == "mysql":
+            products, mysql_err = fetch_live_mysql(config)
+            if mysql_err: error_msg = mysql_err
+            elif not products: error_msg = "لا توجد بيانات في جدول MySQL المختار"
+        elif source == "bridge":
+            products, bridge_err = fetch_live_bridge(config.get("bridge_url"))
+            if bridge_err: error_msg = bridge_err
+            elif not products: error_msg = "الجسر لم يرجع أي بيانات"
+    except Exception as e:
+        error_msg = str(e)
+    
+    if products:
+        delete_store_products(store_id)
+        upload_products_bulk(products, store_id)
+        return True, "Success", len(products)
+    else:
+        return False, error_msg or "لا توجد بيانات لسحبها", 0
+
+async def background_sync_scheduler():
+    """Loops every 5 minutes to sync all remote stores."""
+    while True:
+        try:
+            stores = fetch_stores()
+            for s in stores:
+                if s.get("sync_source", "local") != "local":
+                    await perform_single_store_sync(s["id"])
+        except Exception as e:
+            print(f"[!] Sync Scheduler Error: {e}")
+        
+        await asyncio.sleep(300)  # 5 Minutes
