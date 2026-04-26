@@ -16,8 +16,9 @@ if DB_URL:
 engine = create_engine(DB_URL, pool_pre_ping=True) if DB_URL else None
 
 class MockResponse:
-    def __init__(self, data):
+    def __init__(self, data, count=None):
         self.data = data
+        self.count = count if count is not None else (len(data) if isinstance(data, list) else 0)
 
 class QueryBuilder:
     """يحاكي واجهة Supabase للعمل مع أي قاعدة بيانات علائقية مدعومة (Aiven)"""

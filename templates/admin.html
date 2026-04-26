@@ -238,15 +238,15 @@
             <a href="/admin/dashboard" class="nav-item active"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
             
             {% if user.permissions.get('can_manage_new_clients') or user.permissions.get('is_admin') %}
-            <a href="#" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
             {% endif %}
             
             {% if user.permissions.get('can_manage_subscriptions') or user.permissions.get('is_admin') %}
-            <a href="#" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
             {% endif %}
             
             {% if user.permissions.get('can_manage_users') or user.permissions.get('is_admin') %}
-            <a href="#" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+            <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
             {% endif %}
         </div>
         <div class="user-info">

@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from auth.session_manager import get_current_user
@@ -98,3 +98,22 @@ async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "success", "message": "طھظ… ط±ظپط¶ ط§ظ„ط·ظ„ط¨ ط¨ظ†ط¬ط§ط­"}
     except Exception as e:
         return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط±ظپط¶"}
+@router.get("/clients", response_class=HTMLResponse)
+async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
+    """قائمة جميع العملاء النشطين"""
+    supabase = get_supabase_client()
+    res = supabase.table("clients").select("*").execute()
+    return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": res.data})
+
+@router.get("/subscriptions", response_class=HTMLResponse)
+async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
+    """إدارة اشتراكات العملاء"""
+    # حالياً لا يوجد جدول اشتراكات، سنعرض رسالة قيد التطوير
+    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user})
+
+@router.get("/users", response_class=HTMLResponse)
+async def admin_users(request: Request, user: dict = Depends(verify_admin)):
+    """إدارة موظفي النظام (الأدمن)"""
+    supabase = get_supabase_client()
+    res = supabase.table("sales_admin_users").select("*").execute()
+    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": res.data})
