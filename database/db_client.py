@@ -5,10 +5,13 @@ from sqlalchemy import create_engine, text
 # يدعم Aiven MySQL أو Aiven PostgreSQL
 DB_URL = os.getenv("DATABASE_URL", "")
 
-if DB_URL.startswith("mysql://"):
-    DB_URL = DB_URL.replace("mysql://", "mysql+pymysql://")
-elif DB_URL.startswith("postgres://"):
-    DB_URL = DB_URL.replace("postgres://", "postgresql+psycopg2://")
+if DB_URL:
+    if DB_URL.startswith("mysql://"):
+        DB_URL = DB_URL.replace("mysql://", "mysql+pymysql://", 1)
+    elif DB_URL.startswith("postgres://"):
+        DB_URL = DB_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DB_URL.startswith("postgresql://") and not DB_URL.startswith("postgresql+psycopg2://"):
+        DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 engine = create_engine(DB_URL, pool_pre_ping=True) if DB_URL else None
 
