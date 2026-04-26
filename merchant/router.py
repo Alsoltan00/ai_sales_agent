@@ -1,4 +1,4 @@
-﻿from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -72,6 +72,7 @@ async def api_update_planning(payload: PlanningRequest, user: dict = Depends(ver
 # --- AI Training ---
 
 class AIConfigRequest(BaseModel):
+    model_config = {'protected_namespaces': ()}
     model_name: str
     provider: str
     api_key: str
