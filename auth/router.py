@@ -23,7 +23,7 @@ async def login_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:
-        if user.get("role") == "admin_user":
+        if user.get("user_type") == "admin_user":
             return RedirectResponse(url="/admin/dashboard", status_code=303)
         else:
             return RedirectResponse(url="/merchant/home", status_code=303)
