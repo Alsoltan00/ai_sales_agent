@@ -1,6 +1,10 @@
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, UploadFile, File
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+import pandas as pd
+import io
+import json
+from datetime import datetime
 from pydantic import BaseModel
 from auth.session_manager import get_current_user
 from database.db_client import get_supabase_client
@@ -113,6 +117,54 @@ async def api_update_data_sync(payload: SyncConfigRequest, user: dict = Depends(
     if success:
         return {"status": "success", "message": "طھظ… طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط±ط¨ط· ط¨ظ†ط¬ط§ط­"}
     return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط±ط¨ط·"}
+
+@router.post("/api/data-sync/upload")
+async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
+    """رفع ومعالجة ملف Excel أو CSV يدوياً"""
+    try:
+        content = await file.read()
+        filename = file.filename
+        
+        # قراءة الملف باستخدام pandas
+        if filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+            
+        # تحويل البيانات إلى JSON
+        # نستخدم orient="records" للحصول على قائمة من القواميس
+        data_json = df.to_json(orient="records", force_ascii=False)
+        
+        supabase = get_supabase_client()
+        
+        # 1. تحديث إعدادات المزامنة لتكون excel
+        update_sync_config(user["id"], {
+            "source_type": "excel",
+            "connection_details": {"filename": filename}
+        })
+        
+        # 2. حفظ البيانات في الجدول الجديد
+        # ملاحظة: نستخدم upsert إذا كان العميل موجوداً بالفعل
+        # في SQLAlchemy Mock: insert سيعالج الأمر إذا أضفنا منطق الـ upsert أو حذفنا القديم
+        
+        # حذف البيانات القديمة أولاً لضمان التحديث (بما أننا نستخدم mock client)
+        try:
+            supabase.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute()
+        except:
+            pass
+            
+        supabase.table("merchant_manual_data").insert({
+            "client_id": user["id"],
+            "data": json.loads(data_json),
+            "filename": filename,
+            "updated_at": datetime.now().isoformat()
+        }).execute()
+        
+        return {"status": "success", "message": f"تم رفع ومعالجة الملف '{filename}' بنجاح. تم استيراد {len(df)} سجل."}
+        
+    except Exception as e:
+        print(f"Upload error: {str(e)}")
+        return {"status": "error", "message": f"خطأ أثناء معالجة الملف: {str(e)}"}
 
 # --- Channels Configuration (Reception & Sending) ---
 

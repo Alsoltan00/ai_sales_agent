@@ -35,12 +35,19 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
     store_data = ""
     try:
         sync_cfg = supabase.table("sync_config").select("*").eq("client_id", client_id).single().execute()
-        if sync_cfg.data and sync_cfg.data.get("source_type") == "aiven_mysql":
+        if sync_cfg.data and sync_cfg.data.get("source_type") == "aiven":
             # يمكن إضافة منطق جلب من MySQL هنا لاحقاً
             pass
         elif sync_cfg.data and sync_cfg.data.get("source_type") == "google_sheets":
             # يمكن إضافة منطق جلب من جوجل شيتس هنا لاحقاً
             pass
+        elif sync_cfg.data and sync_cfg.data.get("source_type") == "excel":
+            # جلب البيانات اليدوية المرفوعة
+            manual_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
+            if manual_res.data:
+                # نأخذ أول سجل (بما أن الربط 1-1)
+                store_data = json.dumps(manual_res.data[0]["data"], ensure_ascii=False)
+
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
 

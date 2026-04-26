@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS ai_models_config (
 CREATE TABLE IF NOT EXISTS sync_config (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-    source_type TEXT CHECK (source_type IN ('supabase', 'aiven', 'google_sheets')),
+    source_type TEXT CHECK (source_type IN ('supabase', 'aiven', 'google_sheets', 'excel')),
     connection_details JSONB NOT NULL,
     table_name TEXT,
     sheet_name TEXT,
@@ -136,3 +136,12 @@ CREATE TABLE IF NOT EXISTS channels_config (
 );
 -- تحديث جدول العملاء لإضافة خيار السماح للجميع
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS allow_all_numbers BOOLEAN DEFAULT FALSE;
+
+-- جدول تخزين البيانات اليدوية (Excel/CSV)
+CREATE TABLE IF NOT EXISTS merchant_manual_data (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE UNIQUE,
+    data JSONB NOT NULL,
+    filename TEXT,
+    updated_at TIMESTAMP DEFAULT NOW()
+);

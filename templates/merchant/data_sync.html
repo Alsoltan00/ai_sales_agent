@@ -187,14 +187,19 @@
 
             <div class="source-selector">
                 <div class="source-option active" onclick="selectSource('google_sheets')" id="opt-google_sheets">
-                    <i class="fa-solid fa-file-excel"></i>
+                    <i class="fa-solid fa-table-cells"></i>
                     <h3>Google Sheets</h3>
                     <p>قراءة البيانات من ملف جوجل شيتس</p>
+                </div>
+                <div class="source-option" onclick="selectSource('excel')" id="opt-excel">
+                    <i class="fa-solid fa-file-csv"></i>
+                    <h3>ملف Excel / CSV</h3>
+                    <p>رفع ملف بيانات يدوي (بدون مزامنة)</p>
                 </div>
                 <div class="source-option" onclick="selectSource('aiven')" id="opt-aiven">
                     <i class="fa-solid fa-server"></i>
                     <h3>Aiven MySQL</h3>
-                    <p>ربط مع قاعدة بيانات MySQL على Aiven</p>
+                    <p>ربط مع قاعدة بيانات MySQL</p>
                 </div>
             </div>
 
@@ -269,6 +274,20 @@
                     </div>
                 </div>
 
+                <!-- Excel Upload Form -->
+                <div id="form-excel" class="dynamic-form">
+                    <div class="form-group">
+                        <label class="label">اختر ملف Excel أو CSV</label>
+                        <div class="input-wrapper">
+                            <input type="file" id="excel_file" class="input" accept=".xlsx, .xls, .csv" style="padding-top: 10px;">
+                            <i class="fa-solid fa-file-upload"></i>
+                        </div>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 10px;">
+                            ملاحظة: عند رفع ملف جديد، سيتم استبدال البيانات القديمة بهذا الملف.
+                        </p>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn" id="saveBtn">
                     <i class="fa-solid fa-plug"></i> حفظ وإتمام الربط
                 </button>
@@ -331,6 +350,42 @@
             alertBox.style.display = 'none';
 
             const sourceType = document.getElementById('source_type').value;
+            
+            // Handle Excel File upload separately
+            if (sourceType === 'excel') {
+                const fileInput = document.getElementById('excel_file');
+                if (!fileInput.files[0]) {
+                    alertBox.className = 'alert alert-error';
+                    alertBox.innerText = 'يرجى اختيار ملف للرفع';
+                    alertBox.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-plug"></i> حفظ وإتمام الربط';
+                    return;
+                }
+                
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                
+                try {
+                    const res = await fetch('/merchant/api/data-sync/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
+                    alertBox.innerText = data.message;
+                    alertBox.style.display = 'block';
+                } catch(err) {
+                    alertBox.className = 'alert alert-error';
+                    alertBox.innerText = 'حدث خطأ في رفع الملف';
+                    alertBox.style.display = 'block';
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-plug"></i> حفظ وإتمام الربط';
+                }
+                return;
+            }
+
             let connectionDetails = {};
             let tableName = "";
             let sheetName = "";

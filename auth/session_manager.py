@@ -14,7 +14,14 @@ def create_session(request: Request, user_data: dict):
 
 def get_current_user(request: Request) -> dict:
     """يسترجع المستخدم الحالي من الجلسة"""
-    return request.session.get("user")
+    user = request.session.get("user")
+    if user and isinstance(user.get("permissions"), str):
+        import json
+        try:
+            user["permissions"] = json.loads(user["permissions"])
+        except:
+            user["permissions"] = {}
+    return user
 
 def destroy_session(request: Request):
     """ينهي الجلسة"""

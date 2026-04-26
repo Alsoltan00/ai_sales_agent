@@ -1,4 +1,4 @@
-﻿import os
+import os
 from database.db_client import get_supabase_client
 from passlib.context import CryptContext
 
@@ -26,11 +26,18 @@ def authenticate_user(contact_info: str, password: str) -> dict | None:
         if response.data:
             user = response.data[0]
             if verify_password(password, user.get("password_hash", "")):
+                import json
+                perms = user.get("permissions", {})
+                if isinstance(perms, str):
+                    try:
+                        perms = json.loads(perms)
+                    except:
+                        perms = {}
                 return {
                     "id": user["id"],
-                    "name": user.get("name", "ظ…ط¯ظٹط±"),
+                    "name": user.get("name", "مدير"),
                     "user_type": "admin_user",
-                    "permissions": user.get("permissions", {})
+                    "permissions": perms
                 }
     except Exception as e:
         print(f"Error checking users table: {e}")
