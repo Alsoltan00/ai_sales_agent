@@ -1,5 +1,6 @@
 import os
 from sqlalchemy import create_engine, text
+import json
 
 # جلب رابط قاعدة البيانات من المتغيرات البيئية
 # يدعم Aiven MySQL أو Aiven PostgreSQL
@@ -103,7 +104,10 @@ class QueryBuilder:
                 cols = ", ".join(data.keys())
                 vals = ", ".join([f":p_ins_{k}" for k in data.keys()])
                 for k, v in data.items():
-                    params[f"p_ins_{k}"] = v
+                    if isinstance(v, (dict, list)):
+                        params[f"p_ins_{k}"] = json.dumps(v, ensure_ascii=False)
+                    else:
+                        params[f"p_ins_{k}"] = v
                     
                 query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
                 
@@ -115,7 +119,10 @@ class QueryBuilder:
                 set_clauses = []
                 for k, v in self._data.items():
                     set_clauses.append(f"{k} = :p_upd_{k}")
-                    params[f"p_upd_{k}"] = v
+                    if isinstance(v, (dict, list)):
+                        params[f"p_upd_{k}"] = json.dumps(v, ensure_ascii=False)
+                    else:
+                        params[f"p_upd_{k}"] = v
                 
                 set_sql = ", ".join(set_clauses)
                 query = f"UPDATE {self.table_name} SET {set_sql}{where_sql}"
