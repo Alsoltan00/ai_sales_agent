@@ -229,7 +229,7 @@
                                 <span class="badge staff">موظف إداري</span>
                             {% endif %}
                         </td>
-                        <td>{{ admin.created_at[:10] if admin.created_at else '---' }}</td>
+                        <td>{{ admin.created_at.strftime('%Y-%m-%d') if admin.created_at and hasattr(admin.created_at, 'strftime') else (admin.created_at[:10] if admin.created_at else '---') }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

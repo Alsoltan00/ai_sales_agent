@@ -228,7 +228,7 @@
                                 {{ 'نشط' if client.status == 'active' else 'غير نشط' }}
                             </span>
                         </td>
-                        <td>{{ client.created_at[:10] if client.created_at else '---' }}</td>
+                        <td>{{ client.created_at.strftime('%Y-%m-%d') if client.created_at and hasattr(client.created_at, 'strftime') else (client.created_at[:10] if client.created_at else '---') }}</td>
                     </tr>
                     {% else %}
                     <tr>
