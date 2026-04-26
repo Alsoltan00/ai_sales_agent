@@ -10,12 +10,12 @@ templates = Jinja2Templates(directory="templates")
 def verify_admin(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "admin_user":
-        raise HTTPException(status_code=403, detail="ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ ظ‡ط°ظ‡ ط§ظ„طµظپط­ط©")
+        raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى هذه الصفحة")
     return user
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
-    """ظ„ظˆط­ط© طھط­ظƒظ… ط§ظ„ط¥ط¯ط§ط±ط© ط§ظ„ط±ط¦ظٹط³ظٹط©"""
+    """لوحة تحكم الإدارة الرئيسية"""
     supabase = get_supabase_client()
     
     # ط¬ظ„ط¨ ط¥ط­طµط§ط¦ظٹط§طھ ط³ط±ظٹط¹ط©

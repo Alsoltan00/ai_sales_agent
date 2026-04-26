@@ -18,12 +18,12 @@ templates = Jinja2Templates(directory="templates")
 def verify_merchant(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "merchant":
-        raise HTTPException(status_code=403, detail="ط؛ظٹط± ظ…طµط±ط­ ظ„ظƒ ط¨ط§ظ„ط¯ط®ظˆظ„ ط¥ظ„ظ‰ ظ„ظˆط­ط© ط§ظ„طھط§ط¬ط±")
+        raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
     return user
 
 @router.get("/home", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
-    """ظ„ظˆط­ط© ط§ظ„طھط§ط¬ط± ط§ظ„ط±ط¦ظٹط³ظٹط© (Home)"""
+    """لوحة التاجر الرئيسية (Home)"""
     return templates.TemplateResponse("merchant_home.html", {"request": request, "user": user})
 
 # --- Store Management ---
