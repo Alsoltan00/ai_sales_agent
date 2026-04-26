@@ -125,14 +125,16 @@ async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depend
         content = await file.read()
         filename = file.filename
         
-        # قراءة الملف باستخدام pandas
+        # قراءة الملف باستخدام pandas (الصف الأول هو العنوان تلقائياً)
         if filename.endswith('.csv'):
             df = pd.read_csv(io.BytesIO(content))
         else:
             df = pd.read_excel(io.BytesIO(content))
             
+        # تنظيف البيانات: حذف الصفوف والأعمدة الفارغة تماماً
+        df = df.dropna(how='all', axis=0).dropna(how='all', axis=1)
+        
         # تحويل البيانات إلى JSON
-        # نستخدم orient="records" للحصول على قائمة من القواميس
         data_json = df.to_json(orient="records", force_ascii=False)
         
         supabase = get_supabase_client()
