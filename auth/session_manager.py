@@ -6,7 +6,7 @@ def create_session(request: Request, user_data: dict):
     user_data: dict يحتوي على (id, name, user_type, permissions, store_id/client_id)
     """
     request.session["user"] = {
-        "id": user_data["id"],
+        "id": str(user_data["id"]),
         "name": user_data.get("name", ""),
         "user_type": user_data["user_type"],
         "permissions": user_data.get("permissions", {})

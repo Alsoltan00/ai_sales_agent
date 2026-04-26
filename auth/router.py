@@ -62,3 +62,29 @@ async def api_register(payload: RegisterRequest):
 async def logout(request: Request):
     destroy_session(request)
     return RedirectResponse(url="/login", status_code=303)
+
+@router.get("/create-demo-users")
+async def create_demo():
+    from database.db_client import get_db_client
+    import json
+    db = get_db_client()
+    try:
+        # Create Admin
+        db.table("sales_admin_users").insert({
+            "name": "Super Admin",
+            "email": "admin@ai-sales.com",
+            "password_hash": "admin",
+            "permissions": json.dumps({"can_manage_new_clients": True, "is_admin": True})
+        }).execute()
+        
+        # Create Merchant
+        db.table("clients").insert({
+            "company_name": "متجر الأمل",
+            "contact_number": "123456789",
+            "email": "merchant@ai-sales.com",
+            "password_hash": "merchant",
+            "status": "active"
+        }).execute()
+        return {"status": "success", "message": "تم إنشاء الحسابات بنجاح. بيانات الدخول للمدير: admin@ai-sales.com | admin وللتاجر: 123456789 | merchant"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
