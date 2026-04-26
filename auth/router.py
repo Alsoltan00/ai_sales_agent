@@ -59,7 +59,9 @@ async def api_register(payload: RegisterRequest):
     )
 
 @router.get("/logout")
+@router.get("/auth/logout")
 async def logout(request: Request):
+    """تسجيل الخروج وإنهاء الجلسة"""
     destroy_session(request)
     return RedirectResponse(url="/login", status_code=303)
 
