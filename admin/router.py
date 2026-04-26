@@ -101,27 +101,19 @@ async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
 @router.get("/clients", response_class=HTMLResponse)
 async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     """قائمة جميع العملاء النشطين"""
-    try:
-        supabase = get_supabase_client()
-        res = supabase.table("clients").select("*").execute()
-        return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": res.data})
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>Error in clients page: {str(e)}</h1>", status_code=500)
+    supabase = get_supabase_client()
+    res = supabase.table("clients").select("*").execute()
+    return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": res.data})
 
 @router.get("/subscriptions", response_class=HTMLResponse)
 async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
     """إدارة اشتراكات العملاء"""
-    try:
-        return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user})
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>Error in subscriptions page: {str(e)}</h1>", status_code=500)
+    # حالياً لا يوجد جدول اشتراكات، سنعرض رسالة قيد التطوير
+    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user})
 
 @router.get("/users", response_class=HTMLResponse)
 async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     """إدارة موظفي النظام (الأدمن)"""
-    try:
-        supabase = get_supabase_client()
-        res = supabase.table("sales_admin_users").select("*").execute()
-        return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": res.data})
-    except Exception as e:
-        return HTMLResponse(content=f"<h1>Error in users page: {str(e)}</h1>", status_code=500)
+    supabase = get_supabase_client()
+    res = supabase.table("sales_admin_users").select("*").execute()
+    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": res.data})
