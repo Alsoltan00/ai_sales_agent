@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعدادات الذكاء الاصطناعي | نظام وكيل المبيعات الذكي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ec4899;
+            --primary-hover: #db2777;
+            --secondary: #8b5cf6;
+            --bg-dark: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: radial-gradient(at top left, rgba(236, 72, 153, 0.1) 0%, transparent 40%);
+        }
+
+        /* Sidebar Styles */
+        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
+        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
+        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(236, 72, 153, 0.1); border-right-color: var(--primary); }
+        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
+        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-right: var(--sidebar-width);
+            padding: 40px;
+            max-width: 1000px;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h2 { font-size: 2rem; font-weight: 700; }
+        
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+        }
+
+        .form-group { margin-bottom: 25px; }
+        .label { display: block; margin-bottom: 10px; font-size: 0.95rem; color: #e2e8f0; font-weight: 600; }
+        
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; }
+        
+        .input, .select {
+            width: 100%;
+            padding: 15px 45px 15px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: white;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+            appearance: none;
+        }
+
+        .input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.15); }
+        .input:focus + i, .select:focus + i { color: var(--primary); }
+
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .alert {
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: none;
+            font-size: 0.95rem;
+        }
+        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
+        <div class="nav-links">
+            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
+            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
+            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
+            <a href="/merchant/ai-training" class="nav-item active"><i class="fa-solid fa-microchip"></i> إعدادات الذكاء</a>
+            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
+            <div>
+                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <div>
+                <h2>إعدادات الذكاء الاصطناعي</h2>
+                <p style="color: var(--text-muted); margin-top: 5px;">حدد مزود الخدمة ونموذج الذكاء الاصطناعي الذي ترغب في استخدامه للردود.</p>
+            </div>
+        </div>
+
+        <div class="glass-panel">
+            <div id="alertBox" class="alert"></div>
+
+            <form id="aiForm" onsubmit="saveAIConfig(event)">
+                <div class="form-group">
+                    <label class="label">مزود الخدمة (Provider)</label>
+                    <div class="input-wrapper">
+                        <select id="provider" class="select" required onchange="updateModels()">
+                            <option value="openai" {% if ai_config.provider == 'openai' %}selected{% endif %}>OpenAI (ChatGPT)</option>
+                            <option value="anthropic" {% if ai_config.provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+                            <option value="groq" {% if ai_config.provider == 'groq' %}selected{% endif %}>Groq (Fast Inference)</option>
+                        </select>
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">اسم النموذج (Model Name)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="model_name" class="input" value="{{ ai_config.model_name or '' }}" placeholder="مثال: GPT-4o, Claude 3.5 Sonnet, Llama3-70b" required>
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">معرف النموذج البرمجي (Model ID)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="model_id" class="input" value="{{ ai_config.model_id or '' }}" placeholder="مثال: gpt-4o, claude-3-5-sonnet-20240620" required dir="ltr">
+                        <i class="fa-solid fa-id-badge"></i>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="label">مفتاح الربط (API Key)</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="api_key" class="input" value="{{ ai_config.api_key or '' }}" placeholder="sk-..." required dir="ltr">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn" id="saveBtn">
+                    <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات النموذج
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        function updateModels() {
+            const provider = document.getElementById('provider').value;
+            const modelNameInput = document.getElementById('model_name');
+            const modelIdInput = document.getElementById('model_id');
+            
+            if (provider === 'openai') {
+                modelNameInput.value = 'GPT-4o';
+                modelIdInput.value = 'gpt-4o';
+            } else if (provider === 'anthropic') {
+                modelNameInput.value = 'Claude 3.5 Sonnet';
+                modelIdInput.value = 'claude-3-5-sonnet-20240620';
+            } else if (provider === 'groq') {
+                modelNameInput.value = 'Llama 3 70B';
+                modelIdInput.value = 'llama3-70b-8192';
+            }
+        }
+
+        // If it's a new config, set default based on first option
+        if (!document.getElementById('model_id').value) {
+            updateModels();
+        }
+
+        async function saveAIConfig(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveBtn');
+            const alertBox = document.getElementById('alertBox');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+            alertBox.style.display = 'none';
+
+            const payload = {
+                provider: document.getElementById('provider').value,
+                model_name: document.getElementById('model_name').value,
+                model_id: document.getElementById('model_id').value,
+                api_key: document.getElementById('api_key').value
+            };
+
+            try {
+                const res = await fetch('/merchant/api/ai-training', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+            } catch(err) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'حدث خطأ في الاتصال';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات النموذج';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قنوات الاستقبال والإرسال | نظام وكيل المبيعات الذكي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --secondary: #10b981;
+            --bg-dark: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: radial-gradient(at top right, rgba(59, 130, 246, 0.1) 0%, transparent 40%);
+        }
+
+        /* Sidebar Styles */
+        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
+        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
+        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(59, 130, 246, 0.1); border-right-color: var(--primary); }
+        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
+        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-right: var(--sidebar-width);
+            padding: 40px;
+            max-width: 1000px;
+        }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h2 { font-size: 2rem; font-weight: 700; }
+        
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 40px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 30px;
+        }
+        
+        .panel-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+        .panel-title i { font-size: 1.5rem; }
+        .panel-title.telegram i { color: #0088cc; }
+        .panel-title.whatsapp i { color: #25D366; }
+
+        .form-group { margin-bottom: 25px; }
+        .label { display: block; margin-bottom: 10px; font-size: 0.95rem; color: #e2e8f0; font-weight: 600; }
+        
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; }
+        
+        .input, .select {
+            width: 100%;
+            padding: 15px 45px 15px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: white;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+            appearance: none;
+        }
+
+        .input:focus, .select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15); }
+        .input:focus + i, .select:focus + i { color: var(--primary); }
+
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+        .alert { padding: 15px; border-radius: 12px; margin-bottom: 25px; display: none; font-size: 0.95rem; }
+        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        /* Dynamic forms */
+        .dynamic-form { display: none; animation: fadeIn 0.4s ease; }
+        .dynamic-form.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
+        <div class="nav-links">
+            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
+            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
+            <a href="/merchant/channels" class="nav-item active"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
+            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
+            <a href="/merchant/ai-training" class="nav-item"><i class="fa-solid fa-microchip"></i> إعدادات الذكاء</a>
+            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
+            <div>
+                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <div>
+                <h2>قنوات الاستقبال والإرسال</h2>
+                <p style="color: var(--text-muted); margin-top: 5px;">قم بربط قنوات الواتساب وتيليجرام ليستقبل الوكيل رسائل عملائك ويرد عليها.</p>
+            </div>
+        </div>
+
+        <form id="channelsForm" onsubmit="saveChannelsConfig(event)">
+            <div id="alertBox" class="alert"></div>
+
+            <!-- WhatsApp Panel -->
+            <div class="glass-panel">
+                <div class="panel-title whatsapp"><i class="fa-brands fa-whatsapp"></i> إعدادات واتساب</div>
+                
+                <div class="form-group">
+                    <label class="label">مزود خدمة الواتساب</label>
+                    <div class="input-wrapper">
+                        <select id="whatsapp_provider" class="select" onchange="toggleWhatsAppProvider()">
+                            <option value="evolution" {% if channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>Evolution API (QR Code)</option>
+                            <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>Official Meta Cloud API</option>
+                        </select>
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                </div>
+
+                <!-- Evolution API Fields -->
+                <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
+                    <div class="form-group">
+                        <label class="label">رابط خادم Evolution (URL)</label>
+                        <div class="input-wrapper">
+                            <input type="url" id="evolution_api_url" class="input" value="{{ channels_config.evolution_api_url or '' }}" placeholder="https://api.evolution.com" dir="ltr">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Global API Key</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="evolution_api_key" class="input" value="{{ channels_config.evolution_api_key or '' }}" placeholder="8A9B..." dir="ltr">
+                            <i class="fa-solid fa-key"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">اسم الجلسة (Instance Name)</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="evolution_instance_name" class="input" value="{{ channels_config.evolution_instance_name or '' }}" placeholder="instance1" dir="ltr">
+                            <i class="fa-solid fa-mobile-screen"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Meta Official API Fields -->
+                <div id="wa-official" class="dynamic-form {% if channels_config.whatsapp_provider == 'official' %}active{% endif %}">
+                    <div class="form-group">
+                        <label class="label">Phone Number ID</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="meta_phone_number_id" class="input" value="{{ channels_config.meta_phone_number_id or '' }}" placeholder="123456789" dir="ltr">
+                            <i class="fa-solid fa-hashtag"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Access Token (Permanent)</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="meta_access_token" class="input" value="{{ channels_config.meta_access_token or '' }}" placeholder="EAAG..." dir="ltr">
+                            <i class="fa-solid fa-key"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">Webhook Verify Token</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="meta_verify_token" class="input" value="{{ channels_config.meta_verify_token or '' }}" placeholder="my_secret_token" dir="ltr">
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Telegram Panel -->
+            <div class="glass-panel">
+                <div class="panel-title telegram"><i class="fa-brands fa-telegram"></i> إعدادات تيليجرام</div>
+                
+                <div class="form-group">
+                    <label class="label">Telegram Bot Token (من BotFather)</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="telegram_bot_token" class="input" value="{{ channels_config.telegram_bot_token or '' }}" placeholder="123456789:ABCDefgh..." dir="ltr">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-muted);">
+                    اترك هذا الحقل فارغاً إذا كنت لا ترغب بتفعيل بوت تيليجرام.
+                </p>
+            </div>
+
+            <button type="submit" class="btn" id="saveBtn">
+                <i class="fa-solid fa-satellite-dish"></i> حفظ الإعدادات وتفعيل القنوات
+            </button>
+        </form>
+    </main>
+
+    <script>
+        function toggleWhatsAppProvider() {
+            const provider = document.getElementById('whatsapp_provider').value;
+            document.querySelectorAll('#wa-evolution, #wa-official').forEach(el => el.classList.remove('active'));
+            document.getElementById('wa-' + provider).classList.add('active');
+        }
+
+        async function saveChannelsConfig(e) {
+            e.preventDefault();
+            const btn = document.getElementById('saveBtn');
+            const alertBox = document.getElementById('alertBox');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+            alertBox.style.display = 'none';
+
+            const payload = {
+                whatsapp_provider: document.getElementById('whatsapp_provider').value,
+                evolution_api_url: document.getElementById('evolution_api_url').value,
+                evolution_api_key: document.getElementById('evolution_api_key').value,
+                evolution_instance_name: document.getElementById('evolution_instance_name').value,
+                meta_phone_number_id: document.getElementById('meta_phone_number_id').value,
+                meta_access_token: document.getElementById('meta_access_token').value,
+                meta_verify_token: document.getElementById('meta_verify_token').value,
+                telegram_bot_token: document.getElementById('telegram_bot_token').value
+            };
+
+            try {
+                const res = await fetch('/merchant/api/channels', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                
+                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+            } catch(err) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'حدث خطأ في الاتصال الخارجي';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> حفظ الإعدادات وتفعيل القنوات';
+            }
+        }
+    </script>
+</body>
+</html>

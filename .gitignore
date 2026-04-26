@@ -1,11 +1,36 @@
-.env
+# Python
 __pycache__/
-*.pyc
-temp_*.mp3
-incoming_*.ogg
-.vscode/
+*.py[cod]
+*$py.class
+*.so
+.Python
 venv/
-node_modules/
+env/
+ENV/
+.venv/
+
+# Environment secrets — لا ترفع هذا أبداً!
+.env
+*.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Build
 dist/
 build/
-*.log
+*.egg-info/

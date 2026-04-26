@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الأرقام المصرّحة | نظام وكيل المبيعات الذكي</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #ec4899;
+            --bg-dark: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-image: radial-gradient(at top left, rgba(99, 102, 241, 0.1) 0%, transparent 40%);
+        }
+
+        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
+        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
+        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
+        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(99, 102, 241, 0.1); border-right-color: var(--primary); }
+        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
+        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+        .main-content { flex: 1; margin-right: var(--sidebar-width); padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h2 { font-size: 2rem; font-weight: 700; }
+
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+            margin-bottom: 25px;
+        }
+
+        /* Toggle */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+        .toggle-row div p { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; }
+
+        .toggle { position: relative; width: 60px; height: 30px; }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.1); border-radius: 30px; transition: 0.4s; }
+        .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 4px; bottom: 4px; background: white; border-radius: 50%; transition: 0.4s; }
+        input:checked + .slider { background: var(--primary); }
+        input:checked + .slider:before { transform: translateX(30px); }
+
+        /* Add number form */
+        .add-form { display: flex; gap: 15px; align-items: flex-end; }
+        .form-group { flex: 1; }
+        .label { display: block; margin-bottom: 10px; font-size: 0.9rem; color: #e2e8f0; font-weight: 600; }
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; }
+        .input {
+            width: 100%;
+            padding: 14px 45px 14px 16px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            color: white;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
+
+        .btn {
+            padding: 14px 25px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            white-space: nowrap;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        /* Numbers table */
+        .numbers-grid { display: flex; flex-direction: column; gap: 12px; }
+
+        .number-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 15px 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .number-info { display: flex; align-items: center; gap: 15px; }
+        .number-icon { width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+        .number-text strong { display: block; font-size: 1rem; direction: ltr; }
+        .number-text span { font-size: 0.85rem; color: var(--text-muted); }
+
+        .delete-btn { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); padding: 8px 15px; border-radius: 10px; cursor: pointer; font-family: inherit; font-size: 0.85rem; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .delete-btn:hover { background: rgba(239, 68, 68, 0.2); }
+
+        .empty-state { text-align: center; padding: 40px; color: var(--text-muted); }
+        .empty-state i { font-size: 3rem; margin-bottom: 15px; display: block; }
+
+        .alert { padding: 12px; border-radius: 12px; margin-bottom: 15px; display: none; font-size: 0.9rem; }
+        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
+        <div class="nav-links">
+            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
+            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
+            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
+            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
+            <a href="/merchant/ai-training" class="nav-item"><i class="fa-solid fa-microchip"></i> إعدادات الذكاء</a>
+            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+            <a href="/merchant/authorized-numbers" class="nav-item active"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
+        </div>
+        <div class="user-info">
+            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
+            <div>
+                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
+                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <div>
+                <h2>الأرقام المصرّحة</h2>
+                <p style="color: var(--text-muted); margin-top: 5px;">تحكم في من يستطيع التفاعل مع الوكيل الذكي الخاص بك.</p>
+            </div>
+        </div>
+
+        <!-- Allow All Toggle -->
+        <div class="glass-panel">
+            <div class="toggle-row">
+                <div>
+                    <strong style="font-size: 1.1rem;">السماح لجميع الأرقام</strong>
+                    <p>عند التفعيل، سيستجيب الوكيل لأي رقم يتواصل معه دون قيد.</p>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="allowAllToggle" {% if allow_all %}checked{% endif %} onchange="updateAllowAll(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- Add Number -->
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 20px;">إضافة رقم مصرح</h3>
+            <div id="alertBox" class="alert"></div>
+            <div class="add-form">
+                <div class="form-group">
+                    <label class="label">رقم الهاتف (مع مفتاح الدولة)</label>
+                    <div class="input-wrapper">
+                        <input type="tel" id="phoneInput" class="input" placeholder="مثال: 966501234567" dir="ltr">
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="label">اسم أو وصف (اختياري)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="labelInput" class="input" placeholder="مثال: عميل مميز">
+                        <i class="fa-solid fa-tag"></i>
+                    </div>
+                </div>
+                <button class="btn" onclick="addNumber()" id="addBtn">
+                    <i class="fa-solid fa-plus"></i> إضافة
+                </button>
+            </div>
+        </div>
+
+        <!-- Numbers List -->
+        <div class="glass-panel">
+            <h3 style="margin-bottom: 20px;">قائمة الأرقام المصرحة <span id="countBadge" style="background: rgba(99,102,241,0.2); color: var(--primary); padding: 3px 10px; border-radius: 20px; font-size: 0.85rem; margin-right: 10px;">{{ numbers | length }}</span></h3>
+
+            <div class="numbers-grid" id="numbersGrid">
+                {% if numbers %}
+                    {% for num in numbers %}
+                    <div class="number-row" id="row-{{ num.id }}">
+                        <div class="number-info">
+                            <div class="number-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <div class="number-text">
+                                <strong>{{ num.phone_number }}</strong>
+                                <span>{{ num.label if num.label else 'بدون وصف' }}</span>
+                            </div>
+                        </div>
+                        <button class="delete-btn" onclick="deleteNumber('{{ num.id }}')">
+                            <i class="fa-solid fa-trash"></i> حذف
+                        </button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state" id="emptyState">
+                        <i class="fa-solid fa-shield-slash"></i>
+                        <p>لا توجد أرقام مضافة بعد</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        async function updateAllowAll(checked) {
+            try {
+                await fetch('/merchant/api/authorized-numbers/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ allow_all: checked })
+                });
+            } catch(err) {
+                console.error('Error updating allow_all:', err);
+            }
+        }
+
+        async function addNumber() {
+            const phone = document.getElementById('phoneInput').value.trim();
+            const label = document.getElementById('labelInput').value.trim();
+            const alertBox = document.getElementById('alertBox');
+            const btn = document.getElementById('addBtn');
+
+            if (!phone) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'يرجى إدخال رقم الهاتف';
+                alertBox.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            alertBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/merchant/api/authorized-numbers', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ phone_number: phone, label: label })
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    alertBox.className = 'alert alert-success';
+                    alertBox.innerText = data.message;
+                    
+                    // Add to DOM
+                    const grid = document.getElementById('numbersGrid');
+                    const empty = document.getElementById('emptyState');
+                    if (empty) empty.remove();
+
+                    grid.insertAdjacentHTML('afterbegin', `
+                        <div class="number-row" id="row-new">
+                            <div class="number-info">
+                                <div class="number-icon"><i class="fa-solid fa-mobile-screen"></i></div>
+                                <div class="number-text">
+                                    <strong>${phone}</strong>
+                                    <span>${label || 'بدون وصف'}</span>
+                                </div>
+                            </div>
+                            <button class="delete-btn" onclick="deleteNumber(null, this)">
+                                <i class="fa-solid fa-trash"></i> حذف
+                            </button>
+                        </div>
+                    `);
+
+                    document.getElementById('phoneInput').value = '';
+                    document.getElementById('labelInput').value = '';
+
+                    const badge = document.getElementById('countBadge');
+                    badge.textContent = parseInt(badge.textContent) + 1;
+                } else {
+                    alertBox.className = 'alert alert-error';
+                    alertBox.innerText = data.message;
+                }
+                alertBox.style.display = 'block';
+            } catch(err) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'حدث خطأ في الاتصال';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteNumber(id, btnEl) {
+            if (!confirm('هل أنت متأكد من حذف هذا الرقم؟')) return;
+            
+            if (!id) return; // newly added row without id — refresh page
+            
+            try {
+                const res = await fetch(`/merchant/api/authorized-numbers/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    const row = document.getElementById('row-' + id);
+                    if (row) {
+                        row.style.opacity = '0';
+                        row.style.transition = 'opacity 0.3s';
+                        setTimeout(() => row.remove(), 300);
+                    }
+                    const badge = document.getElementById('countBadge');
+                    badge.textContent = Math.max(0, parseInt(badge.textContent) - 1);
+                } else {
+                    alert(data.message);
+                }
+            } catch(err) {
+                alert('حدث خطأ في الاتصال');
+            }
+        }
+    </script>
+</body>
+</html>

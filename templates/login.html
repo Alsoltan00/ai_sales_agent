@@ -3,25 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول | منصة الذكاء الاصطناعي</title>
+    <title>تسجيل الدخول | نظام وكيل المبيعات الذكي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Sans+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #8b5cf6;
-            --primary-hover: #7c3aed;
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --secondary: #ec4899;
             --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --card-bg: rgba(15, 23, 42, 0.75);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Noto Sans Arabic', 'Outfit', sans-serif;
-            background: radial-gradient(circle at top left, #1e1b4b, #0f172a);
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
             color: var(--text-main);
             height: 100vh;
             display: flex;
@@ -30,226 +34,295 @@
             overflow: hidden;
         }
 
-        .bg-blobs {
+        /* Animated Blobs for Premium Aesthetic */
+        .blobs-container {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             z-index: -1;
             overflow: hidden;
+            pointer-events: none;
         }
 
         .blob {
             position: absolute;
-            width: 500px; height: 500px;
-            background: var(--primary);
-            filter: blur(120px);
-            opacity: 0.2;
+            filter: blur(80px);
+            opacity: 0.4;
             border-radius: 50%;
-            animation: move 20s infinite alternate;
+            animation: float 20s infinite alternate ease-in-out;
         }
 
-        @keyframes move {
-            from { transform: translate(-10%, -10%); }
-            to { transform: translate(20%, 20%); }
+        .blob-1 { width: 400px; height: 400px; background: var(--primary); top: -10%; left: -10%; animation-delay: 0s; }
+        .blob-2 { width: 350px; height: 350px; background: var(--secondary); bottom: -10%; right: -10%; animation-delay: -5s; }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(50px, 50px) scale(1.1); }
         }
 
-        .login-card {
+        /* Glassmorphism Card */
+        .auth-card {
             background: var(--card-bg);
-            backdrop-filter: blur(20px);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--glass-border);
-            padding: 50px;
-            border-radius: 24px;
+            padding: 45px 40px;
+            border-radius: 28px;
             width: 100%;
-            max-width: 450px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-            text-align: center;
+            max-width: 420px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
             position: relative;
+            z-index: 10;
         }
 
-        .logo-box {
-            font-size: 3rem;
-            color: var(--primary);
-            margin-bottom: 20px;
-            filter: drop-shadow(0 0 15px rgba(139, 92, 246, 0.5));
-        }
+        .header-text { text-align: center; margin-bottom: 30px; }
+        .header-text i { font-size: 2.5rem; color: var(--primary); margin-bottom: 15px; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-text h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
+        .header-text p { color: var(--text-muted); font-size: 0.9rem; }
 
-        h1 { font-size: 1.8rem; margin-bottom: 10px; font-weight: 800; }
-        p { color: var(--text-muted); margin-bottom: 35px; font-size: 0.95rem; }
-
-        .form-group { text-align: right; margin-bottom: 20px; }
-        .label { display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-muted); }
-
-        .input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .input-wrapper i {
-            position: absolute;
-            right: 15px;
-            color: var(--primary);
-        }
-
+        .form-group { margin-bottom: 20px; }
+        .label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
+        
+        .input-wrapper { position: relative; }
+        .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; transition: 0.3s; }
+        
         .input {
             width: 100%;
-            padding: 15px 45px 15px 15px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
+            padding: 14px 45px 14px 16px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 14px;
             color: white;
-            font-size: 1rem;
+            font-size: 0.95rem;
+            font-family: inherit;
             outline: none;
-            transition: 0.3s;
+            transition: all 0.3s ease;
         }
 
         .input:focus {
             border-color: var(--primary);
-            box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
         }
+        
+        .input:focus + i { color: var(--primary); }
 
         .btn {
             width: 100%;
-            padding: 15px;
-            background: var(--primary);
+            padding: 14px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
             color: white;
             border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
+            border-radius: 14px;
+            font-size: 1rem;
             font-weight: 700;
+            font-family: inherit;
             cursor: pointer;
+            transition: all 0.3s;
             margin-top: 10px;
-            transition: 0.3s;
-            box-shadow: 0 10px 20px -5px rgba(139, 92, 246, 0.4);
+            box-shadow: 0 10px 20px -10px var(--primary);
         }
 
         .btn:hover {
-            background: var(--primary-hover);
             transform: translateY(-2px);
-            box-shadow: 0 15px 25px -5px rgba(139, 92, 246, 0.5);
+            box-shadow: 0 15px 25px -10px var(--primary);
         }
 
-        .error-msg {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            padding: 12px;
-            border-radius: 8px;
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .toggle-link {
+            display: block;
+            text-align: center;
+            margin-top: 25px;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: 0.3s;
+        }
+
+        .toggle-link span { color: var(--primary); font-weight: 700; margin-right: 5px; }
+        .toggle-link:hover span { text-decoration: underline; }
+
+        /* Alerts */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 12px;
             margin-bottom: 20px;
             font-size: 0.85rem;
             display: none;
+            animation: slideDown 0.3s ease;
         }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+
+        /* Form Switching */
+        #registerForm { display: none; }
     </style>
 </head>
 <body>
-    <div class="bg-blobs">
-        <div class="blob"></div>
+    <div class="blobs-container">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
     </div>
 
-    <div class="login-card">
-        <div class="logo-box">
-            <i class="fa-solid fa-brain"></i>
+    <div class="auth-card">
+        <!-- Login Form -->
+        <div id="loginView">
+            <div class="header-text">
+                <i class="fa-solid fa-robot"></i>
+                <h1>تسجيل الدخول</h1>
+                <p>قم بالدخول إلى لوحة تحكم وكيل المبيعات الخاص بك</p>
+            </div>
+
+            <div id="loginAlert" class="alert alert-error"></div>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label class="label">البريد الإلكتروني أو رقم التواصل</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="loginContact" class="input" placeholder="أدخل البريد أو الرقم" required>
+                        <i class="fa-solid fa-user"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="label">كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="loginPassword" class="input" placeholder="••••••••" required>
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="loginBtn">دخول</button>
+                
+                <a href="#" class="toggle-link" onclick="switchView('register')">
+                    ليس لديك حساب؟ <span>سجل الآن كعميل جديد</span>
+                </a>
+            </form>
         </div>
-        <h1>مرحباً بك مجدداً</h1>
-        <p>قم بتسجيل الدخول للوصول إلى لوحة التحكم</p>
 
-        <div id="errorBox" class="error-msg"></div>
-        <div id="successBox" style="background: rgba(34, 197, 94, 0.1); color: #22c55e; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; display: none;"></div>
+        <!-- Register Form -->
+        <div id="registerView" style="display: none;">
+            <div class="header-text">
+                <i class="fa-solid fa-building-user"></i>
+                <h1>طلب حساب جديد</h1>
+                <p>سجل بيانات شركتك وسنقوم بمراجعة طلبك</p>
+            </div>
 
-        <form id="loginForm" onsubmit="handleAuth(event)">
-            <div class="form-group">
-                <label class="label">اسم المستخدم</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-user"></i>
-                    <input type="text" id="username" class="input" placeholder="أدخل اسم المستخدم" required>
+            <div id="registerAlert" class="alert"></div>
+
+            <form id="registerFormElement" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label class="label">اسم الشركة / المؤسسة</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="regCompany" class="input" placeholder="أدخل اسم شركتك" required>
+                        <i class="fa-solid fa-building"></i>
+                    </div>
                 </div>
-            </div>
-            <div class="form-group">
-                <label class="label">كلمة المرور</label>
-                <div class="input-wrapper">
-                    <i class="fa-solid fa-lock"></i>
-                    <input type="password" id="password" class="input" placeholder="••••••••" required>
+                <div class="form-group">
+                    <label class="label">رقم التواصل (واتساب)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="regContact" class="input" placeholder="مثال: 966500000000+" required>
+                        <i class="fa-solid fa-phone"></i>
+                    </div>
                 </div>
-            </div>
-            <button type="submit" class="btn" id="authBtn">تسجيل الدخول</button>
-            
-            <div style="margin-top: 20px; font-size: 0.9rem;">
-                <span id="toggleText" style="color: var(--text-muted);">ليس لديك حساب؟</span>
-                <a href="#" onclick="toggleMode(event)" id="toggleLink" style="color: var(--primary); font-weight: 700; text-decoration: none; margin-right: 5px;">إنشاء حساب جديد</a>
-            </div>
-        </form>
-
-        <div style="margin-top: 30px; font-size: 0.85rem; color: var(--text-muted);">
-            منصة الذكاء الاصطناعي للمبيعات &copy; 2024
+                <button type="submit" class="btn" id="registerBtn">إرسال الطلب</button>
+                
+                <a href="#" class="toggle-link" onclick="switchView('login')">
+                    لديك طلب مسبق أو حساب؟ <span>تسجيل الدخول</span>
+                </a>
+            </form>
         </div>
     </div>
 
     <script>
-        let isLogin = true;
-
-        function toggleMode(e) {
-            e.preventDefault();
-            isLogin = !isLogin;
-            const h1 = document.querySelector('h1');
-            const p = document.querySelector('p');
-            const authBtn = document.getElementById('authBtn');
-            const toggleText = document.getElementById('toggleText');
-            const toggleLink = document.getElementById('toggleLink');
-
-            if (isLogin) {
-                h1.innerText = 'مرحباً بك مجدداً';
-                p.innerText = 'قم بتسجيل الدخول للوصول إلى لوحة التحكم';
-                authBtn.innerText = 'تسجيل الدخول';
-                toggleText.innerText = 'ليس لديك حساب؟';
-                toggleLink.innerText = 'إنشاء حساب جديد';
+        function switchView(view) {
+            if(view === 'register') {
+                document.getElementById('loginView').style.display = 'none';
+                document.getElementById('registerView').style.display = 'block';
             } else {
-                h1.innerText = 'انضم إلينا اليوم';
-                p.innerText = 'أنشئ حسابك وابدأ تجربتك مع الذكاء الاصطناعي';
-                authBtn.innerText = 'إنشاء حساب جديد';
-                toggleText.innerText = 'لديك حساب بالفعل؟';
-                toggleLink.innerText = 'تسجيل الدخول';
+                document.getElementById('registerView').style.display = 'none';
+                document.getElementById('loginView').style.display = 'block';
             }
         }
 
-        async function handleAuth(e) {
+        function showAlert(type, elementId, message) {
+            const el = document.getElementById(elementId);
+            el.className = `alert alert-${type}`;
+            el.innerText = message;
+            el.style.display = 'block';
+        }
+
+        async function handleLogin(e) {
             e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            const errorBox = document.getElementById('errorBox');
-            const successBox = document.getElementById('successBox');
-            const authBtn = document.getElementById('authBtn');
-
-            errorBox.style.display = 'none';
-            successBox.style.display = 'none';
-            authBtn.innerText = 'جاري المعالجة...';
-            authBtn.disabled = true;
-
-            const endpoint = isLogin ? '/admin/api/login' : '/admin/api/register';
+            const contactInfo = document.getElementById('loginContact').value;
+            const password = document.getElementById('loginPassword').value;
+            const btn = document.getElementById('loginBtn');
+            const alertEl = document.getElementById('loginAlert');
+            
+            alertEl.style.display = 'none';
+            btn.disabled = true;
+            btn.innerText = 'جاري التحقق...';
 
             try {
-                const res = await fetch(endpoint, {
+                const res = await fetch('/auth/api/auth/login', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ contact_info: contactInfo, password: password })
                 });
+                
                 const data = await res.json();
-
+                
                 if (data.status === 'success') {
-                    if (isLogin) {
-                        window.location.href = '/admin';
-                    } else {
-                        successBox.innerText = 'تم تقديم طلبك بنجاح! بانتظار موافقة الإدارة.';
-                        successBox.style.display = 'block';
-                        e.target.reset();
-                    }
+                    window.location.href = data.redirect_url;
                 } else {
-                    errorBox.innerText = data.message || 'فشل في العملية';
-                    errorBox.style.display = 'block';
+                    showAlert('error', 'loginAlert', data.message || 'فشل تسجيل الدخول');
                 }
             } catch (err) {
-                errorBox.innerText = 'خطأ في الاتصال بالخادم';
-                errorBox.style.display = 'block';
+                showAlert('error', 'loginAlert', 'خطأ في الاتصال بالخادم');
             } finally {
-                authBtn.innerText = isLogin ? 'تسجيل الدخول' : 'إنشاء حساب جديد';
-                authBtn.disabled = false;
+                btn.disabled = false;
+                btn.innerText = 'دخول';
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const companyName = document.getElementById('regCompany').value;
+            const contactNumber = document.getElementById('regContact').value;
+            const btn = document.getElementById('registerBtn');
+            const alertEl = document.getElementById('registerAlert');
+            
+            alertEl.style.display = 'none';
+            btn.disabled = true;
+            btn.innerText = 'جاري الإرسال...';
+
+            try {
+                const res = await fetch('/auth/api/auth/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ company_name: companyName, contact_number: contactNumber })
+                });
+                
+                const data = await res.json();
+                
+                if (data.status === 'success') {
+                    showAlert('success', 'registerAlert', data.message);
+                    document.getElementById('registerFormElement').reset();
+                } else {
+                    showAlert('error', 'registerAlert', data.message || 'حدث خطأ');
+                }
+            } catch (err) {
+                showAlert('error', 'registerAlert', 'خطأ في الاتصال بالخادم');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'إرسال الطلب';
             }
         }
     </script>
