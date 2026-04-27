@@ -246,25 +246,38 @@ async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_
             else:
                 full_model_name = clean_model_id
             
-            url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={api_key}"
-            headers = {"Content-Type": "application/json"}
-            body = {
-                "contents": [{"parts": [{"text": test_prompt}]}],
-                "generationConfig": {"maxOutputTokens": 50}
-            }
             async with httpx.AsyncClient(timeout=15) as client:
-                res = await client.post(url, headers=headers, json=body)
-            
-            data = res.json()
-            if res.status_code != 200:
+                # 1. Try the user's requested model
+                url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={api_key}"
+                body = {
+                    "contents": [{"parts": [{"text": test_prompt}]}],
+                    "generationConfig": {"maxOutputTokens": 50}
+                }
+                res = await client.post(url, headers={"Content-Type": "application/json"}, json=body)
+                
+                if res.status_code == 200:
+                    data = res.json()
+                    try:
+                        reply = data["candidates"][0]["content"]["parts"][0]["text"]
+                        return {"status": "success", "response": reply}
+                    except:
+                        return {"status": "error", "message": "تنسيق غير متوقع من جوجل رغم نجاح الاتصال"}
+                
+                # 2. If 404, let's find out what models ARE available
+                if res.status_code == 404:
+                    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+                    list_res = await client.get(list_url)
+                    if list_res.status_code == 200:
+                        models_data = list_res.json()
+                        available = [m["name"].replace("models/", "") for m in models_data.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
+                        return {"status": "error", "message": f"النموذج غير موجود. النماذج المتاحة لحسابك هي: {', '.join(available[:5])}"}
+                    else:
+                        return {"status": "error", "message": f"النموذج {clean_model_id} غير موجود، وفشلنا في جلب القائمة البديلة."}
+                
+                # 3. Handle other errors
+                data = res.json()
                 error_msg = data.get("error", {}).get("message", "خطأ غير معروف")
-                return {"status": "error", "message": f"جوجل: {error_msg} (كود {res.status_code})"}
-            
-            try:
-                reply = data["candidates"][0]["content"]["parts"][0]["text"]
-                return {"status": "success", "response": reply}
-            except (KeyError, IndexError):
-                return {"status": "error", "message": f"تنسيق غير متوقع: {str(data)}"}
+                return {"status": "error", "message": f"جوجل (خطأ {res.status_code}): {error_msg}"}
 
         else:
             return {"status": "error", "message": "مزود الخدمة غير معروف"}
