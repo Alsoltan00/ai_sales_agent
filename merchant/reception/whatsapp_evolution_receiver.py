@@ -42,8 +42,8 @@ async def _send_evolution_message(api_url: str, api_key: str, instance_name: str
     headers = {"apikey": api_key, "Content-Type": "application/json"}
     payload = {
         "number": clean_number,
-        "options": {"delay": 1200, "presence": "composing", "linkPreview": False},
-        "textMessage": {"text": text}
+        "text": text,
+        "options": {"delay": 1200, "presence": "composing", "linkPreview": False}
     }
     try:
         async with httpx.AsyncClient() as client:
