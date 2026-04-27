@@ -5,14 +5,31 @@ from database.db_client import get_supabase_client
 
 async def get_ai_response(client_id: str, user_message: str, phone_number: str) -> str:
     """
-    ظٹط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط°ظƒط§ط، ط§ظ„ط§طµط·ظ†ط§ط¹ظٹ ظˆط§ظ„ط¨ظٹط§ظ†ط§طھ ط«ظ… ظٹظˆظ„ط¯ ط±ط¯ط§ظ‹ ط§ط­طھط±ط§ظپظٹط§ظ‹
+    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً
     """
     supabase = get_supabase_client()
 
-    # 1. ط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظˆظƒظٹظ„
-    client_data = supabase.table("clients").select(
-        "company_name, ai_agent_name, ai_tone, business_description"
-    ).eq("id", client_id).single().execute()
+    # 1. جلب إعدادات الوكيل (الاسم والشركة من جدولين مختلفين)
+    try:
+        # جلب اسم الشركة
+        client_res = supabase.table("clients").select("company_name").eq("id", client_id).single().execute()
+        company_name = client_res.data.get("company_name", "الشركة") if client_res.data else "الشركة"
+
+        # جلب إعدادات التخطيط (الشخصية)
+        planning_res = supabase.table("planning_config").select(
+            "sales_agent_name, dialect_instructions, company_description"
+        ).eq("client_id", client_id).single().execute()
+        
+        p = planning_res.data or {}
+        agent_name  = p.get("sales_agent_name") or company_name
+        tone        = p.get("dialect_instructions") or "احترافي ومهذب"
+        description = p.get("company_description") or ""
+    except Exception as e:
+        print(f"Error fetching planning config: {e}")
+        company_name = "الشركة"
+        agent_name = "المساعد"
+        tone = "احترافي"
+        description = ""
 
     # 2. جلب إعدادات النموذج النشط
     try:
@@ -29,11 +46,6 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
     model_id  = ai_cfg_data["model_id"]
     api_key   = ai_cfg_data["api_key"]
     provider  = ai_cfg_data.get("provider", "openai")
-
-    c         = client_data.data or {}
-    agent_name   = c.get("ai_agent_name") or c.get("company_name") or "ط§ظ„ظ…ط³ط§ط¹ط¯"
-    tone         = c.get("ai_tone") or "ط§ط­طھط±ط§ظپظٹ ظˆظ…ظ‡ط°ط¨"
-    description  = c.get("business_description") or ""
 
     # 3. جلب بيانات المتجر للسياق
     store_data = ""
@@ -55,22 +67,22 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
 
-    # 4. ط¨ظ†ط§ط، System Prompt
-    system_prompt = f"""ط£ظ†طھ {agent_name}طŒ ظ…ظ†ط¯ظˆط¨ ظ…ط¨ظٹط¹ط§طھ ط°ظƒظٹ ظٹط¹ظ…ظ„ ظ„ط¯ظ‰ {c.get('company_name', 'ط§ظ„ط´ط±ظƒط©')}.
+    # 4. بناء System Prompt
+    system_prompt = f"""أنت {agent_name}، مندوب مبيعات ذكي يعمل لدى {company_name}.
 
-ظ„ظ‡ط¬ط© ط§ظ„ط±ط¯: {tone}
+لهجة الرد: {tone}
 
-ظ…ط¹ظ„ظˆظ…ط§طھ ط§ظ„ط´ط±ظƒط© ظˆط§ظ„ط®ط¯ظ…ط§طھ:
+معلومات الشركة والخدمات:
 {description}
 
-{f"ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…ظ†طھط¬ط§طھ ظˆط§ظ„ظ…ط®ط²ظˆظ† ط§ظ„ط­ط§ظ„ظٹ (JSON):{chr(10)}{store_data}" if store_data else ""}
+{f"بيانات المنتجات والمخزون الحالي (JSON):{chr(10)}{store_data}" if store_data else ""}
 
-ظ‚ظˆط§ط¹ط¯ ظ…ظ‡ظ…ط©:
-- ط±ط¯ ط¯ط§ط¦ظ…ط§ظ‹ ط¨ط§ظ„ط¹ط±ط¨ظٹط© ظ…ط§ ظ„ظ… ظٹطھط­ط¯ط« ط§ظ„ط¹ظ…ظٹظ„ ط¨ظ„ط؛ط© ط£ط®ط±ظ‰
-- ظƒظ† ظ…ظ‚ظ†ط¹ط§ظ‹ ظˆظ…ط­طھط±ظ…ط§ظ‹ ظˆظ…ط±ظƒط²ط§ظ‹ ط¹ظ„ظ‰ ط¥طھظ…ط§ظ… ط§ظ„ط¨ظٹط¹
-- ط¥ط°ط§ ط³ظڈط¦ظ„طھ ط¹ظ† ط³ط¹ط± ط؛ظٹط± ظ…ظˆط¬ظˆط¯ ظپظٹ ط§ظ„ط¨ظٹط§ظ†ط§طھطŒ ظ‚ظ„ ط£ظ†ظƒ ط³طھطھط­ظ‚ظ‚ ظˆطھط¹ظˆط¯ ظ„ظ„ط¹ظ…ظٹظ„
-- ظ„ط§ طھط°ظƒط± ط£ظ†ظƒ ط°ظƒط§ط، ط§طµط·ظ†ط§ط¹ظٹ ط¥ظ„ط§ ط¥ط°ط§ ط³ظڈط¦ظ„طھ ظ…ط¨ط§ط´ط±ط©
-- ط§ظ„ط±ط¯ظˆط¯ طھظƒظˆظ† ظ…ط®طھطµط±ط© ظˆظˆط§ط¶ط­ط© (ط­ط¯ ط£ظ‚طµظ‰ 3 ظپظ‚ط±ط§طھ ظ‚طµظٹط±ط©)
+قواعد مهمة:
+- رد دائماً بالعربية ما لم يتحدث العميل بلغة أخرى
+- كن مقنعاً ومحترماً ومركزاً على إتمام البيع
+- إذا سُئلت عن سعر غير موجود في البيانات، قل أنك ستتحقق وتعود للعميل
+- لا تذكر أنك ذكاء اصطناعي إلا إذا سُئلت مباشرة
+- الردود تكون مختصرة وواضحة (حد أقصى 3 فقرات قصيرة)
 """
 
     messages = [
@@ -78,7 +90,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
         {"role": "user",   "content": user_message}
     ]
 
-    # 5. ط§ط³طھط¯ط¹ط§ط، API ط­ط³ط¨ ط§ظ„ظ…ط²ظˆط¯
+    # 5. استدعاء API حسب المزود
     try:
         if provider == "openai":
             response = await _call_openai(api_key, model_id, messages)
@@ -91,13 +103,13 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
         else:
             response = await _call_openai(api_key, model_id, messages)
 
-        # 6. طھط³ط¬ظٹظ„ ط§ظ„ط³ط¬ظ„
+        # 6. تسجيل السجل
         _log_message(supabase, client_id, user_message, response, phone_number)
         return response
 
     except Exception as e:
         print(f"AI call error: {e}")
-        return "ط¹ط°ط±ط§ظ‹طŒ ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ظ…ط¹ط§ظ„ط¬ط© ط·ظ„ط¨ظƒ. ظٹط±ط¬ظ‰ ط§ظ„ظ…ط­ط§ظˆظ„ط© ظ…ط±ط© ط£ط®ط±ظ‰."
+        return "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى."
 
 
 async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
