@@ -118,44 +118,43 @@ async def evolution_webhook(instance_name: str, request: Request):
 
                 if groq_key:
                     try:
-                        # تجربة المسارات مع إضافة اسم الجلسة في الرابط (مطلوب في v2)
-                        endpoints = [
-                            f"/chat/fetchMedia/{instance_name}",
-                            f"/message/fetchMedia/{instance_name}",
-                            f"/instance/fetchMedia/{instance_name}"
-                        ]
-                        success_download = False
+                        # الرابط الصحيح والمؤكد لنسخة Evolution API v2.3.*
+                        fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/getBase64FromMediaMessage/{instance_name}"
                         
-                        for ep in endpoints:
-                            fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}{ep}"
-                            media_payload = {"message": data}
-                            headers = {"apikey": cfg["evolution_api_key"]}
+                        # نرسل معرف الرسالة (Message Key ID) كما يطلب التوثيق
+                        msg_id = key.get("id")
+                        media_payload = {
+                            "message": {
+                                "key": {
+                                    "id": msg_id
+                                }
+                            },
+                            "convertToMp4": True
+                        }
+                        headers = {"apikey": cfg["evolution_api_key"]}
+                        
+                        print(f"[DEBUG] Calling confirmed Evolution endpoint: {fetch_url}")
+                        async with httpx.AsyncClient() as client:
+                            media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=25)
                             
-                            print(f"[DEBUG] Trying Evolution fetchMedia: {fetch_url}")
-                            async with httpx.AsyncClient() as client:
-                                media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=15)
-                                if media_res.status_code == 200:
-                                    print(f"[DEBUG] Success with endpoint: {ep}")
-                                    media_data = media_res.json()
-                                    b64_audio = media_data.get("base64") or media_data.get("data")
-                                    
-                                    if b64_audio:
-                                        import base64
-                                        if "," in str(b64_audio):
-                                            b64_audio = str(b64_audio).split(",")[1]
-                                        audio_bytes = base64.b64decode(b64_audio)
-                                        print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
-                                        text = await transcribe_audio(audio_bytes, groq_key)
-                                        print(f"[VOICE] Transcribed Text: {text}")
-                                        success_download = True
-                                        break
-                                    else:
-                                        print(f"[DEBUG] Endpoint {ep} returned 200 but no base64 data")
+                            if media_res.status_code == 200:
+                                media_data = media_res.json()
+                                # هذا الرابط يعيد ملف base64 مباشرة
+                                b64_audio = media_data.get("base64")
+                                
+                                if b64_audio:
+                                    import base64
+                                    if "," in str(b64_audio):
+                                        b64_audio = str(b64_audio).split(",")[1]
+                                        
+                                    audio_bytes = base64.b64decode(b64_audio)
+                                    print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
+                                    text = await transcribe_audio(audio_bytes, groq_key)
+                                    print(f"[VOICE] Transcribed Text: {text}")
                                 else:
-                                    print(f"[DEBUG] Endpoint {ep} failed with status: {media_res.status_code}")
-                        
-                        if not success_download:
-                            print("[DEBUG] All media fetch endpoints failed.")
+                                    print("[DEBUG] getBase64FromMediaMessage returned 200 but no base64 field found")
+                            else:
+                                print(f"[DEBUG] getBase64FromMediaMessage failed with status: {media_res.status_code}, Body: {media_res.text}")
                             
                     except Exception as ve:
                         print(f"[VOICE ERROR] Exception during audio processing: {ve}")
