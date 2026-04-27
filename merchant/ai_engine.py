@@ -86,6 +86,8 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
             response = await _call_anthropic(api_key, model_id, messages, system_prompt)
         elif provider == "groq":
             response = await _call_groq(api_key, model_id, messages)
+        elif provider == "google":
+            response = await _call_google(api_key, model_id, user_message, system_prompt)
         else:
             response = await _call_openai(api_key, model_id, messages)
 
@@ -138,6 +140,32 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         )
         data = res.json()
         return data["choices"][0]["message"]["content"].strip()
+
+
+async def _call_google(api_key: str, model_id: str, user_message: str, system: str) -> str:
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+    headers = {"Content-Type": "application/json"}
+    body = {
+        "systemInstruction": {
+            "parts": [{"text": system}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_message}]
+            }
+        ],
+        "generationConfig": {"maxOutputTokens": 500}
+    }
+    async with httpx.AsyncClient() as client:
+        res = await client.post(url, headers=headers, json=body, timeout=30)
+        data = res.json()
+        if "error" in data:
+            raise Exception(data["error"].get("message", "Unknown Google error"))
+        try:
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except (KeyError, IndexError):
+            raise Exception("Unexpected Google API response format")
 
 
 def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str):

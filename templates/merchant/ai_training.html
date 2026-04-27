@@ -206,6 +206,7 @@
                             <option value="openai" {% if ai_config.provider == 'openai' %}selected{% endif %}>OpenAI (ChatGPT)</option>
                             <option value="anthropic" {% if ai_config.provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
                             <option value="groq" {% if ai_config.provider == 'groq' %}selected{% endif %}>Groq (Fast Inference)</option>
+                            <option value="google" {% if ai_config.provider == 'google' %}selected{% endif %}>Google Studio (Gemini)</option>
                         </select>
                         <i class="fa-solid fa-server"></i>
                     </div>
@@ -309,6 +310,9 @@
             } else if (provider === 'groq') {
                 modelNameInput.value = 'Llama 3.3 70B';
                 modelIdInput.value = 'llama-3.3-70b-versatile';
+            } else if (provider === 'google') {
+                modelNameInput.value = 'Gemini 1.5 Pro';
+                modelIdInput.value = 'gemini-1.5-pro';
             }
         }
 

@@ -235,6 +235,25 @@ async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_
                 return {"status": "error", "message": str(data["error"])}
             reply = data["choices"][0]["message"]["content"]
             return {"status": "success", "response": reply}
+
+        elif payload.provider == "google":
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{payload.model_id}:generateContent?key={payload.api_key}"
+            headers = {"Content-Type": "application/json"}
+            body = {
+                "contents": [{"parts": [{"text": test_prompt}]}],
+                "generationConfig": {"maxOutputTokens": 50}
+            }
+            async with httpx.AsyncClient(timeout=15) as client:
+                res = await client.post(url, headers=headers, json=body)
+            data = res.json()
+            if "error" in data:
+                return {"status": "error", "message": data["error"].get("message", "خطأ غير معروف في جوجل")}
+            try:
+                reply = data["candidates"][0]["content"]["parts"][0]["text"]
+            except (KeyError, IndexError):
+                return {"status": "error", "message": "تنسيق الاستجابة من جوجل غير متوقع"}
+            return {"status": "success", "response": reply}
+
         else:
             return {"status": "error", "message": "مزود الخدمة غير معروف"}
     except Exception as e:
