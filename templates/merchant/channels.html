@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -121,6 +121,53 @@
         .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
         .btn:disabled { opacity: 0.7; cursor: not-allowed; }
 
+        /* Edit/Save Toggle */
+        .btn-edit {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-main);
+            margin-bottom: 20px;
+            width: auto;
+            padding: 10px 20px;
+        }
+        .btn-edit:hover { background: rgba(255, 255, 255, 0.1); }
+        
+        .webhook-info {
+            background: rgba(59, 130, 246, 0.05);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .webhook-url-box {
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-top: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid var(--glass-border);
+        }
+        .copy-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .input:disabled, .select:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: rgba(15, 23, 42, 0.3);
+        }
+
         .alert { padding: 15px; border-radius: 12px; margin-bottom: 25px; display: none; font-size: 0.95rem; }
         .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
         .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
@@ -167,6 +214,19 @@
             </div>
         </div>
 
+        <div class="webhook-info">
+            <div style="font-weight: 700; color: var(--primary);"><i class="fa-solid fa-circle-info"></i> رابط استقبال الرسائل (Webhook)</div>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 5px;">انسخ هذا الرابط وضعه في إعدادات Webhook بداخل لوحة Evolution API لاستقبال الرسائل:</p>
+            <div class="webhook-url-box">
+                <span id="webhookUrlDisplay">جاري التحميل...</span>
+                <button class="copy-btn" onclick="copyWebhook()">نسخ الرابط</button>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-edit" id="editToggleBtn" onclick="enableEditing()">
+            <i class="fa-solid fa-pen-to-square"></i> تعديل الإعدادات
+        </button>
+
         <form id="channelsForm" onsubmit="saveChannelsConfig(event)">
             <div id="alertBox" class="alert"></div>
 
@@ -177,7 +237,7 @@
                 <div class="form-group">
                     <label class="label">مزود خدمة الواتساب</label>
                     <div class="input-wrapper">
-                        <select id="whatsapp_provider" class="select" onchange="toggleWhatsAppProvider()">
+                        <select id="whatsapp_provider" class="select" onchange="toggleWhatsAppProvider()" disabled>
                             <option value="evolution" {% if channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>Evolution API (QR Code)</option>
                             <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>Official Meta Cloud API</option>
                         </select>
@@ -188,23 +248,23 @@
                 <!-- Evolution API Fields -->
                 <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
                     <div class="form-group">
-                        <label class="label">رابط خادم Evolution (URL)</label>
+                        <label class="label">رابط خادم Evolution (URL الإرسال)</label>
                         <div class="input-wrapper">
-                            <input type="url" id="evolution_api_url" class="input" value="{{ channels_config.evolution_api_url or '' }}" placeholder="https://api.evolution.com" dir="ltr">
+                            <input type="url" id="evolution_api_url" class="input" value="{{ channels_config.evolution_api_url or '' }}" placeholder="https://api.evolution.com" dir="ltr" disabled>
                             <i class="fa-solid fa-link"></i>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="label">Global API Key</label>
                         <div class="input-wrapper">
-                            <input type="password" id="evolution_api_key" class="input" value="{{ channels_config.evolution_api_key or '' }}" placeholder="8A9B..." dir="ltr">
+                            <input type="password" id="evolution_api_key" class="input" value="{{ channels_config.evolution_api_key or '' }}" placeholder="8A9B..." dir="ltr" disabled>
                             <i class="fa-solid fa-key"></i>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="label">اسم الجلسة (Instance Name)</label>
                         <div class="input-wrapper">
-                            <input type="text" id="evolution_instance_name" class="input" value="{{ channels_config.evolution_instance_name or '' }}" placeholder="instance1" dir="ltr">
+                            <input type="text" id="evolution_instance_name" class="input" value="{{ channels_config.evolution_instance_name or '' }}" placeholder="instance1" dir="ltr" disabled oninput="updateWebhookDisplay()">
                             <i class="fa-solid fa-mobile-screen"></i>
                         </div>
                     </div>
@@ -215,21 +275,21 @@
                     <div class="form-group">
                         <label class="label">Phone Number ID</label>
                         <div class="input-wrapper">
-                            <input type="text" id="meta_phone_number_id" class="input" value="{{ channels_config.meta_phone_number_id or '' }}" placeholder="123456789" dir="ltr">
+                            <input type="text" id="meta_phone_number_id" class="input" value="{{ channels_config.meta_phone_number_id or '' }}" placeholder="123456789" dir="ltr" disabled>
                             <i class="fa-solid fa-hashtag"></i>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="label">Access Token (Permanent)</label>
                         <div class="input-wrapper">
-                            <input type="password" id="meta_access_token" class="input" value="{{ channels_config.meta_access_token or '' }}" placeholder="EAAG..." dir="ltr">
+                            <input type="password" id="meta_access_token" class="input" value="{{ channels_config.meta_access_token or '' }}" placeholder="EAAG..." dir="ltr" disabled>
                             <i class="fa-solid fa-key"></i>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="label">Webhook Verify Token</label>
                         <div class="input-wrapper">
-                            <input type="text" id="meta_verify_token" class="input" value="{{ channels_config.meta_verify_token or '' }}" placeholder="my_secret_token" dir="ltr">
+                            <input type="text" id="meta_verify_token" class="input" value="{{ channels_config.meta_verify_token or '' }}" placeholder="my_secret_token" dir="ltr" disabled>
                             <i class="fa-solid fa-shield-check"></i>
                         </div>
                     </div>
@@ -243,7 +303,7 @@
                 <div class="form-group">
                     <label class="label">Telegram Bot Token (من BotFather)</label>
                     <div class="input-wrapper">
-                        <input type="password" id="telegram_bot_token" class="input" value="{{ channels_config.telegram_bot_token or '' }}" placeholder="123456789:ABCDefgh..." dir="ltr">
+                        <input type="password" id="telegram_bot_token" class="input" value="{{ channels_config.telegram_bot_token or '' }}" placeholder="123456789:ABCDefgh..." dir="ltr" disabled>
                         <i class="fa-solid fa-robot"></i>
                     </div>
                 </div>
@@ -252,13 +312,45 @@
                 </p>
             </div>
 
-            <button type="submit" class="btn" id="saveBtn">
-                <i class="fa-solid fa-satellite-dish"></i> حفظ الإعدادات وتفعيل القنوات
+            <button type="submit" class="btn" id="saveBtn" style="display: none;">
+                <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات وقفل التعديل
             </button>
         </form>
     </main>
 
     <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            updateWebhookDisplay();
+            // Check if fields are empty, if so, enable editing
+            const instance = document.getElementById('evolution_instance_name').value;
+            if (!instance) enableEditing();
+        });
+
+        function updateWebhookDisplay() {
+            const instance = document.getElementById('evolution_instance_name').value || '{instance_name}';
+            const origin = window.location.origin;
+            const webhookUrl = `${origin}/webhook/whatsapp/evolution/${instance}`;
+            document.getElementById('webhookUrlDisplay').innerText = webhookUrl;
+        }
+
+        function copyWebhook() {
+            const url = document.getElementById('webhookUrlDisplay').innerText;
+            navigator.clipboard.writeText(url);
+            alert('تم نسخ رابط الويب هوك بنجاح');
+        }
+
+        function enableEditing() {
+            document.querySelectorAll('.input, .select').forEach(el => el.disabled = false);
+            document.getElementById('editToggleBtn').style.display = 'none';
+            document.getElementById('saveBtn').style.display = 'flex';
+        }
+
+        function disableEditing() {
+            document.querySelectorAll('.input, .select').forEach(el => el.disabled = true);
+            document.getElementById('editToggleBtn').style.display = 'inline-flex';
+            document.getElementById('saveBtn').style.display = 'none';
+        }
+
         function toggleWhatsAppProvider() {
             const provider = document.getElementById('whatsapp_provider').value;
             document.querySelectorAll('#wa-evolution, #wa-official').forEach(el => el.classList.remove('active'));
@@ -296,13 +388,18 @@
                 alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
                 alertBox.innerText = data.message;
                 alertBox.style.display = 'block';
+                
+                if (data.status === 'success') {
+                    disableEditing();
+                    updateWebhookDisplay();
+                }
             } catch(err) {
                 alertBox.className = 'alert alert-error';
                 alertBox.innerText = 'حدث خطأ في الاتصال الخارجي';
                 alertBox.style.display = 'block';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-satellite-dish"></i> حفظ الإعدادات وتفعيل القنوات';
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات وقفل التعديل';
             }
         }
     </script>

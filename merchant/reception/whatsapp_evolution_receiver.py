@@ -1,6 +1,6 @@
-﻿"""
+"""
 merchant/reception/whatsapp_evolution_receiver.py
-ط§ط³طھظ‚ط¨ط§ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ظ…ظ† ظˆط§طھط³ط§ط¨ ط¹ط¨ط± Evolution API
+استقبال الرسائل من واتساب عبر Evolution API
 """
 import httpx
 from fastapi import APIRouter, Request, Response
@@ -62,7 +62,7 @@ async def evolution_webhook(instance_name: str, request: Request):
         data = body.get("data", {})
         key  = data.get("key", {})
 
-        # طھط¬ط§ظ‡ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ط§ظ„طµط§ط¯ط±ط© ظ…ظ† ط§ظ„ط¬ظ‡ط§ط² ظ†ظپط³ظ‡
+        # تجاهل الرسائل الصادرة من الجهاز نفسه
         if key.get("fromMe", False):
             return Response(status_code=200)
 
@@ -77,7 +77,7 @@ async def evolution_webhook(instance_name: str, request: Request):
         if not text or not phone:
             return Response(status_code=200)
 
-        # ط§ظ„ط¨ط­ط« ط¹ظ† ط§ظ„طھط§ط¬ط±
+        # البحث عن التاجر
         cfg = _find_client_by_instance(instance_name)
         if not cfg:
             return Response(status_code=200)
@@ -86,14 +86,14 @@ async def evolution_webhook(instance_name: str, request: Request):
         api_url     = cfg["evolution_api_url"]
         api_key     = cfg["evolution_api_key"]
 
-        # ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„طµظ„ط§ط­ظٹط©
+        # التحقق من الصلاحية
         if not _is_authorized(client_id, phone):
             return Response(status_code=200)
 
-        # طھظˆظ„ظٹط¯ ط§ظ„ط±ط¯
+        # توليد الرد
         ai_reply = await get_ai_response(client_id, text, phone)
 
-        # ط¥ط±ط³ط§ظ„ ط§ظ„ط±ط¯
+        # إرسال الرد
         await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
 
     except Exception as e:

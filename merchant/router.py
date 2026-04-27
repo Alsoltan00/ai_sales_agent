@@ -40,13 +40,13 @@ class StoreSettingsRequest(BaseModel):
 
 @router.get("/store", response_class=HTMLResponse)
 async def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…طھط¬ط±"""
+    """صفحة إعدادات المتجر"""
     settings = get_store_settings(user["id"])
     return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
 
 @router.post("/api/store")
 async def api_update_store(payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…طھط¬ط±"""
+    """تحديث بيانات المتجر"""
     success = update_store_settings(user["id"], payload.model_dump())
     if success:
         return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
@@ -78,13 +78,13 @@ class PlanningRequest(BaseModel):
 
 @router.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ط§ظ„طھط®ط·ظٹط·"""
+    """صفحة التخطيط"""
     planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/planning.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/planning")
 async def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„طھط®ط·ظٹط·"""
+    """تحديث إعدادات التخطيط"""
     success = update_planning_config(user["id"], payload.model_dump())
     if success:
         return {"status": "success", "message": "تم تحديث بيانات التخطيط بنجاح"}
@@ -300,11 +300,11 @@ async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)
 
 @router.post("/api/data-sync")
 async def api_update_data_sync(payload: SyncConfigRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…ط²ط§ظ…ظ†ط©"""
+    """تحديث إعدادات المزامنة"""
     success = update_sync_config(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "طھظ… طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط±ط¨ط· ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط±ط¨ط·"}
+        return {"status": "success", "message": "تم تحديث إعدادات الربط بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الربط"}
 
 @router.post("/api/data-sync/upload")
 async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
@@ -370,17 +370,17 @@ class ChannelsConfigRequest(BaseModel):
 
 @router.get("/channels", response_class=HTMLResponse)
 async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ط§ظ„ط§ط³طھظ‚ط¨ط§ظ„ ظˆط§ظ„ط¥ط±ط³ط§ظ„"""
+    """صفحة الاستقبال والإرسال"""
     channels_config = get_channels_config(user["id"])
     return templates.TemplateResponse("merchant/channels.html", {"request": request, "user": user, "channels_config": channels_config})
 
 @router.post("/api/channels")
 async def api_update_channels(payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ‚ظ†ظˆط§طھ"""
+    """تحديث إعدادات القنوات"""
     success = update_channels_config(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "طھظ… ط­ظپط¸ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ‚ظ†ظˆط§طھ ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط­ظپط¸"}
+        return {"status": "success", "message": "تم حفظ إعدادات القنوات بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
 
 # --- Authorized Numbers ---
 
@@ -393,7 +393,7 @@ class AllowAllRequest(BaseModel):
 
 @router.get("/authorized-numbers", response_class=HTMLResponse)
 async def authorized_numbers_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ط§ظ„ط£ط±ظ‚ط§ظ… ط§ظ„ظ…طµط±ظ‘ط­ط©"""
+    """صفحة الأرقام المصرّحة"""
     numbers = get_authorized_numbers(user["id"])
     allow_all = get_allow_all_status(user["id"])
     return templates.TemplateResponse("merchant/authorized_numbers.html", {
@@ -405,19 +405,19 @@ async def authorized_numbers_page(request: Request, user: dict = Depends(verify_
 
 @router.post("/api/authorized-numbers")
 async def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):
-    """ط¥ط¶ط§ظپط© ط±ظ‚ظ… ط¬ط¯ظٹط¯"""
+    """إضافة رقم جديد"""
     success = add_authorized_number(user["id"], payload.phone_number, payload.label)
     if success:
-        return {"status": "success", "message": "طھظ… ط¥ط¶ط§ظپط© ط§ظ„ط±ظ‚ظ… ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط¥ط¶ط§ظپط©"}
+        return {"status": "success", "message": "تم إضافة الرقم بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الإضافة"}
 
 @router.delete("/api/authorized-numbers/{record_id}")
 async def api_delete_authorized_number(record_id: str, user: dict = Depends(verify_merchant)):
-    """ط­ط°ظپ ط±ظ‚ظ…"""
+    """حذف رقم"""
     success = delete_authorized_number(user["id"], record_id)
     if success:
-        return {"status": "success", "message": "طھظ… ط­ط°ظپ ط§ظ„ط±ظ‚ظ… ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط­ط°ظپ"}
+        return {"status": "success", "message": "تم حذف الرقم بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
 
 @router.post("/api/authorized-numbers/settings")
 async def api_update_allow_all(payload: AllowAllRequest, user: dict = Depends(verify_merchant)):
