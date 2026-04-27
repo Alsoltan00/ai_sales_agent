@@ -149,6 +149,8 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
+from merchant.ai_training.ai_config import get_ai_config, update_ai_config, get_all_ai_configs, activate_ai_model
+
 # --- AI Training ---
 
 class AIConfigRequest(BaseModel):
@@ -160,17 +162,31 @@ class AIConfigRequest(BaseModel):
 
 @router.get("/ai-training", response_class=HTMLResponse)
 async def ai_training_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط°ظƒط§ط، ط§ظ„ط§طµط·ظ†ط§ط¹ظٹ"""
+    """صفحة إعدادات الذكاء الاصطناعي"""
     ai_config = get_ai_config(user["id"])
-    return templates.TemplateResponse("merchant/ai_training.html", {"request": request, "user": user, "ai_config": ai_config})
+    all_models = get_all_ai_configs(user["id"])
+    return templates.TemplateResponse("merchant/ai_training.html", {
+        "request": request, 
+        "user": user, 
+        "ai_config": ai_config,
+        "all_models": all_models
+    })
 
 @router.post("/api/ai-training")
 async def api_update_ai_training(payload: AIConfigRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ†ظ…ظˆط°ط¬"""
+    """تحديث إعدادات النموذج (إضافة نموذج جديد)"""
     success = update_ai_config(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "تم حفظ إعدادات النموذج بنجاح"}
+        return {"status": "success", "message": "تم حفظ وإضافة النموذج بنجاح وهو الآن النشط"}
     return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
+
+@router.post("/api/ai-training/activate/{model_id_pk}")
+async def api_activate_ai_model(model_id_pk: str, user: dict = Depends(verify_merchant)):
+    """تفعيل نموذج محفوظ سابقاً"""
+    success = activate_ai_model(user["id"], model_id_pk)
+    if success:
+        return {"status": "success", "message": "تم تفعيل النموذج بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}
 
 class AITestRequest(BaseModel):
     model_config = {'protected_namespaces': ()}

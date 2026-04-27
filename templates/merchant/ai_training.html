@@ -248,9 +248,53 @@
                 <div id="testResponse" class="test-response"></div>
             </form>
         </div>
+
+        {% if all_models %}
+        <div class="card" style="margin-top: 30px;">
+            <h2 class="card-title"><i class="fa-solid fa-list-check"></i> النماذج المحفوظة</h2>
+            <div class="models-list" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                {% for model in all_models %}
+                <div style="padding: 15px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: space-between; align-items: center; background: {% if model.is_active %}rgba(34, 197, 94, 0.1){% else %}rgba(255,255,255,0.02){% endif %};">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; font-size: 1.1rem; color: #fff;">{{ model.model_name }} <span style="font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.1);">{{ model.provider }}</span></h3>
+                        <p style="margin: 0; font-size: 0.85rem; color: rgba(255,255,255,0.6);">المعرف: <span dir="ltr">{{ model.model_id }}</span></p>
+                    </div>
+                    <div>
+                        {% if model.is_active %}
+                        <span style="color: #4ade80; font-weight: bold; padding: 8px 15px; border-radius: 8px; background: rgba(34, 197, 94, 0.2);"><i class="fa-solid fa-check"></i> مفعل حالياً</span>
+                        {% else %}
+                        <button onclick="activateModel('{{ model.id }}')" style="padding: 8px 15px; border-radius: 8px; background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; transition: 0.3s; font-family: inherit; font-weight: bold;">
+                            تفعيل هذا النموذج
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </main>
 
     <script>
+        async function activateModel(modelId) {
+            try {
+                const response = await fetch(`/merchant/api/ai-training/activate/${modelId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                alert('حدث خطأ في الاتصال بالخادم');
+            }
+        }
+
         function updateModels() {
             const provider = document.getElementById('provider').value;
             const modelNameInput = document.getElementById('model_name');

@@ -1,32 +1,54 @@
-﻿from database.db_client import get_supabase_client
+from database.db_client import get_supabase_client
 
 def get_ai_config(client_id: str) -> dict:
-    """ط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط°ظƒط§ط، ط§ظ„ط§طµط·ظ†ط§ط¹ظٹ (ط§ظ„ظ†ظ…ظˆط°ط¬ ظˆظ…ظپطھط§ط­ API)"""
+    """جلب إعدادات الذكاء الاصطناعي النشطة حاليا"""
     supabase = get_supabase_client()
     try:
-        res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).single().execute()
-        return res.data if res.data else {}
+        res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
+        return res.data[0] if res.data else {}
     except Exception as e:
-        print(f"Error fetching AI config: {e}")
+        print(f"Error fetching active AI config: {e}")
         return {}
 
-def update_ai_config(client_id: str, data: dict) -> bool:
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ط°ظƒط§ط، ط§ظ„ط§طµط·ظ†ط§ط¹ظٹ"""
+def get_all_ai_configs(client_id: str) -> list:
+    """جلب جميع النماذج المحفوظة للتاجر"""
     supabase = get_supabase_client()
     try:
-        # Check if config exists
-        existing = get_ai_config(client_id)
-        
+        res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).execute()
+        return res.data if res.data else []
+    except Exception as e:
+        print(f"Error fetching all AI configs: {e}")
+        return []
+
+def update_ai_config(client_id: str, data: dict) -> bool:
+    """إضافة نموذج جديد وجعله النشط، وإلغاء تنشيط البقية"""
+    supabase = get_supabase_client()
+    try:
         allowed_fields = ["model_name", "provider", "api_key", "model_id"]
-        update_data = {k: v for k, v in data.items() if k in allowed_fields}
-        update_data["client_id"] = client_id
+        insert_data = {k: v for k, v in data.items() if k in allowed_fields}
+        insert_data["client_id"] = client_id
+        insert_data["is_active"] = True # Make the new one active by default
         
-        if existing:
-            supabase.table("ai_models_config").update(update_data).eq("client_id", client_id).execute()
-        else:
-            supabase.table("ai_models_config").insert(update_data).execute()
+        # Deactivate all existing models for this client
+        supabase.table("ai_models_config").update({"is_active": False}).eq("client_id", client_id).execute()
+        
+        # Insert the new model
+        supabase.table("ai_models_config").insert(insert_data).execute()
             
         return True
     except Exception as e:
-        print(f"Error updating AI config: {e}")
+        print(f"Error adding AI config: {e}")
+        return False
+
+def activate_ai_model(client_id: str, model_id_pk: str) -> bool:
+    """تنشيط نموذج معين بناء على الـ ID الخاص بالصف في الداتابيز وإلغاء تنشيط البقية"""
+    supabase = get_supabase_client()
+    try:
+        # Deactivate all
+        supabase.table("ai_models_config").update({"is_active": False}).eq("client_id", client_id).execute()
+        # Activate specific one
+        supabase.table("ai_models_config").update({"is_active": True}).eq("id", model_id_pk).eq("client_id", client_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error activating model: {e}")
         return False
