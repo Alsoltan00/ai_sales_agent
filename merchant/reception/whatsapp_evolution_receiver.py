@@ -94,16 +94,28 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         phone       = key.get("remoteJid", "")
         msg_content = data.get("message", {})
-        
-        # 1. جلب النص (إذا كانت رسالة نصية)
-        text        = (
-            msg_content.get("conversation") or
-            msg_content.get("extendedTextMessage", {}).get("text") or
-            ""
-        )
+
+        # التحقق من نوع الرسالة
+        msg_type = "text"
+        if "audioMessage" in msg_content:
+            msg_type = "audio"
+        elif "imageMessage" in msg_content:
+            msg_type = "image"
+        elif "videoMessage" in msg_content:
+            msg_type = "video"
+
+        # استخراج النص أو الرسالة الصوتية
+        text = ""
+        if msg_type == "text":
+            text = msg_content.get("conversation") or \
+                   msg_content.get("extendedTextMessage", {}).get("text") or ""
+        else:
+            # للرسائل غير النصية، نأخذ الوصف (Caption) فقط إذا وجد
+            text = msg_content.get("imageMessage", {}).get("caption") or \
+                   msg_content.get("videoMessage", {}).get("caption") or ""
 
         # 2. معالجة الرسائل الصوتية (إذا وجدت)
-        if "audioMessage" in msg_content and not text:
+        if msg_type == "audio":
             print(f"[DEBUG] Audio message detected from {phone}. Downloading...")
             cfg = _find_client_by_instance(instance_name)
             if cfg:
@@ -118,10 +130,7 @@ async def evolution_webhook(instance_name: str, request: Request):
 
                 if groq_key:
                     try:
-                        # الرابط الصحيح والمؤكد لنسخة Evolution API v2.3.*
                         fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/getBase64FromMediaMessage/{instance_name}"
-                        
-                        # نرسل معرف الرسالة (Message Key ID) كما يطلب التوثيق
                         msg_id = key.get("id")
                         media_payload = {
                             "message": {
@@ -133,13 +142,12 @@ async def evolution_webhook(instance_name: str, request: Request):
                         }
                         headers = {"apikey": cfg["evolution_api_key"]}
                         
-                        print(f"[DEBUG] Calling confirmed Evolution endpoint: {fetch_url}")
+                        print(f"[DEBUG] Calling Evolution getBase64FromMediaMessage: {fetch_url}")
                         async with httpx.AsyncClient() as client:
                             media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=25)
                             
                             if media_res.status_code == 200:
                                 media_data = media_res.json()
-                                # هذا الرابط يعيد ملف base64 مباشرة
                                 b64_audio = media_data.get("base64")
                                 
                                 if b64_audio:
@@ -149,17 +157,17 @@ async def evolution_webhook(instance_name: str, request: Request):
                                         
                                     audio_bytes = base64.b64decode(b64_audio)
                                     print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
+                                    # تحويل الصوت لنص وتخزينه في متغير text
                                     text = await transcribe_audio(audio_bytes, groq_key)
                                     print(f"[VOICE] Transcribed Text: {text}")
                                 else:
-                                    print("[DEBUG] getBase64FromMediaMessage returned 200 but no base64 field found")
+                                    print("[DEBUG] No base64 field found in media response")
                             else:
-                                print(f"[DEBUG] getBase64FromMediaMessage failed with status: {media_res.status_code}, Body: {media_res.text}")
-                            
+                                print(f"[DEBUG] Media fetch failed: {media_res.status_code}")
                     except Exception as ve:
                         print(f"[VOICE ERROR] Exception during audio processing: {ve}")
                 else:
-                    print("[DEBUG] Skipping audio because Groq is not the active provider or Key is missing")
+                    print("[DEBUG] Skipping audio because Groq key is missing or provider is not groq")
         
         print(f"[DEBUG] Final Message text from {phone}: {text}")
 
