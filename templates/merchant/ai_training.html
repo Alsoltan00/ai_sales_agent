@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -114,6 +114,54 @@
         .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
         .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
 
+        .btn-test {
+            padding: 15px 25px;
+            background: rgba(6,182,212,0.15);
+            color: #22d3ee;
+            border: 1px solid rgba(6,182,212,0.3);
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-left: 12px;
+        }
+        .btn-test:hover { background: rgba(6,182,212,0.25); transform: translateY(-2px); }
+        .btn-test:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .model-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: none;
+        }
+        .model-status.ok { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.25); }
+        .model-status.fail { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+
+        .test-response {
+            margin-top: 15px;
+            padding: 18px;
+            background: rgba(15,23,42,0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            font-size: 0.88rem;
+            color: #94a3b8;
+            line-height: 1.7;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
+            direction: auto;
+        }
+
     </style>
 </head>
 <body>
@@ -127,6 +175,7 @@
             <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
             <a href="/merchant/ai-training" class="nav-item active"><i class="fa-solid fa-microchip"></i> تدريب الذكاء الاصطناعي</a>
             <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+                        <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
             <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
         </div>
         <div class="user-info">
@@ -186,9 +235,17 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn" id="saveBtn">
-                    <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات النموذج
-                </button>
+                <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 0;">
+                    <button type="button" class="btn-test" id="testBtn" onclick="testModel()">
+                        <i class="fa-solid fa-flask"></i> اختبار النموذج
+                    </button>
+                    <button type="submit" class="btn" id="saveBtn">
+                        <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات النموذج
+                    </button>
+                </div>
+
+                <div id="modelStatus" class="model-status"></div>
+                <div id="testResponse" class="test-response"></div>
             </form>
         </div>
     </main>
@@ -214,6 +271,57 @@
         // If it's a new config, set default based on first option
         if (!document.getElementById('model_id').value) {
             updateModels();
+        }
+
+        async function testModel() {
+            const btn = document.getElementById('testBtn');
+            const statusDiv = document.getElementById('modelStatus');
+            const responseDiv = document.getElementById('testResponse');
+
+            const payload = {
+                provider: document.getElementById('provider').value,
+                model_id: document.getElementById('model_id').value,
+                api_key: document.getElementById('api_key').value
+            };
+
+            if (!payload.api_key || !payload.model_id) {
+                statusDiv.className = 'model-status fail';
+                statusDiv.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> يرجى إدخال جميع الحقول أولاً';
+                statusDiv.style.display = 'flex';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الاختبار...';
+            statusDiv.style.display = 'none';
+            responseDiv.style.display = 'none';
+
+            try {
+                const res = await fetch('/merchant/api/ai-training/test', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    statusDiv.className = 'model-status ok';
+                    statusDiv.innerHTML = '<i class="fa-solid fa-circle-check"></i> النموذج يعمل بشكل صحيح — رد الذكاء:';
+                    responseDiv.style.display = 'block';
+                    responseDiv.textContent = data.response;
+                } else {
+                    statusDiv.className = 'model-status fail';
+                    statusDiv.innerHTML = `<i class="fa-solid fa-circle-xmark"></i> فشل الاختبار: ${data.message}`;
+                }
+                statusDiv.style.display = 'flex';
+            } catch(err) {
+                statusDiv.className = 'model-status fail';
+                statusDiv.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> حدث خطأ في الاتصال';
+                statusDiv.style.display = 'flex';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-flask"></i> اختبار النموذج';
+            }
         }
 
         async function saveAIConfig(e) {

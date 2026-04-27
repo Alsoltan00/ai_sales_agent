@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -139,6 +139,7 @@
             <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
             <a href="/merchant/ai-training" class="nav-item"><i class="fa-solid fa-microchip"></i> تدريب الذكاء الاصطناعي</a>
             <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+                        <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
             <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
         </div>
         <div class="user-info">
@@ -199,6 +200,35 @@
                 </button>
             </form>
         </div>
+
+        <!-- Password Change Section -->
+        <div class="glass-panel" style="margin-top: 30px; border-color: rgba(239,68,68,0.2);">
+            <div id="passAlertBox" class="alert"></div>
+            <h3 style="margin-bottom: 5px; display:flex; align-items:center; gap:10px;">
+                <i class="fa-solid fa-lock" style="color:#f87171;"></i> تغيير كلمة المرور
+            </h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">لحماية حسابك، تأكد من استخدام كلمة مرور قوية.</p>
+
+            <form id="passForm" onsubmit="changePassword(event)">
+                <div class="form-group">
+                    <label class="label">كلمة المرور الجديدة</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="new_password" class="input" placeholder="أدخل كلمة مرور قوية" minlength="6" required dir="ltr">
+                        <i class="fa-solid fa-key"></i>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="label">تأكيد كلمة المرور</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="confirm_password" class="input" placeholder="أعد إدخال كلمة المرور" minlength="6" required dir="ltr">
+                        <i class="fa-solid fa-check-double"></i>
+                    </div>
+                </div>
+                <button type="submit" class="btn" id="passBtn" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <i class="fa-solid fa-lock"></i> تحديث كلمة المرور
+                </button>
+            </form>
+        </div>
     </main>
 
     <script>
@@ -206,18 +236,15 @@
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
             const alertBox = document.getElementById('alertBox');
-            
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
             alertBox.style.display = 'none';
-
             const payload = {
                 company_name: document.getElementById('company_name').value,
                 contact_number: document.getElementById('contact_number').value,
                 email: document.getElementById('email').value,
                 store_url: document.getElementById('store_url').value
             };
-
             try {
                 const res = await fetch('/merchant/api/store', {
                     method: 'POST',
@@ -225,7 +252,6 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                
                 alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
                 alertBox.innerText = data.message;
                 alertBox.style.display = 'block';
@@ -236,6 +262,45 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات';
+            }
+        }
+
+        async function changePassword(e) {
+            e.preventDefault();
+            const btn = document.getElementById('passBtn');
+            const alertBox = document.getElementById('passAlertBox');
+            const newPass = document.getElementById('new_password').value;
+            const confirmPass = document.getElementById('confirm_password').value;
+
+            if (newPass !== confirmPass) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'كلمتا المرور غير متطابقتين!';
+                alertBox.style.display = 'block';
+                return;
+            }
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحديث...';
+            alertBox.style.display = 'none';
+            try {
+                const res = await fetch('/merchant/api/store/password', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ new_password: newPass })
+                });
+                const data = await res.json();
+                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+                if (data.status === 'success') {
+                    document.getElementById('passForm').reset();
+                }
+            } catch(err) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'حدث خطأ في الاتصال';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-lock"></i> تحديث كلمة المرور';
             }
         }
     </script>

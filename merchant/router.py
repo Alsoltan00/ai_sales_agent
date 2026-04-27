@@ -49,8 +49,25 @@ async def api_update_store(payload: StoreSettingsRequest, user: dict = Depends(v
     """طھط­ط¯ظٹط« ط¨ظٹط§ظ†ط§طھ ط§ظ„ظ…طھط¬ط±"""
     success = update_store_settings(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "طھظ… طھط­ط¯ظٹط« ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„طھط­ط¯ظٹط«"}
+        return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
+
+class PasswordChangeRequest(BaseModel):
+    new_password: str
+
+@router.post("/api/store/password")
+async def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(verify_merchant)):
+    """تغيير كلمة مرور التاجر"""
+    import hashlib
+    if len(payload.new_password) < 6:
+        return {"status": "error", "message": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}
+    hashed = hashlib.sha256(payload.new_password.encode()).hexdigest()
+    supabase = get_supabase_client()
+    try:
+        supabase.table("clients").update({"password_hash": hashed}).eq("id", user["id"]).execute()
+        return {"status": "success", "message": "تم تحديث كلمة المرور بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 # --- Planning ---
 
@@ -70,8 +87,67 @@ async def api_update_planning(payload: PlanningRequest, user: dict = Depends(ver
     """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„طھط®ط·ظٹط·"""
     success = update_planning_config(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "طھظ… طھط­ط¯ظٹط« ط¨ظٹط§ظ†ط§طھ ط§ظ„طھط®ط·ظٹط· ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„طھط­ط¯ظٹط«"}
+        return {"status": "success", "message": "تم تحديث بيانات التخطيط بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
+
+@router.get("/api/planning/columns")
+async def api_get_columns(user: dict = Depends(verify_merchant)):
+    """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
+    supabase = get_supabase_client()
+    try:
+        # جلب البيانات المخزنة
+        data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
+        if not data_res.data or not data_res.data.get("data"):
+            return {"columns": []}
+        rows = data_res.data["data"]
+        if not rows:
+            return {"columns": []}
+        col_names = list(rows[0].keys()) if rows else []
+
+        # جلب إعدادات التدريب المحفوظة
+        saved_res = supabase.table("column_training").select("*").eq("client_id", user["id"]).execute()
+        saved_map = {r["column_name"]: r for r in (saved_res.data or [])}
+
+        columns = [{
+            "name": c,
+            "note": saved_map.get(c, {}).get("note", ""),
+            "is_disabled": saved_map.get(c, {}).get("is_disabled", False)
+        } for c in col_names]
+        return {"columns": columns}
+    except Exception as e:
+        return {"columns": []}
+
+class ColumnTrainingItem(BaseModel):
+    column_name: str
+    note: str = ""
+    is_disabled: bool = False
+
+class ColumnTrainingRequest(BaseModel):
+    columns: list[ColumnTrainingItem]
+
+@router.post("/api/planning/columns")
+async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
+    """حفظ إعدادات الأعمدة"""
+    supabase = get_supabase_client()
+    try:
+        for col in payload.columns:
+            # جرب تحديث أولاً، ثم إدراج إذا لم يوجد
+            existing = supabase.table("column_training").select("id").eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
+            if existing.data:
+                supabase.table("column_training").update({
+                    "note": col.note,
+                    "is_disabled": col.is_disabled
+                }).eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
+            else:
+                supabase.table("column_training").insert({
+                    "client_id": user["id"],
+                    "column_name": col.column_name,
+                    "note": col.note,
+                    "is_disabled": col.is_disabled
+                }).execute()
+        return {"status": "success", "message": "تم حفظ إعدادات الأعمدة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 # --- AI Training ---
 
@@ -93,8 +169,60 @@ async def api_update_ai_training(payload: AIConfigRequest, user: dict = Depends(
     """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ†ظ…ظˆط°ط¬"""
     success = update_ai_config(user["id"], payload.model_dump())
     if success:
-        return {"status": "success", "message": "طھظ… ط­ظپط¸ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ†ظ…ظˆط°ط¬ ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط­ظپط¸"}
+        return {"status": "success", "message": "تم حفظ إعدادات النموذج بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
+
+class AITestRequest(BaseModel):
+    model_config = {'protected_namespaces': ()}
+    provider: str
+    model_id: str
+    api_key: str
+
+@router.post("/api/ai-training/test")
+async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_merchant)):
+    """اختبار نموذج الذكاء الاصطناعي قبل الحفظ"""
+    import httpx
+    test_prompt = "قل مرحباً بجملة واحدة فقط."
+    try:
+        if payload.provider == "openai":
+            url = "https://api.openai.com/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {payload.api_key}", "Content-Type": "application/json"}
+            body = {"model": payload.model_id, "messages": [{"role": "user", "content": test_prompt}], "max_tokens": 50}
+            async with httpx.AsyncClient(timeout=15) as client:
+                res = await client.post(url, headers=headers, json=body)
+            data = res.json()
+            if "error" in data:
+                return {"status": "error", "message": data["error"].get("message", "خطأ غير معروف")}
+            reply = data["choices"][0]["message"]["content"]
+            return {"status": "success", "response": reply}
+
+        elif payload.provider == "anthropic":
+            url = "https://api.anthropic.com/v1/messages"
+            headers = {"x-api-key": payload.api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+            body = {"model": payload.model_id, "max_tokens": 50, "messages": [{"role": "user", "content": test_prompt}]}
+            async with httpx.AsyncClient(timeout=15) as client:
+                res = await client.post(url, headers=headers, json=body)
+            data = res.json()
+            if "error" in data:
+                return {"status": "error", "message": data["error"].get("message", "خطأ")}
+            reply = data["content"][0]["text"]
+            return {"status": "success", "response": reply}
+
+        elif payload.provider == "groq":
+            url = "https://api.groq.com/openai/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {payload.api_key}", "Content-Type": "application/json"}
+            body = {"model": payload.model_id, "messages": [{"role": "user", "content": test_prompt}], "max_tokens": 50}
+            async with httpx.AsyncClient(timeout=15) as client:
+                res = await client.post(url, headers=headers, json=body)
+            data = res.json()
+            if "error" in data:
+                return {"status": "error", "message": str(data["error"])}
+            reply = data["choices"][0]["message"]["content"]
+            return {"status": "success", "response": reply}
+        else:
+            return {"status": "error", "message": "مزود الخدمة غير معروف"}
+    except Exception as e:
+        return {"status": "error", "message": f"فشل الاتصال بالنموذج: {str(e)}"}
 
 # --- Data Sync ---
 
@@ -233,8 +361,33 @@ async def api_delete_authorized_number(record_id: str, user: dict = Depends(veri
 
 @router.post("/api/authorized-numbers/settings")
 async def api_update_allow_all(payload: AllowAllRequest, user: dict = Depends(verify_merchant)):
-    """طھط­ط¯ظٹط« ط®ظٹط§ط± ط§ظ„ط³ظ…ط§ط­ ظ„ظ„ط¬ظ…ظٹط¹"""
+    """تحديث خيار السماح للجميع"""
     success = set_allow_all(user["id"], payload.allow_all)
     if success:
-        return {"status": "success", "message": "طھظ… طھط­ط¯ظٹط« ط§ظ„ط¥ط¹ط¯ط§ط¯ط§طھ ط¨ظ†ط¬ط§ط­"}
-    return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„طھط­ط¯ظٹط«"}
+        return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
+
+# --- Data Display View ---
+
+@router.get("/data-view", response_class=HTMLResponse)
+async def data_view_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة عرض البيانات المزامنة"""
+    return templates.TemplateResponse("merchant/data_display.html", {"request": request, "user": user})
+
+@router.get("/api/data-view")
+async def api_get_data_view(user: dict = Depends(verify_merchant)):
+    """جلب البيانات المزامنة للعرض"""
+    supabase = get_supabase_client()
+    try:
+        # جلب البيانات اليدوية (Excel/CSV)
+        data_res = supabase.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute()
+        if data_res.data and data_res.data.get("data"):
+            rows = data_res.data["data"]
+            return {"status": "ok", "data": rows, "source_type": "excel"}
+
+        # جلب إعدادات المزامنة لمعرفة المصدر
+        sync_res = supabase.table("sync_config").select("source_type").eq("client_id", user["id"]).single().execute()
+        source = sync_res.data.get("source_type", "") if sync_res.data else ""
+        return {"status": "no_data", "data": [], "source_type": source}
+    except Exception as e:
+        return {"status": "no_data", "data": [], "source_type": ""}

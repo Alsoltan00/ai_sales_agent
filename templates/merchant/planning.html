@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -129,6 +129,93 @@
         .info-card i { color: var(--primary); font-size: 1.5rem; margin-top: 3px; }
         .info-card p { color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; }
 
+        /* Column Training */
+        .section-title {
+            font-size: 1.2rem; font-weight: 700; margin-bottom: 5px;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .section-title i { color: var(--primary); }
+        .section-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 25px; }
+
+        .column-card {
+            background: rgba(15,23,42,0.5);
+            border: 1px solid var(--glass-border);
+            border-radius: 14px;
+            padding: 18px 22px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 18px;
+            transition: 0.3s;
+        }
+        .column-card:hover { border-color: rgba(168,85,247,0.3); }
+        .column-card.disabled { opacity: 0.5; }
+
+        .col-name {
+            font-weight: 700; font-size: 0.95rem; color: white;
+            background: rgba(168,85,247,0.12);
+            border: 1px solid rgba(168,85,247,0.25);
+            border-radius: 8px;
+            padding: 5px 14px;
+            white-space: nowrap;
+            min-width: 120px;
+            text-align: center;
+        }
+        .col-body { flex: 1; }
+        .col-note {
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(15,23,42,0.7);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: white;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: 0.3s;
+            resize: none;
+            margin-top: 8px;
+        }
+        .col-note:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
+        .col-note::placeholder { color: #475569; }
+
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
+        .toggle {
+            position: relative; width: 40px; height: 22px; cursor: pointer;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute; inset: 0; background: #334155;
+            border-radius: 999px; transition: 0.3s;
+        }
+        .slider::before {
+            content: ''; position: absolute;
+            width: 16px; height: 16px;
+            left: 3px; bottom: 3px;
+            background: white; border-radius: 50%; transition: 0.3s;
+        }
+        .toggle input:checked + .slider { background: #ef4444; }
+        .toggle input:checked + .slider::before { transform: translateX(18px); }
+
+        .col-empty {
+            text-align: center; padding: 40px;
+            color: var(--text-muted); font-size: 0.9rem;
+        }
+        .col-empty i { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: 0.4; }
+
+        .btn-save-cols {
+            padding: 13px 28px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
+            color: white; border: none; border-radius: 12px;
+            font-size: 0.95rem; font-weight: 700; font-family: inherit;
+            cursor: pointer; transition: 0.3s; display: inline-flex;
+            align-items: center; gap: 8px; margin-top: 20px;
+        }
+        .btn-save-cols:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -8px var(--primary); }
+        .alert-cols { padding: 14px; border-radius: 10px; margin-top: 15px; display: none; font-size: 0.9rem; }
+        .alert-cols.ok { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+        .alert-cols.err { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+
     </style>
 </head>
 <body>
@@ -142,6 +229,7 @@
             <a href="/merchant/planning" class="nav-item active"><i class="fa-solid fa-map"></i> التخطيط</a>
             <a href="/merchant/ai-training" class="nav-item"><i class="fa-solid fa-microchip"></i> تدريب الذكاء الاصطناعي</a>
             <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
+                        <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
             <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
         </div>
         <div class="user-info">
@@ -202,6 +290,20 @@
                 </button>
             </form>
         </div>
+
+        <!-- Column Training Section -->
+        <div class="glass-panel" style="margin-top: 30px;">
+            <div class="section-title"><i class="fa-solid fa-table-columns"></i> تدريب الأعمدة</div>
+            <div class="section-desc">خصص تعليماتك لكل عمود بيانات، واتحكم في ما يفكر به النموذج وما يتجاهله.</div>
+
+            <div id="colsAlertBox" class="alert-cols"></div>
+            <div id="colsContainer">
+                <div class="col-empty"><i class="fa-solid fa-table"></i>جاري تحميل الأعمدة...</div>
+            </div>
+            <button class="btn-save-cols" id="saveColsBtn" onclick="saveCols()" style="display:none;">
+                <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة
+            </button>
+        </div>
     </main>
 
     <script>
@@ -209,17 +311,14 @@
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
             const alertBox = document.getElementById('alertBox');
-            
             btn.disabled = true;
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
             alertBox.style.display = 'none';
-
             const payload = {
                 ai_agent_name: document.getElementById('ai_agent_name').value,
                 ai_tone: document.getElementById('ai_tone').value,
                 business_description: document.getElementById('business_description').value
             };
-
             try {
                 const res = await fetch('/merchant/api/planning', {
                     method: 'POST',
@@ -227,7 +326,6 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                
                 alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
                 alertBox.innerText = data.message;
                 alertBox.style.display = 'block';
@@ -240,6 +338,86 @@
                 btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> تحديث التخطيط';
             }
         }
+
+        // === Column Training ===
+        let currentCols = [];
+
+        async function loadColumns() {
+            const container = document.getElementById('colsContainer');
+            try {
+                const res = await fetch('/merchant/api/planning/columns');
+                const data = await res.json();
+                currentCols = data.columns || [];
+
+                if (!currentCols.length) {
+                    container.innerHTML = `<div class="col-empty"><i class="fa-solid fa-table"></i>لا توجد بيانات مزامنة حتى الآن. <a href="/merchant/data-sync" style="color:var(--primary)">إضافة مصدر</a></div>`;
+                    document.getElementById('saveColsBtn').style.display = 'none';
+                    return;
+                }
+
+                container.innerHTML = currentCols.map(col => `
+                    <div class="column-card ${col.is_disabled ? 'disabled' : ''}" id="card_${col.name}">
+                        <div class="col-name">${col.name}</div>
+                        <div class="col-body">
+                            <div class="toggle-wrap">
+                                <label class="toggle">
+                                    <input type="checkbox" id="dis_${col.name}" ${col.is_disabled ? 'checked' : ''}
+                                        onchange="toggleCard('${col.name}', this.checked)">
+                                    <span class="slider"></span>
+                                </label>
+                                إيقاف هذا العمود (لن يفكر به النموذج)
+                            </div>
+                            <textarea class="col-note" id="note_${col.name}" rows="2"
+                                placeholder="اكتب تعليمات للنموذج حول هذا العمود... مثال: هذا هو سعر البيع، اعطه أولوية عند الذكر">${col.note || ''}</textarea>
+                        </div>
+                    </div>`).join('');
+
+                document.getElementById('saveColsBtn').style.display = 'inline-flex';
+            } catch(err) {
+                container.innerHTML = '<div class="col-empty"><i class="fa-solid fa-triangle-exclamation"></i>حدث خطأ في جلب الأعمدة</div>';
+            }
+        }
+
+        function toggleCard(name, disabled) {
+            const card = document.getElementById('card_' + name);
+            if (disabled) card.classList.add('disabled');
+            else card.classList.remove('disabled');
+        }
+
+        async function saveCols() {
+            const btn = document.getElementById('saveColsBtn');
+            const alertBox = document.getElementById('colsAlertBox');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
+            alertBox.style.display = 'none';
+
+            const updates = currentCols.map(col => ({
+                column_name: col.name,
+                note: document.getElementById('note_' + col.name)?.value || '',
+                is_disabled: document.getElementById('dis_' + col.name)?.checked || false
+            }));
+
+            try {
+                const res = await fetch('/merchant/api/planning/columns', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ columns: updates })
+                });
+                const data = await res.json();
+                alertBox.className = `alert-cols ${data.status === 'success' ? 'ok' : 'err'}`;
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+            } catch(err) {
+                alertBox.className = 'alert-cols err';
+                alertBox.innerText = 'حدث خطأ في الاتصال';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة';
+            }
+        }
+
+        loadColumns();
     </script>
 </body>
 </html>
