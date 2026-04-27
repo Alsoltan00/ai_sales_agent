@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, Response
 from database.db_client import get_supabase_client
 from merchant.ai_engine import get_ai_response
 
-router = APIRouter(prefix="/webhook", tags=["WhatsApp Evolution Webhook"])
+router = APIRouter(tags=["WhatsApp Evolution Webhook"])
 
 
 def _find_client_by_instance(instance_name: str) -> dict | None:
