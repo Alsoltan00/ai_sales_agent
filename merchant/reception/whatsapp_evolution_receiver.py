@@ -118,35 +118,41 @@ async def evolution_webhook(instance_name: str, request: Request):
 
                 if groq_key:
                     try:
-                        # في نسخة v2 الحديثة، المسار غالباً يكون /instance/fetchMedia
-                        fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/instance/fetchMedia"
-                        media_payload = {"message": data}
-                        headers = {"apikey": cfg["evolution_api_key"]}
+                        # محاولة تجربة عدة مسارات شائعة لـ Evolution API
+                        endpoints = ["/message/fetchMedia", "/instance/fetchMedia", "/chat/fetchMedia"]
+                        success_download = False
                         
-                        print(f"[DEBUG] Calling Evolution fetchMedia: {fetch_url}")
-                        async with httpx.AsyncClient() as client:
-                            media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=20)
-                            print(f"[DEBUG] Evolution Media Response Status: {media_res.status_code}")
+                        for ep in endpoints:
+                            fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}{ep}"
+                            media_payload = {"message": data}
+                            headers = {"apikey": cfg["evolution_api_key"]}
                             
-                            if media_res.status_code == 200:
-                                media_data = media_res.json()
-                                # تجربة عدة حقول محتملة للـ base64
-                                b64_audio = media_data.get("base64") or media_data.get("data")
-                                
-                                if b64_audio:
-                                    import base64
-                                    # إذا كان النص يحتوي على بادئة مثل data:audio/ogg;base64,
-                                    if "," in str(b64_audio):
-                                        b64_audio = str(b64_audio).split(",")[1]
-                                        
-                                    audio_bytes = base64.b64decode(b64_audio)
-                                    print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
-                                    text = await transcribe_audio(audio_bytes, groq_key)
-                                    print(f"[VOICE] Transcribed Text: {text}")
+                            print(f"[DEBUG] Trying Evolution fetchMedia: {fetch_url}")
+                            async with httpx.AsyncClient() as client:
+                                media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=15)
+                                if media_res.status_code == 200:
+                                    print(f"[DEBUG] Success with endpoint: {ep}")
+                                    media_data = media_res.json()
+                                    b64_audio = media_data.get("base64") or media_data.get("data")
+                                    
+                                    if b64_audio:
+                                        import base64
+                                        if "," in str(b64_audio):
+                                            b64_audio = str(b64_audio).split(",")[1]
+                                        audio_bytes = base64.b64decode(b64_audio)
+                                        print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
+                                        text = await transcribe_audio(audio_bytes, groq_key)
+                                        print(f"[VOICE] Transcribed Text: {text}")
+                                        success_download = True
+                                        break
+                                    else:
+                                        print(f"[DEBUG] Endpoint {ep} returned 200 but no base64 data")
                                 else:
-                                    print("[DEBUG] No base64 data found in media response")
-                            else:
-                                print(f"[DEBUG] Media fetch failed: {media_res.text}")
+                                    print(f"[DEBUG] Endpoint {ep} failed with status: {media_res.status_code}")
+                        
+                        if not success_download:
+                            print("[DEBUG] All media fetch endpoints failed.")
+                            
                     except Exception as ve:
                         print(f"[VOICE ERROR] Exception during audio processing: {ve}")
                 else:
