@@ -118,8 +118,12 @@ async def evolution_webhook(instance_name: str, request: Request):
 
                 if groq_key:
                     try:
-                        # محاولة تجربة عدة مسارات شائعة لـ Evolution API
-                        endpoints = ["/message/fetchMedia", "/instance/fetchMedia", "/chat/fetchMedia"]
+                        # تجربة المسارات مع إضافة اسم الجلسة في الرابط (مطلوب في v2)
+                        endpoints = [
+                            f"/chat/fetchMedia/{instance_name}",
+                            f"/message/fetchMedia/{instance_name}",
+                            f"/instance/fetchMedia/{instance_name}"
+                        ]
                         success_download = False
                         
                         for ep in endpoints:
