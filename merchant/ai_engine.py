@@ -143,13 +143,15 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
 
 
 async def _call_google(api_key: str, model_id: str, user_message: str, system: str) -> str:
-    clean_model_id = model_id.strip()
+    clean_model_id = model_id.strip().lower()
+    clean_api_key = api_key.strip()
+    
     if not clean_model_id.startswith("models/"):
         full_model_name = f"models/{clean_model_id}"
     else:
         full_model_name = clean_model_id
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={clean_api_key}"
     headers = {"Content-Type": "application/json"}
     body = {
         "systemInstruction": {

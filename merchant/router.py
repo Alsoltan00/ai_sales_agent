@@ -238,13 +238,15 @@ async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_
 
         elif payload.provider == "google":
             # Ensure model_id is clean and handle v1beta
-            clean_model_id = payload.model_id.strip()
+            clean_model_id = payload.model_id.strip().lower()
+            api_key = payload.api_key.strip()
+            
             if not clean_model_id.startswith("models/"):
                 full_model_name = f"models/{clean_model_id}"
             else:
                 full_model_name = clean_model_id
             
-            url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={payload.api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={api_key}"
             headers = {"Content-Type": "application/json"}
             body = {
                 "contents": [{"parts": [{"text": test_prompt}]}],
