@@ -382,6 +382,40 @@ async def api_update_channels(payload: ChannelsConfigRequest, user: dict = Depen
         return {"status": "success", "message": "تم حفظ إعدادات القنوات بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
 
+@router.post("/api/channels/test-whatsapp")
+async def api_test_whatsapp(user: dict = Depends(verify_merchant)):
+    """اختبار إرسال رسالة واتساب تجريبية"""
+    from merchant.reception.whatsapp_evolution_receiver import _send_evolution_message
+    from merchant.channels.channels_config import get_channels_config
+    from merchant.authorized_numbers.auth_nums import get_authorized_numbers
+
+    # 1. جلب الإعدادات
+    cfg = get_channels_config(user["id"])
+    if not cfg or not cfg.get("evolution_api_url"):
+        return {"status": "error", "message": "يرجى حفظ إعدادات Evolution API أولاً"}
+
+    # 2. جلب أول رقم مصرح للإرسال له
+    numbers = get_authorized_numbers(user["id"])
+    if not numbers:
+        return {"status": "error", "message": "يرجى إضافة رقم واحد على الأقل في قائمة الأرقام المصرّحة ليتم إرسال التجربة له"}
+    
+    test_phone = numbers[0]["phone_number"]
+    test_msg = "🚀 تجربة ناجحة! السيرفر الخاص بك متصل الآن بـ Evolution API بشكل صحيح."
+
+    # 3. محاولة الإرسال
+    success = await _send_evolution_message(
+        cfg["evolution_api_url"],
+        cfg["evolution_api_key"],
+        cfg["evolution_instance_name"],
+        test_phone,
+        test_msg
+    )
+
+    if success:
+        return {"status": "success", "message": f"تم إرسال رسالة تجريبية بنجاح للرقم {test_phone}"}
+    else:
+        return {"status": "error", "message": "فشل الإرسال. تأكد من صحة الرابط، الـ API Key، واسم الجلسة."}
+
 # --- Authorized Numbers ---
 
 class AuthorizedNumberRequest(BaseModel):

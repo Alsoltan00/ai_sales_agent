@@ -268,6 +268,10 @@
                             <i class="fa-solid fa-mobile-screen"></i>
                         </div>
                     </div>
+                    
+                    <button type="button" class="btn" style="background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); margin-top: 10px;" id="testWaBtn" onclick="testWhatsApp()">
+                        <i class="fa-solid fa-paper-plane"></i> إرسال رسالة تجربة لرقمي المصرح
+                    </button>
                 </div>
 
                 <!-- Meta Official API Fields -->
@@ -400,6 +404,35 @@
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات وقفل التعديل';
+            }
+        }
+
+        async function testWhatsApp() {
+            const btn = document.getElementById('testWaBtn');
+            const alertBox = document.getElementById('alertBox');
+            const originalHtml = btn.innerHTML;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الإرسال...';
+            alertBox.style.display = 'none';
+
+            try {
+                const res = await fetch('/merchant/api/channels/test-whatsapp', { method: 'POST' });
+                const data = await res.json();
+                
+                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
+                alertBox.innerText = data.message;
+                alertBox.style.display = 'block';
+                
+                // Scroll to top to see alert
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch(err) {
+                alertBox.className = 'alert alert-error';
+                alertBox.innerText = 'حدث خطأ أثناء محاولة الإرسال';
+                alertBox.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             }
         }
     </script>
