@@ -3,7 +3,7 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
-async def get_ai_response(client_id: str, user_message: str, phone_number: str) -> str:
+async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown") -> str:
     """
     يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً
     """
@@ -104,7 +104,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
             response = await _call_openai(api_key, model_id, messages)
 
         # 6. تسجيل السجل
-        _log_message(supabase, client_id, user_message, response, phone_number)
+        _log_message(supabase, client_id, user_message, response, phone_number, channel)
         return response
 
     except Exception as e:
@@ -189,11 +189,11 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
             raise Exception("Unexpected Google API response format")
 
 
-def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str):
+def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution"):
     try:
         supabase.table("message_logs").insert({
             "client_id": client_id,
-            "channel": "unknown",
+            "channel": channel if channel != "unknown" else "whatsapp_evolution",
             "direction": "in",
             "phone_number": phone_number,
             "message_text": user_message,

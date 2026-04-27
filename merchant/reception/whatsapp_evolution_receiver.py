@@ -33,19 +33,28 @@ def _is_authorized(client_id: str, phone: str) -> bool:
         return False
 
 
-async def _send_evolution_message(api_url: str, api_key: str, instance_name: str, phone: str, text: str):
-    """ط¥ط±ط³ط§ظ„ ط±ط¯ ط¹ط¨ط± Evolution API"""
-    # Clean phone number
-    clean_phone = phone.replace("@s.whatsapp.net", "").replace("@c.us", "")
+async def _send_evolution_message(api_url: str, api_key: str, instance_name: str, phone: str, text: str) -> bool:
+    """إرسال رد عبر Evolution API"""
+    # تنظيف الرقم من أي إضافات مثل @s.whatsapp.net
+    clean_number = phone.split("@")[0]
+    
     url = f"{api_url.rstrip('/')}/message/sendText/{instance_name}"
     headers = {"apikey": api_key, "Content-Type": "application/json"}
     payload = {
-        "number": clean_phone,
-        "options": {"delay": 1200, "presence": "composing"},
+        "number": clean_number,
+        "options": {"delay": 1200, "presence": "composing", "linkPreview": False},
         "textMessage": {"text": text}
     }
-    async with httpx.AsyncClient() as client:
-        await client.post(url, headers=headers, json=payload, timeout=15)
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(url, json=payload, headers=headers, timeout=15)
+            if res.status_code >= 400:
+                print(f"[EVOLUTION ERROR] Status: {res.status_code}, Body: {res.text}")
+                return False
+            return True
+    except Exception as e:
+        print(f"[SEND ERROR] Failed to call Evolution API: {e}")
+        return False
 
 
 @router.post("/whatsapp/evolution/{instance_name}")
@@ -97,12 +106,15 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # توليد الرد
         print(f"[AI] Calling AI for client {client_id}...")
-        ai_reply = await get_ai_response(client_id, text, phone)
+        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution")
         print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد
-        await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
-        print(f"[SUCCESS] Message sent to {phone}")
+        status = await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
+        if status:
+            print(f"[SUCCESS] Message sent to {phone}")
+        else:
+            print(f"[ERROR] Evolution API rejected the message to {phone}")
 
     except Exception as e:
         print(f"[CRITICAL ERROR] Evolution webhook error: {e}")
