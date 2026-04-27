@@ -146,5 +146,8 @@ def get_db_client():
         _db_client_instance = DBClient()
     return _db_client_instance
 
+def get_db_engine():
+    return engine
+
 # للأكواد القديمة التي كانت تستدعي get_supabase_client
 get_supabase_client = get_db_client
