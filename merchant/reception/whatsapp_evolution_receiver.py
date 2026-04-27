@@ -94,18 +94,54 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         phone       = key.get("remoteJid", "")
         msg_content = data.get("message", {})
+        
+        # 1. جلب النص (إذا كانت رسالة نصية)
         text        = (
             msg_content.get("conversation") or
             msg_content.get("extendedTextMessage", {}).get("text") or
             ""
         )
 
-        print(f"[DEBUG] Message from {phone}: {text}")
+        # 2. معالجة الرسائل الصوتية (إذا وجدت)
+        if "audioMessage" in msg_content and not text:
+            print(f"[DEBUG] Audio message detected from {phone}. Downloading...")
+            cfg = _find_client_by_instance(instance_name)
+            if cfg:
+                from utils.transcriber import transcribe_audio
+                from merchant.ai_training.ai_config import get_ai_config
+                
+                # جلب API Key الخاص بـ Groq من إعدادات الذكاء الاصطناعي للتاجر
+                ai_cfg = get_ai_config(cfg["client_id"])
+                groq_key = ai_cfg.get("api_key") if ai_cfg and ai_cfg.get("provider") == "groq" else None
+                
+                if groq_key:
+                    # تحميل الملف الصوتي من Evolution
+                    try:
+                        fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/fetchMedia"
+                        media_payload = {"message": data}
+                        headers = {"apikey": cfg["evolution_api_key"]}
+                        
+                        async with httpx.AsyncClient() as client:
+                            media_res = await client.post(fetch_url, json=media_payload, headers=headers)
+                            if media_res.status_code == 200:
+                                # Evolution v2 يعيد الملف كـ base64 أو رابط، سنحاول التعامل مع الاستجابة
+                                media_data = media_res.json()
+                                # إذا كان base64 (وهو الغالب في النسخ الحديثة عند التحويل)
+                                b64_audio = media_data.get("base64")
+                                if b64_audio:
+                                    import base64
+                                    audio_bytes = base64.b64decode(b64_audio)
+                                    text = await transcribe_audio(audio_bytes, groq_key)
+                                    print(f"[VOICE] Transcribed: {text}")
+                    except Exception as ve:
+                        print(f"[VOICE ERROR] Failed to process audio: {ve}")
+        
+        print(f"[DEBUG] Final Message text from {phone}: {text}")
 
         if not text or not phone:
             return Response(status_code=200)
 
-        # البحث عن التاجر
+        # البحث عن التاجر (إذا لم يتم البحث عنه سابقاً)
         cfg = _find_client_by_instance(instance_name)
         if not cfg:
             print(f"[ERROR] No client found for instance: {instance_name}")
@@ -133,6 +169,8 @@ async def evolution_webhook(instance_name: str, request: Request):
             print(f"[ERROR] Evolution API rejected the message to {phone}")
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"[CRITICAL ERROR] Evolution webhook error: {e}")
 
     return Response(status_code=200)
