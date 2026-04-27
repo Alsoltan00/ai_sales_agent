@@ -1,4 +1,4 @@
-﻿from database.db_client import get_supabase_client
+from database.db_client import get_supabase_client
 
 def get_authorized_numbers(client_id: str) -> list:
     """ط¬ظ„ط¨ ط¬ظ…ظٹط¹ ط§ظ„ط£ط±ظ‚ط§ظ… ط§ظ„ظ…طµط±ط­ط© ظ„ط¹ظ…ظٹظ„ ظ…ط¹ظٹظ†"""
@@ -53,3 +53,23 @@ def get_allow_all_status(client_id: str) -> bool:
         return res.data.get("allow_all_numbers", False) if res.data else False
     except:
         return False
+
+def set_ignore_groups(client_id: str, ignore: bool) -> bool:
+    """تفعيل أو تعطيل تجاهل المجموعات"""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("clients").update({"ignore_groups": ignore}).eq("id", client_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error setting ignore_groups: {e}")
+        return False
+
+def get_ignore_groups_status(client_id: str) -> bool:
+    supabase = get_supabase_client()
+    try:
+        res = supabase.table("clients").select("ignore_groups").eq("id", client_id).single().execute()
+        # Default to True for safety if not set
+        val = res.data.get("ignore_groups")
+        return val if val is not None else True
+    except:
+        return True

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
@@ -182,6 +182,20 @@
             </div>
         </div>
 
+        <!-- Ignore Groups Toggle -->
+        <div class="glass-panel">
+            <div class="toggle-row">
+                <div>
+                    <strong style="font-size: 1.1rem;">تجاهل المجموعات</strong>
+                    <p>عند التفعيل، لن يستجيب الوكيل للرسائل القادمة من المجموعات (Groups) وسيرد فقط على المحادثات الخاصة.</p>
+                </div>
+                <label class="toggle">
+                    <input type="checkbox" id="ignoreGroupsToggle" {% if ignore_groups %}checked{% endif %} onchange="updateIgnoreGroups(this.checked)">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
         <!-- Add Number -->
         <div class="glass-panel">
             <h3 style="margin-bottom: 20px;">إضافة رقم مصرح</h3>
@@ -247,6 +261,18 @@
                 });
             } catch(err) {
                 console.error('Error updating allow_all:', err);
+            }
+        }
+
+        async function updateIgnoreGroups(checked) {
+            try {
+                await fetch('/merchant/api/authorized-numbers/settings', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ ignore_groups: checked })
+                });
+            } catch(err) {
+                console.error('Error updating ignore_groups:', err);
             }
         }
 

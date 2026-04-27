@@ -428,13 +428,16 @@ class AllowAllRequest(BaseModel):
 @router.get("/authorized-numbers", response_class=HTMLResponse)
 async def authorized_numbers_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الأرقام المصرّحة"""
+    from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
     numbers = get_authorized_numbers(user["id"])
     allow_all = get_allow_all_status(user["id"])
+    ignore_groups = get_ignore_groups_status(user["id"])
     return templates.TemplateResponse("merchant/authorized_numbers.html", {
         "request": request, 
         "user": user, 
         "numbers": numbers,
-        "allow_all": allow_all
+        "allow_all": allow_all,
+        "ignore_groups": ignore_groups
     })
 
 @router.post("/api/authorized-numbers")
@@ -454,12 +457,17 @@ async def api_delete_authorized_number(record_id: str, user: dict = Depends(veri
     return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
 
 @router.post("/api/authorized-numbers/settings")
-async def api_update_allow_all(payload: AllowAllRequest, user: dict = Depends(verify_merchant)):
-    """تحديث خيار السماح للجميع"""
-    success = set_allow_all(user["id"], payload.allow_all)
-    if success:
-        return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
-    return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
+async def api_update_authorized_settings(payload: dict, user: dict = Depends(verify_merchant)):
+    """تحديث إعدادات الأرقام والمجموعات"""
+    from merchant.authorized_numbers import set_allow_all, set_ignore_groups
+    
+    if "allow_all" in payload:
+        set_allow_all(user["id"], payload["allow_all"])
+    
+    if "ignore_groups" in payload:
+        set_ignore_groups(user["id"], payload["ignore_groups"])
+        
+    return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
 
 # --- Data Display View ---
 
