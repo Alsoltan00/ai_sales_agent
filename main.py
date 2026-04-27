@@ -45,6 +45,11 @@ async def root_redirect():
     """توجيه الجذر إلى صفحة تسجيل الدخول"""
     return RedirectResponse(url="/login")
 
+@app.get("/health")
+async def health_check():
+    """مسار للتحقق من صحة الخادم (Render Health Check)"""
+    return {"status": "ok"}
+
 if __name__ == "__main__":
     print(f"Server is starting on {HOST}:{PORT}...")
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
