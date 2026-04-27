@@ -110,31 +110,46 @@ async def evolution_webhook(instance_name: str, request: Request):
                 from utils.transcriber import transcribe_audio
                 from merchant.ai_training.ai_config import get_ai_config
                 
-                # جلب API Key الخاص بـ Groq من إعدادات الذكاء الاصطناعي للتاجر
                 ai_cfg = get_ai_config(cfg["client_id"])
-                groq_key = ai_cfg.get("api_key") if ai_cfg and ai_cfg.get("provider") == "groq" else None
+                ai_provider = ai_cfg.get("provider") if ai_cfg else "None"
+                groq_key = ai_cfg.get("api_key") if ai_cfg and ai_provider == "groq" else None
                 
+                print(f"[DEBUG] AI Provider: {ai_provider}, Has Groq Key: {'Yes' if groq_key else 'No'}")
+
                 if groq_key:
-                    # تحميل الملف الصوتي من Evolution
                     try:
                         fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/fetchMedia"
                         media_payload = {"message": data}
                         headers = {"apikey": cfg["evolution_api_key"]}
                         
+                        print(f"[DEBUG] Calling Evolution fetchMedia: {fetch_url}")
                         async with httpx.AsyncClient() as client:
-                            media_res = await client.post(fetch_url, json=media_payload, headers=headers)
+                            media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=20)
+                            print(f"[DEBUG] Evolution Media Response Status: {media_res.status_code}")
+                            
                             if media_res.status_code == 200:
-                                # Evolution v2 يعيد الملف كـ base64 أو رابط، سنحاول التعامل مع الاستجابة
                                 media_data = media_res.json()
-                                # إذا كان base64 (وهو الغالب في النسخ الحديثة عند التحويل)
-                                b64_audio = media_data.get("base64")
+                                # تجربة عدة حقول محتملة للـ base64
+                                b64_audio = media_data.get("base64") or media_data.get("data")
+                                
                                 if b64_audio:
                                     import base64
+                                    # إذا كان النص يحتوي على بادئة مثل data:audio/ogg;base64,
+                                    if "," in str(b64_audio):
+                                        b64_audio = str(b64_audio).split(",")[1]
+                                        
                                     audio_bytes = base64.b64decode(b64_audio)
+                                    print(f"[DEBUG] Audio downloaded ({len(audio_bytes)} bytes). Transcribing...")
                                     text = await transcribe_audio(audio_bytes, groq_key)
-                                    print(f"[VOICE] Transcribed: {text}")
+                                    print(f"[VOICE] Transcribed Text: {text}")
+                                else:
+                                    print("[DEBUG] No base64 data found in media response")
+                            else:
+                                print(f"[DEBUG] Media fetch failed: {media_res.text}")
                     except Exception as ve:
-                        print(f"[VOICE ERROR] Failed to process audio: {ve}")
+                        print(f"[VOICE ERROR] Exception during audio processing: {ve}")
+                else:
+                    print("[DEBUG] Skipping audio because Groq is not the active provider or Key is missing")
         
         print(f"[DEBUG] Final Message text from {phone}: {text}")
 
