@@ -41,6 +41,17 @@ app.include_router(official_router, prefix="/webhook")
 @app.on_event("startup")
 async def startup_event():
     print("[STARTUP] AI Sales Agent started successfully on port 8000.")
+    # إصلاح تلقائي لقاعدة البيانات في حال وجود أعمدة مفقودة
+    try:
+        from database.db_client import get_db_engine
+        from sqlalchemy import text
+        engine = get_db_engine()
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS ignore_groups BOOLEAN DEFAULT TRUE;"))
+            conn.commit()
+            print("[DB] Database schema verified and updated (ignore_groups).")
+    except Exception as e:
+        print(f"[DB ERROR] Startup schema update failed: {e}")
 
 @app.get("/", response_class=RedirectResponse)
 async def root_redirect():
