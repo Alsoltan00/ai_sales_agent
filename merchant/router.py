@@ -386,8 +386,8 @@ async def api_update_channels(payload: ChannelsConfigRequest, user: dict = Depen
 async def api_test_whatsapp(user: dict = Depends(verify_merchant)):
     """اختبار إرسال رسالة واتساب تجريبية"""
     from merchant.reception.whatsapp_evolution_receiver import _send_evolution_message
-    from merchant.channels.channels_config import get_channels_config
-    from merchant.authorized_numbers.auth_nums import get_authorized_numbers
+    from merchant.channels_config import get_channels_config
+    from merchant.authorized_numbers import get_authorized_numbers
 
     # 1. جلب الإعدادات
     cfg = get_channels_config(user["id"])
