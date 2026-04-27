@@ -14,17 +14,21 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str) 
         "company_name, ai_agent_name, ai_tone, business_description"
     ).eq("id", client_id).single().execute()
 
-    # 2. ط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ†ظ…ظˆط°ط¬
-    ai_cfg = supabase.table("ai_models_config").select(
-        "model_id, api_key, provider"
-    ).eq("client_id", client_id).single().execute()
+    # 2. جلب إعدادات النموذج النشط
+    try:
+        ai_cfg = supabase.table("ai_models_config").select(
+            "model_id, api_key, provider"
+        ).eq("client_id", client_id).eq("is_active", True).execute()
+        ai_cfg_data = ai_cfg.data[0] if ai_cfg.data else None
+    except:
+        ai_cfg_data = None
 
-    if not ai_cfg.data:
-        return "ط¹ط°ط±ط§ظ‹طŒ ظ„ظ… ظٹطھظ… ط¥ط¹ط¯ط§ط¯ ط§ظ„ط°ظƒط§ط، ط§ظ„ط§طµط·ظ†ط§ط¹ظٹ ط¨ط¹ط¯. ظٹط±ط¬ظ‰ ط§ظ„طھظˆط§طµظ„ ظ…ط¹ ط§ظ„ط¯ط¹ظ…."
+    if not ai_cfg_data:
+        return "عذراً، لم يتم إعداد الذكاء الاصطناعي بعد. يرجى التواصل مع الدعم."
 
-    model_id  = ai_cfg.data["model_id"]
-    api_key   = ai_cfg.data["api_key"]
-    provider  = ai_cfg.data.get("provider", "openai")
+    model_id  = ai_cfg_data["model_id"]
+    api_key   = ai_cfg_data["api_key"]
+    provider  = ai_cfg_data.get("provider", "openai")
 
     c         = client_data.data or {}
     agent_name   = c.get("ai_agent_name") or c.get("company_name") or "ط§ظ„ظ…ط³ط§ط¹ط¯"
