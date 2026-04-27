@@ -50,9 +50,10 @@ async def _send_evolution_message(api_url: str, api_key: str, instance_name: str
 
 @router.post("/whatsapp/evolution/{instance_name}")
 async def evolution_webhook(instance_name: str, request: Request):
-    """Webhook ظ„ط§ط³طھظ‚ط¨ط§ظ„ ط±ط³ط§ط¦ظ„ ظˆط§طھط³ط§ط¨ ط¹ط¨ط± Evolution API"""
+    """Webhook لاستقبال رسائل واتساب عبر Evolution API"""
     try:
         body = await request.json()
+        print(f"[DEBUG] Received Webhook for instance: {instance_name}")
 
         # Evolution API sends different event types
         event = body.get("event", "")
@@ -74,12 +75,15 @@ async def evolution_webhook(instance_name: str, request: Request):
             ""
         )
 
+        print(f"[DEBUG] Message from {phone}: {text}")
+
         if not text or not phone:
             return Response(status_code=200)
 
         # البحث عن التاجر
         cfg = _find_client_by_instance(instance_name)
         if not cfg:
+            print(f"[ERROR] No client found for instance: {instance_name}")
             return Response(status_code=200)
 
         client_id   = cfg["client_id"]
@@ -88,15 +92,19 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # التحقق من الصلاحية
         if not _is_authorized(client_id, phone):
+            print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
             return Response(status_code=200)
 
         # توليد الرد
+        print(f"[AI] Calling AI for client {client_id}...")
         ai_reply = await get_ai_response(client_id, text, phone)
+        print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد
         await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
+        print(f"[SUCCESS] Message sent to {phone}")
 
     except Exception as e:
-        print(f"Evolution webhook error: {e}")
+        print(f"[CRITICAL ERROR] Evolution webhook error: {e}")
 
     return Response(status_code=200)
