@@ -118,7 +118,8 @@ async def evolution_webhook(instance_name: str, request: Request):
 
                 if groq_key:
                     try:
-                        fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/fetchMedia"
+                        # في نسخة v2 الحديثة، المسار غالباً يكون /instance/fetchMedia
+                        fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/instance/fetchMedia"
                         media_payload = {"message": data}
                         headers = {"apikey": cfg["evolution_api_key"]}
                         
