@@ -32,9 +32,11 @@ from merchant.reception.whatsapp_official_receiver import router as official_rou
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(merchant_router)
-app.include_router(telegram_router)
-app.include_router(evolution_router)
-app.include_router(official_router)
+
+# تسجيل مستقبلات الويب هوك مع بادئة واضحة
+app.include_router(telegram_router, prefix="/webhook")
+app.include_router(evolution_router, prefix="/webhook")
+app.include_router(official_router, prefix="/webhook")
 
 @app.on_event("startup")
 async def startup_event():
