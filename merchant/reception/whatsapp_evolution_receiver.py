@@ -1,6 +1,6 @@
 """
 merchant/reception/whatsapp_evolution_receiver.py
-استقبال الرسائل من واتساب عبر Evolution API
+استقبال الرسائل من واتساب عبر Evolution API - تحديث روابط v2
 """
 import httpx
 from fastapi import APIRouter, Request, Response
