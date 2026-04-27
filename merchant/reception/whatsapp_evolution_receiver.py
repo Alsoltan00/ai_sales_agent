@@ -146,7 +146,7 @@ async def evolution_webhook(instance_name: str, request: Request):
                         async with httpx.AsyncClient() as client:
                             media_res = await client.post(fetch_url, json=media_payload, headers=headers, timeout=25)
                             
-                            if media_res.status_code == 200:
+                            if media_res.status_code in [200, 201]:
                                 media_data = media_res.json()
                                 b64_audio = media_data.get("base64")
                                 
