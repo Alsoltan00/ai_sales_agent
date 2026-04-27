@@ -237,7 +237,7 @@ async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_
             return {"status": "success", "response": reply}
 
         elif payload.provider == "google":
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{payload.model_id}:generateContent?key={payload.api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1/models/{payload.model_id}:generateContent?key={payload.api_key}"
             headers = {"Content-Type": "application/json"}
             body = {
                 "contents": [{"parts": [{"text": test_prompt}]}],

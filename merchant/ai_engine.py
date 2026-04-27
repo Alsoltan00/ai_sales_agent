@@ -143,7 +143,7 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
 
 
 async def _call_google(api_key: str, model_id: str, user_message: str, system: str) -> str:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1/models/{model_id}:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     body = {
         "systemInstruction": {
