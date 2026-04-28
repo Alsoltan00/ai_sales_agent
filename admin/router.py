@@ -147,6 +147,7 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
 
     safe_clients = []
     safe_plans = []
+    global_models = []
     
     try:
         # جلب العملاء
@@ -157,8 +158,13 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
         res_plans = supabase.table("subscription_plans").select("*").execute()
         raw_plans = res_plans.data or []
         
+        # جلب نماذج الذكاء العالمية
+        res_models = supabase.table("global_ai_models").select("*").execute()
+        global_models = res_models.data or []
+        
         # تنظيف البيانات بشكل كامل
         safe_clients = sanitize_data(raw_clients)
+        global_models = sanitize_data(global_models)
         
         # معالجة الصلاحيات في الخطط بشكل خاص
         for plan in raw_plans:
@@ -176,7 +182,8 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
         "request": request, 
         "user": user, 
         "clients": safe_clients,
-        "plans": safe_plans
+        "plans": safe_plans,
+        "global_models": global_models
     })
 
 @router.post("/api/plans")

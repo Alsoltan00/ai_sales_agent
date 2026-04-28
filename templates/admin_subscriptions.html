@@ -326,9 +326,14 @@
             <div class="form-group" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 15px; border: 1px solid var(--glass-border);">
                 <label style="color: var(--primary); margin-bottom: 15px; display: block;"><i class="fa-solid fa-gears"></i> صلاحيات الباقة</label>
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                    <span>أقصى عدد للنماذج النشطة</span>
-                    <input type="number" id="permMaxModels" value="1" style="width: 80px; text-align: center;">
+                <div style="margin-bottom: 15px;">
+                    <span style="display: block; margin-bottom: 8px;">نموذج الذكاء المخصص للباقة</span>
+                    <select id="permAssignedModel" style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                        <option value="" style="background: var(--bg-dark); color: white;">بدون نموذج مخصص</option>
+                        {% for model in global_models %}
+                        <option value="{{ model.id }}" style="background: var(--bg-dark); color: white;">{{ model.model_name }} ({{ model.provider }})</option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
@@ -412,8 +417,8 @@
             document.getElementById('planPrice').value = plan ? plan.price : 0;
             document.getElementById('planDuration').value = plan ? plan.duration_days : 30;
             
-            const perms = plan && plan.permissions ? plan.permissions : {max_models: 1, voice_notes: false, files_support: false};
-            document.getElementById('permMaxModels').value = perms.max_models || 1;
+            const perms = plan && plan.permissions ? plan.permissions : {assigned_model_id: '', voice_notes: false, files_support: false};
+            document.getElementById('permAssignedModel').value = perms.assigned_model_id || '';
             document.getElementById('permVoiceNotes').checked = !!perms.voice_notes;
             document.getElementById('permFilesSupport').checked = !!perms.files_support;
             
@@ -429,7 +434,7 @@
                 price: parseFloat(document.getElementById('planPrice').value),
                 duration_days: parseInt(document.getElementById('planDuration').value),
                 permissions: {
-                    max_models: parseInt(document.getElementById('permMaxModels').value),
+                    assigned_model_id: document.getElementById('permAssignedModel').value,
                     voice_notes: document.getElementById('permVoiceNotes').checked,
                     files_support: document.getElementById('permFilesSupport').checked
                 }
