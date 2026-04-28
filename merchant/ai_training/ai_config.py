@@ -41,22 +41,27 @@ def update_ai_config(client_id: str, data: dict) -> bool:
         return False
 
 def activate_ai_model(client_id: str, model_id_pk: str) -> bool:
-    """تنشيط نموذج معين بناء على الـ ID الخاص بالصف في الداتابيز وإلغاء تنشيط البقية"""
-    supabase = get_supabase_client()
+    """تنشيط نموذج معين باستخدام SQL مباشر لضمان الدقة"""
+    from database.db_client import get_db_engine
+    from sqlalchemy import text
+    engine = get_db_engine()
+    if not engine:
+        return False
+        
     try:
         clean_id = str(model_id_pk).strip()
-        print(f"[DEBUG] Activating model {clean_id} for client {client_id}")
-        
-        # 1. إلغاء تفعيل جميع النماذج لهذا العميل أولاً
-        res1 = supabase.table("ai_models_config").update({"is_active": False}).eq("client_id", client_id).execute()
-        
-        # 2. تفعيل النموذج المختار فقط باستخدام المعرف الفريد (PK)
-        res2 = supabase.table("ai_models_config").update({"is_active": True}).eq("id", clean_id).eq("client_id", client_id).execute()
-        
-        print(f"[DEBUG] Step 1 res: {res1.data}")
-        print(f"[DEBUG] Step 2 res: {res2.data}")
-        
+        with engine.begin() as conn:
+            # 1. إلغاء تفعيل الجميع لهذا العميل
+            conn.execute(
+                text("UPDATE ai_models_config SET is_active = False WHERE client_id = :cid"),
+                {"cid": client_id}
+            )
+            # 2. تفعيل النموذج المختار
+            conn.execute(
+                text("UPDATE ai_models_config SET is_active = True WHERE id = :mid AND client_id = :cid"),
+                {"mid": clean_id, "cid": client_id}
+            )
         return True
     except Exception as e:
-        print(f"[ERROR] Activation failed: {e}")
+        print(f"[ERROR] SQL Activation failed: {e}")
         return False
