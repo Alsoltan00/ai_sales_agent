@@ -13,14 +13,14 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 def authenticate_user(contact_info: str, password: str) -> dict | None:
     """
-    ظٹطھط­ظ‚ظ‚ ظ…ظ† ط¨ظٹط§ظ†ط§طھ ط§ظ„ط¯ط®ظˆظ„
-    1. ظٹط¨ط­ط« ظپظٹ ط¬ط¯ظˆظ„ users (ط§ظ„ظ…ظˆط¸ظپظٹظ†)
-    2. ط¥ظ† ظ„ظ… ظٹط¬ط¯طŒ ظٹط¨ط­ط« ظپظٹ ط¬ط¯ظˆظ„ clients (ط§ظ„ط¹ظ…ظ„ط§ط،)
+    يتحقق من بيانات الدخول
+    1. يبحث في جدول users (الموظفين)
+    2. إن لم يجد، يبحث في جدول clients (العملاء)
     """
     supabase = get_supabase_client()
     
-    # 1. ط§ظ„ط¨ط­ط« ظپظٹ ط¬ط¯ظˆظ„ ط§ظ„ظ…ظˆط¸ظپظٹظ†
-    # ظ†ظپطھط±ط¶ ط£ظ† contact_info ظ‡ظˆ ط§ظ„ط¥ظٹظ…ظٹظ„ ظ„ظ„ظ…ظˆط¸ظپ
+    # 1. البحث في جدول الموظفين
+    # نفترض أن contact_info هو الإيميل للموظف
     try:
         response = supabase.table("sales_admin_users").select("*").eq("email", contact_info).execute()
         if response.data:
@@ -42,8 +42,8 @@ def authenticate_user(contact_info: str, password: str) -> dict | None:
     except Exception as e:
         print(f"Error checking users table: {e}")
 
-    # 2. ط§ظ„ط¨ط­ط« ظپظٹ ط¬ط¯ظˆظ„ ط§ظ„ط¹ظ…ظ„ط§ط،
-    # ظ‚ط¯ ظٹظƒظˆظ† ط§ظ„ط¥ظٹظ…ظٹظ„ ط£ظˆ ط±ظ‚ظ… ط§ظ„طھظˆط§طµظ„
+    # 2. البحث في جدول العملاء
+    # قد يكون الإيميل أو رقم التواصل
     try:
         response = supabase.table("clients").select("*").eq("contact_number", contact_info).execute()
         if not response.data:
@@ -52,12 +52,12 @@ def authenticate_user(contact_info: str, password: str) -> dict | None:
         if response.data:
             client = response.data[0]
             if client.get("status") != "active":
-                return None # ط§ظ„ط­ط³ط§ط¨ ظ„ظٹط³ ظپط¹ط§ظ„ط§ظ‹
+                return None # الحساب ليس فعالاً
                 
             if verify_password(password, client.get("password_hash", "")):
                 return {
                     "id": client["id"],
-                    "name": client.get("company_name", "طھط§ط¬ط±"),
+                    "name": client.get("company_name", "تاجر"),
                     "user_type": "merchant",
                     "permissions": {}
                 }

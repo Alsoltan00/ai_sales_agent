@@ -1,7 +1,7 @@
-﻿from database.db_client import get_supabase_client
+from database.db_client import get_supabase_client
 
 def check_existing_account(contact_number: str) -> bool:
-    """ظٹطھط­ظ‚ظ‚ ظ…ظ…ط§ ط¥ط°ط§ ظƒط§ظ† ط§ظ„ط±ظ‚ظ… ظ…ط³ط¬ظ„ط§ظ‹ ط¨ط§ظ„ظپط¹ظ„ ظƒط¹ظ…ظٹظ„ ط£ظˆ ط·ظ„ط¨ ظ‚ظٹط¯ ط§ظ„ط§ظ†طھط¸ط§ط±"""
+    """يتحدد مما إذا كان الرقم مسجلاً بالفعل كعميل أو طلب قيد الانتظار"""
     supabase = get_supabase_client()
     try:
         # Check in active clients
@@ -21,14 +21,14 @@ def check_existing_account(contact_number: str) -> bool:
 
 def register_new_client(company_name: str, contact_number: str) -> tuple[bool, str]:
     """
-    ظٹط³ط¬ظ„ ط·ظ„ط¨ ط¹ظ…ظٹظ„ ط¬ط¯ظٹط¯
-    ظٹط¹ظٹط¯ (Success_boolean, Message)
+    يسجل طلب عميل جديد
+    يعيد (Success_boolean, Message)
     """
     if not company_name or not contact_number:
-        return False, "ظٹط¬ط¨ ط¥ط¯ط®ط§ظ„ ط§ط³ظ… ط§ظ„ط´ط±ظƒط© ظˆط±ظ‚ظ… ط§ظ„طھظˆط§طµظ„"
+        return False, "يجب إدخال اسم الشركة ورقم التواصل"
         
     if check_existing_account(contact_number):
-        return False, "ظ‡ط°ط§ ط§ظ„ط±ظ‚ظ… ظ…ط³ط¬ظ„ ط¨ط§ظ„ظپط¹ظ„طŒ ظٹط±ط¬ظ‰ طھط³ط¬ظٹظ„ ط§ظ„ط¯ط®ظˆظ„"
+        return False, "هذا الرقم مسجل بالفعل، يرجى تسجيل الدخول"
         
     supabase = get_supabase_client()
     try:
@@ -38,7 +38,7 @@ def register_new_client(company_name: str, contact_number: str) -> tuple[bool, s
             "status": "pending"
         }
         supabase.table("new_client_requests").insert(data).execute()
-        return True, "طھظ… طھط³ط¬ظٹظ„ ط·ظ„ط¨ظƒ ط¨ظ†ط¬ط§ط­طŒ ط³ظٹطھظ… ظ…ط±ط§ط¬ط¹طھظ‡ ظ…ظ† ظ‚ط¨ظ„ ط§ظ„ط¥ط¯ط§ط±ط©"
+        return True, "تم تسجيل طلبك بنجاح، سيتم مراجعته من قبل الإدارة"
     except Exception as e:
         print(f"Error registering new client: {e}")
-        return False, "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط¥ط±ط³ط§ظ„ ط§ظ„ط·ظ„ط¨طŒ ظٹط±ط¬ظ‰ ط§ظ„ظ…ط­ط§ظˆظ„ط© ظ„ط§ط­ظ‚ط§ظ‹"
+        return False, "حدث خطأ أثناء إرسال الطلب، يرجى المحاولة لاحقاً"
