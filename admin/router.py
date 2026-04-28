@@ -130,42 +130,43 @@ async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
 
 @router.get("/subscriptions", response_class=HTMLResponse)
 async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
-    """إدارة اشتراكات العملاء والخطط"""
+    """إدارة اشتراكات العملاء والخطط مع تنظيف كامل للبيانات"""
     supabase = get_supabase_client()
     
+    def sanitize_data(data):
+        """وظيفة لتنظيف البيانات وجعلها قابلة للتحويل إلى JSON"""
+        if isinstance(data, list):
+            return [sanitize_data(item) for item in data]
+        if isinstance(data, dict):
+            return {k: sanitize_data(v) for k, v in data.items()}
+        # تحويل أي شيء آخر غير السلاسل والأرقام والمنطقيات إلى نصوص
+        if data is None: return None
+        if isinstance(data, (str, int, float, bool)): return data
+        return str(data)
+
     safe_clients = []
     safe_plans = []
     
     try:
         # جلب العملاء
         res_clients = supabase.table("clients").select("*").execute()
-        for client in (res_clients.data or []):
-            c = dict(client)
-            c["id"] = str(c.get("id", ""))
-            # تأمين التاريخ
-            if c.get("subscription_ends_at"):
-                try:
-                    if not isinstance(c["subscription_ends_at"], str):
-                        c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
-                except:
-                    c["subscription_ends_at"] = str(c["subscription_ends_at"])
-            safe_clients.append(c)
-            
+        raw_clients = res_clients.data or []
+        
         # جلب الخطط
         res_plans = supabase.table("subscription_plans").select("*").execute()
-        for plan in (res_plans.data or []):
+        raw_plans = res_plans.data or []
+        
+        # تنظيف البيانات بشكل كامل
+        safe_clients = sanitize_data(raw_clients)
+        
+        # معالجة الصلاحيات في الخطط بشكل خاص
+        for plan in raw_plans:
             p = dict(plan)
-            p["id"] = str(p.get("id", ""))
             import json
-            if p.get("permissions"):
-                if isinstance(p["permissions"], str):
-                    try: p["permissions"] = json.loads(p["permissions"])
-                    except: p["permissions"] = {}
-                elif not isinstance(p["permissions"], dict):
-                    p["permissions"] = {}
-            else:
-                p["permissions"] = {}
-            safe_plans.append(p)
+            if p.get("permissions") and isinstance(p["permissions"], str):
+                try: p["permissions"] = json.loads(p["permissions"])
+                except: p["permissions"] = {}
+            safe_plans.append(sanitize_data(p))
             
     except Exception as e:
         print(f"Error in admin_subscriptions: {e}")
