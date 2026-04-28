@@ -117,10 +117,14 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
     supabase = get_supabase_client()
     res = supabase.table("clients").select("*").execute()
     
-    # تحويل التواريخ إلى نصوص لتجنب مشاكل الرندر
+    # تحويل التواريخ والمعرفات إلى نصوص لتجنب مشاكل الرندر
     safe_clients = []
     for client in (res.data or []):
         c = dict(client)
+        # تحويل المعرف UUID إلى نص
+        if c.get("id"):
+            c["id"] = str(c["id"])
+        
         if c.get("subscription_ends_at") and not isinstance(c["subscription_ends_at"], str):
             c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
         if c.get("created_at") and not isinstance(c["created_at"], str):
