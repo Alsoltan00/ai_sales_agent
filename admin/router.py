@@ -67,21 +67,34 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         default_pwd = pwd_context.hash(client_info["contact_number"])
         
+        # حساب تاريخ انتهاء الاشتراك الافتراضي (30 يوم من الآن)
+        from datetime import datetime, timedelta
+        expiry_date = datetime.now() + timedelta(days=30)
+        
         new_client = {
             "company_name": client_info["company_name"],
             "contact_number": client_info["contact_number"],
             "password_hash": default_pwd,
-            "status": "active"
+            "status": "active",
+            "subscription_plan": "basic",
+            "subscription_ends_at": expiry_date.isoformat()
         }
         
         # إدراج العميل
         res_insert = supabase.table("clients").insert(new_client).execute()
-        new_client_id = res_insert.data[0]["id"]
+        
+        if not res_insert.data:
+            return {"status": "error", "message": "فشل إنشاء حساب العميل"}
+            
+        new_client_id = res_insert.data[0].get("id")
         
         # تحديث حالة الطلب إلى accepted
-        supabase.table("new_client_requests").update({"status": "accepted", "reviewed_by": user["id"]}).eq("id", request_id).execute()
+        supabase.table("new_client_requests").update({
+            "status": "accepted", 
+            "reviewed_by": user.get("id")
+        }).eq("id", request_id).execute()
         
-        return {"status": "success", "message": "تم قبول العميل وإنشاء حسابه بنجاح", "client_id": new_client_id}
+        return {"status": "success", "message": "تم قبول العميل وإنشاء حسابه بنجاح", "client_id": str(new_client_id)}
     except Exception as e:
         print(f"Error accepting request: {e}")
         return {"status": "error", "message": "حدث خطأ أثناء معالجة الطلب"}

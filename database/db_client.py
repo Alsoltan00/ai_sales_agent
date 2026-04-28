@@ -109,10 +109,11 @@ class QueryBuilder:
                     else:
                         params[f"p_ins_{k}"] = v
                     
-                query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
+                query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
                 # print(f"[DB] {query} | Params: {params}")
-                conn.execute(text(query), params)
-                return MockResponse([data])
+                result = conn.execute(text(query), params)
+                inserted_rows = [dict(mapping) for mapping in result.mappings()]
+                return MockResponse(inserted_rows)
 
             elif self._action == "UPDATE":
                 set_clauses = []
