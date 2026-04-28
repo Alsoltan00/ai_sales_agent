@@ -296,11 +296,20 @@ async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict 
 
 @router.get("/models-pool", response_class=HTMLResponse)
 async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
-    """واجهة إدارة مكتبة النماذج العالمية"""
+    """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
     supabase = get_supabase_client()
     # سنستخدم معرف خاص 'GLOBAL' لتمييز النماذج العامة في المكتبة
     res = supabase.table("ai_models_config").select("*").eq("client_id", "GLOBAL").execute()
-    return templates.TemplateResponse("admin/models_pool.html", {"request": request, "user": user, "models": res.data or []})
+    
+    def sanitize_data(data):
+        if isinstance(data, list): return [sanitize_data(item) for item in data]
+        if isinstance(data, dict): return {k: sanitize_data(v) for k, v in data.items()}
+        if data is None: return None
+        if isinstance(data, (str, int, float, bool)): return data
+        return str(data)
+
+    safe_models = sanitize_data(res.data or [])
+    return templates.TemplateResponse("admin/models_pool.html", {"request": request, "user": user, "models": safe_models})
 
 @router.post("/api/models-pool")
 async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
