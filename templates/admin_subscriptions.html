@@ -341,6 +341,11 @@
                 </div>
 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span>الحد الأقصى للرسائل (0 = غير محدود)</span>
+                    <input type="number" id="permMaxMessages" value="0" style="width: 100px; text-align: center; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 8px; color: white; padding: 8px;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <span>دعم الرسائل الصوتية (Voice)</span>
                     <label class="switch">
                         <input type="checkbox" id="permVoiceNotes">
@@ -421,8 +426,9 @@
             document.getElementById('planPrice').value = plan ? plan.price : 0;
             document.getElementById('planDuration').value = plan ? plan.duration_days : 30;
             
-            const perms = plan && plan.permissions ? plan.permissions : {assigned_model_id: '', voice_notes: false, files_support: false};
+            const perms = plan && plan.permissions ? plan.permissions : {assigned_model_id: '', max_messages: 0, voice_notes: false, files_support: false};
             document.getElementById('permAssignedModel').value = perms.assigned_model_id || '';
+            document.getElementById('permMaxMessages').value = perms.max_messages || 0;
             document.getElementById('permVoiceNotes').checked = !!perms.voice_notes;
             document.getElementById('permFilesSupport').checked = !!perms.files_support;
             
@@ -439,6 +445,7 @@
                 duration_days: parseInt(document.getElementById('planDuration').value),
                 permissions: {
                     assigned_model_id: document.getElementById('permAssignedModel').value,
+                    max_messages: parseInt(document.getElementById('permMaxMessages').value) || 0,
                     voice_notes: document.getElementById('permVoiceNotes').checked,
                     files_support: document.getElementById('permFilesSupport').checked
                 }

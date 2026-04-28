@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'expired', 'paused')),
+    messages_used INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
 );
 

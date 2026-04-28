@@ -31,17 +31,50 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         tone = "احترافي"
         description = ""
 
-    # 2. جلب إعدادات النموذج النشط
+    # 2. جلب إعدادات النموذج النشط من خلال باقة العميل والتحقق من رصيد الرسائل
     try:
-        ai_cfg = supabase.table("ai_models_config").select(
-            "model_id, api_key, provider"
-        ).eq("client_id", client_id).eq("is_active", True).execute()
-        ai_cfg_data = ai_cfg.data[0] if ai_cfg.data else None
-    except:
+        # 1. جلب الاشتراك النشط للعميل
+        sub_res = supabase.table("subscriptions").select("plan, messages_used, status").eq("client_id", client_id).eq("status", "active").execute()
+        if not sub_res.data:
+            return "عذراً، المتجر ليس لديه اشتراك نشط. يرجى التواصل مع الإدارة."
+        
+        active_sub = sub_res.data[0]
+        client_plan = active_sub["plan"]
+        messages_used = active_sub.get("messages_used", 0)
+
+        # 2. جلب إعدادات الباقة (الخطة)
+        plan_res = supabase.table("subscription_plans").select("permissions").eq("name", client_plan).execute()
+        if not plan_res.data:
+            return "عذراً، إعدادات باقة المتجر غير صالحة."
+        
+        import json
+        perms = plan_res.data[0].get("permissions", {})
+        if isinstance(perms, str):
+            try: perms = json.loads(perms)
+            except: perms = {}
+
+        # 3. التحقق من رصيد الرسائل المتبقي
+        max_messages = perms.get("max_messages", 0)
+        if max_messages > 0 and messages_used >= max_messages:
+            return "عفواً، لقد استنفد المتجر رصيد الرسائل المخصص لباقته. يرجى التواصل مع الإدارة لشحن الرصيد لتتمكن من المتابعة."
+
+        # 4. جلب نموذج الذكاء المخصص للباقة من المكتبة العالمية
+        assigned_model_id = perms.get("assigned_model_id")
+        if not assigned_model_id:
+            return "عذراً، لم يتم تخصيص نموذج ذكاء اصطناعي لهذه الباقة. يرجى مراجعة الإدارة."
+
+        model_res = supabase.table("global_ai_models").select("*").eq("id", assigned_model_id).execute()
+        if not model_res.data:
+            return "عذراً، نموذج الذكاء الاصطناعي المخصص غير متوفر حالياً."
+
+        ai_cfg_data = model_res.data[0]
+        
+    except Exception as e:
+        print(f"Error fetching AI config: {e}")
         ai_cfg_data = None
 
     if not ai_cfg_data:
-        return "عذراً، لم يتم إعداد الذكاء الاصطناعي بعد. يرجى التواصل مع الدعم."
+        return "عذراً، حدث خطأ أثناء إعداد الذكاء الاصطناعي. يرجى المحاولة لاحقاً."
 
     model_id  = ai_cfg_data["model_id"]
     api_key   = ai_cfg_data["api_key"]
@@ -127,8 +160,13 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         else:
             response = await _call_openai(api_key, model_id, messages)
 
-        # 6. تسجيل السجل
+        # 6. تسجيل السجل وتحديث العداد
         _log_message(supabase, client_id, user_message, response, phone_number, channel)
+        try:
+            supabase.table("subscriptions").update({"messages_used": messages_used + 1}).eq("client_id", client_id).eq("status", "active").execute()
+        except Exception as update_err:
+            print(f"Error updating messages count: {update_err}")
+            
         return response
 
     except Exception as e:

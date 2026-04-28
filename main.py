@@ -61,6 +61,14 @@ async def startup_event():
             if 'subscription_ends_at' not in columns:
                 try: conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
                 except: pass
+
+            # تحديث جدول الاشتراكات لإضافة عداد الرسائل
+            try:
+                sub_columns = [c['name'] for c in inspector.get_columns('subscriptions')]
+                if 'messages_used' not in sub_columns:
+                    conn.execute(text("ALTER TABLE subscriptions ADD COLUMN messages_used INTEGER DEFAULT 0;"))
+            except Exception as e:
+                print(f"Error updating subscriptions table: {e}")
                 
             # إنشاء جدول قواعد العمل إذا لم يكن موجوداً
             conn.execute(text("""
