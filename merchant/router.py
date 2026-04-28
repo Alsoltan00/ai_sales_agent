@@ -333,7 +333,7 @@ class SyncConfigRequest(BaseModel):
 
 @router.get("/data-sync", response_class=HTMLResponse)
 async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
-    """طµظپط­ط© ظ…ط²ط§ظ…ظ†ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ"""
+    """صفحة مزامنة البيانات"""
     sync_config = get_sync_config(user["id"])
     return templates.TemplateResponse("merchant/data_sync.html", {"request": request, "user": user, "sync_config": sync_config})
 
@@ -373,10 +373,6 @@ async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depend
         })
         
         # 2. حفظ البيانات في الجدول الجديد
-        # ملاحظة: نستخدم upsert إذا كان العميل موجوداً بالفعل
-        # في SQLAlchemy Mock: insert سيعالج الأمر إذا أضفنا منطق الـ upsert أو حذفنا القديم
-        
-        # حذف البيانات القديمة أولاً لضمان التحديث (بما أننا نستخدم mock client)
         try:
             supabase.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute()
         except:

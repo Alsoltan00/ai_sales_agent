@@ -18,14 +18,14 @@ async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
     """لوحة تحكم الإدارة الرئيسية"""
     supabase = get_supabase_client()
     
-    # ط¬ظ„ط¨ ط¥ط­طµط§ط¦ظٹط§طھ ط³ط±ظٹط¹ط©
+    # جلب إحصائيات سريعة
     stats = {}
     try:
-        # ط¹ط¯ط¯ ط§ظ„ط¹ظ…ظ„ط§ط، ط§ظ„ظ†ط´ط·ظٹظ†
+        # عدد العملاء النشطين
         res = supabase.table("clients").select("id", count="exact").eq("status", "active").execute()
         stats["active_clients"] = res.count
         
-        # ط¹ط¯ط¯ ط§ظ„ط·ظ„ط¨ط§طھ ط§ظ„ط¬ط¯ظٹط¯ط©
+        # عدد الطلبات الجديدة
         res = supabase.table("new_client_requests").select("id", count="exact").eq("status", "pending").execute()
         stats["pending_requests"] = res.count
         
@@ -34,12 +34,12 @@ async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
         
     return templates.TemplateResponse("admin.html", {"request": request, "user": user, "stats": stats})
 
-# ظ…ط³ط§ط±ط§طھ ط·ظ„ط¨ط§طھ ط§ظ„ط¹ظ…ظ„ط§ط، ط§ظ„ط¬ط¯ط¯
+# مسارات طلبات العملاء الجدد
 @router.get("/api/requests/pending")
 async def get_pending_requests(user: dict = Depends(verify_admin)):
-    """ط¬ظ„ط¨ ط¬ظ…ظٹط¹ ط·ظ„ط¨ط§طھ ط§ظ„ط­ط³ط§ط¨ط§طھ ط§ظ„ظ…ط¹ظ„ظ‚ط©"""
+    """جلب جميع طلبات الحسابات المعلقة"""
     if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
-        raise HTTPException(status_code=403, detail="ظ„ظٹط³ ظ„ط¯ظٹظƒ طµظ„ط§ط­ظٹط© ظ„ط¥ط¯ط§ط±ط© ط·ظ„ط¨ط§طھ ط§ظ„ط¹ظ…ظ„ط§ط،")
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة طلبات العملاء")
         
     supabase = get_supabase_client()
     res = supabase.table("new_client_requests").select("*").eq("status", "pending").execute()
@@ -47,22 +47,22 @@ async def get_pending_requests(user: dict = Depends(verify_admin)):
 
 @router.post("/api/requests/{request_id}/accept")
 async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
-    """ط§ظ„ظ…ظˆط§ظپظ‚ط© ط¹ظ„ظ‰ ط·ظ„ط¨ ط¹ظ…ظٹظ„ ظˆط¥ظ†ط´ط§ط، ط­ط³ط§ط¨ ظ„ظ‡"""
+    """الموافقة على طلب عميل وإنشاء حساب له"""
     if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
-        raise HTTPException(status_code=403, detail="ظ„ظٹط³ ظ„ط¯ظٹظƒ طµظ„ط§ط­ظٹط©")
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
     try:
-        # ط¬ظ„ط¨ ط¨ظٹط§ظ†ط§طھ ط§ظ„ط·ظ„ط¨
+        # جلب بيانات الطلب
         req_data = supabase.table("new_client_requests").select("*").eq("id", request_id).single().execute()
         
         if not req_data.data:
-            return {"status": "error", "message": "ط§ظ„ط·ظ„ط¨ ط؛ظٹط± ظ…ظˆط¬ظˆط¯"}
+            return {"status": "error", "message": "الطلب غير موجود"}
             
         client_info = req_data.data
         
-        # ط¥ظ†ط´ط§ط، ط­ط³ط§ط¨ ط§ظ„ط¹ظ…ظٹظ„ ظپظٹ ط¬ط¯ظˆظ„ clients
-        # ط§ظپطھط±ط§ط¶ظٹط§ظ‹ ظƒظ„ظ…ط© ط§ظ„ظ…ط±ظˆط± ظ‡ظٹ ط±ظ‚ظ… ط§ظ„طھظˆط§طµظ„ (ظٹطھظ… طھط؛ظٹظٹط±ظ‡ط§ ظ„ط§ط­ظ‚ط§ظ‹ ظ…ظ† ظ‚ط¨ظ„ ط§ظ„ط¹ظ…ظٹظ„)
+        # إنشاء حساب العميل في جدول clients
+        # افتراضياً كلمة المرور هي رقم التواصل (يتم تغييرها لاحقاً من قبل العميل)
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         default_pwd = pwd_context.hash(client_info["contact_number"])
@@ -74,30 +74,31 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
             "status": "active"
         }
         
-        # ط¥ط¯ط±ط§ط¬ ط§ظ„ط¹ظ…ظٹظ„
+        # إدراج العميل
         res_insert = supabase.table("clients").insert(new_client).execute()
         new_client_id = res_insert.data[0]["id"]
         
-        # طھط­ط¯ظٹط« ط­ط§ظ„ط© ط§ظ„ط·ظ„ط¨ ط¥ظ„ظ‰ accepted
+        # تحديث حالة الطلب إلى accepted
         supabase.table("new_client_requests").update({"status": "accepted", "reviewed_by": user["id"]}).eq("id", request_id).execute()
         
-        return {"status": "success", "message": "طھظ… ظ‚ط¨ظˆظ„ ط§ظ„ط¹ظ…ظٹظ„ ظˆط¥ظ†ط´ط§ط، ط­ط³ط§ط¨ظ‡ ط¨ظ†ط¬ط§ط­", "client_id": new_client_id}
+        return {"status": "success", "message": "تم قبول العميل وإنشاء حسابه بنجاح", "client_id": new_client_id}
     except Exception as e:
         print(f"Error accepting request: {e}")
-        return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ظ…ط¹ط§ظ„ط¬ط© ط§ظ„ط·ظ„ط¨"}
+        return {"status": "error", "message": "حدث خطأ أثناء معالجة الطلب"}
 
 @router.post("/api/requests/{request_id}/reject")
 async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
-    """ط±ظپط¶ ط·ظ„ط¨ ط§ظ„ط¹ظ…ظٹظ„"""
+    """رفض طلب العميل"""
     if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
-        raise HTTPException(status_code=403, detail="ظ„ظٹط³ ظ„ط¯ظٹظƒ طµظ„ط§ط­ظٹط©")
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
     try:
         supabase.table("new_client_requests").update({"status": "rejected", "reviewed_by": user["id"]}).eq("id", request_id).execute()
-        return {"status": "success", "message": "طھظ… ط±ظپط¶ ط§ظ„ط·ظ„ط¨ ط¨ظ†ط¬ط§ط­"}
+        return {"status": "success", "message": "تم رفض الطلب بنجاح"}
     except Exception as e:
-        return {"status": "error", "message": "ط­ط¯ط« ط®ط·ط£ ط£ط«ظ†ط§ط، ط§ظ„ط±ظپط¶"}
+        return {"status": "error", "message": "حدث خطأ أثناء الرفض"}
+
 @router.get("/clients", response_class=HTMLResponse)
 async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     """قائمة جميع العملاء النشطين"""
