@@ -109,11 +109,22 @@ class QueryBuilder:
                     else:
                         params[f"p_ins_{k}"] = v
                     
-                query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
-                # print(f"[DB] {query} | Params: {params}")
-                result = conn.execute(text(query), params)
-                inserted_rows = [dict(mapping) for mapping in result.mappings()]
-                return MockResponse(inserted_rows)
+                is_postgres = "postgres" in str(engine.url) or "postgresql" in str(engine.url)
+                
+                if is_postgres:
+                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
+                    result = conn.execute(text(query), params)
+                    inserted_rows = [dict(mapping) for mapping in result.mappings()]
+                    return MockResponse(inserted_rows)
+                else:
+                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
+                    result = conn.execute(text(query), params)
+                    # محاولة جلب المعرف الجديد في حال كان الترقيم تلقائياً
+                    try:
+                        last_id = result.lastrowid
+                        if last_id: data["id"] = last_id
+                    except: pass
+                    return MockResponse([data])
 
             elif self._action == "UPDATE":
                 set_clauses = []

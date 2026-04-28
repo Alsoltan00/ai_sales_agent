@@ -47,9 +47,21 @@ async def startup_event():
         from sqlalchemy import text
         engine = get_db_engine()
         with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS ignore_groups BOOLEAN DEFAULT TRUE;"))
-            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'free';"))
-            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP;"))
+            # التحقق من الأعمدة الموجودة وإضافتها إذا نقصت
+            from sqlalchemy import inspect
+            inspector = inspect(engine)
+            columns = [c['name'] for c in inspector.get_columns('clients')]
+            
+            if 'ignore_groups' not in columns:
+                try: conn.execute(text("ALTER TABLE clients ADD COLUMN ignore_groups BOOLEAN DEFAULT TRUE;"))
+                except: pass
+            if 'subscription_plan' not in columns:
+                try: conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_plan TEXT DEFAULT 'free';"))
+                except: pass
+            if 'subscription_ends_at' not in columns:
+                try: conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
+                except: pass
+                
             # إنشاء جدول قواعد العمل إذا لم يكن موجوداً
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS business_rules (
@@ -72,17 +84,20 @@ async def startup_event():
                 );
             """))
             # إضافة خطط افتراضية إذا كان الجدول فارغاً
-            count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
-            if count == 0:
-                conn.execute(text("""
-                    INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
-                    ('basic', 'الأساسية', 0, 30, '{"max_models": 1, "voice_notes": false}'),
-                    ('pro', 'الاحترافية', 100, 30, '{"max_models": 3, "voice_notes": true}'),
-                    ('enterprise', 'الشركات', 500, 30, '{"max_models": 10, "voice_notes": true, "custom_support": true}')
-                """))
+            try:
+                count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
+                if count == 0:
+                    # نستخدم قيم نصية للمعرفات أو نتركها فارغة ليتم توليدها تلقائياً
+                    conn.execute(text("""
+                        INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
+                        ('basic', 'الأساسية', 0, 30, '{"max_models": 1, "voice_notes": false}'),
+                        ('pro', 'الاحترافية', 100, 30, '{"max_models": 3, "voice_notes": true}'),
+                        ('enterprise', 'الشركات', 500, 30, '{"max_models": 10, "voice_notes": true, "custom_support": true}')
+                    """))
+            except:
+                pass
             conn.commit()
-            conn.commit()
-            print("[DB] Database schema verified and updated (ignore_groups, business_rules).")
+            print("[DB] Database schema verified and updated.")
     except Exception as e:
         print(f"[DB ERROR] Startup schema update failed: {e}")
 
