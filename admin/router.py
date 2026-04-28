@@ -133,30 +133,42 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
     """إدارة اشتراكات العملاء والخطط"""
     supabase = get_supabase_client()
     
-    # جلب العملاء
-    res_clients = supabase.table("clients").select("*").execute()
-    
-    # جلب الخطط
-    res_plans = supabase.table("subscription_plans").select("*").execute()
-    
-    # تحويل التواريخ والمعرفات إلى نصوص لتجنب مشاكل الرندر
     safe_clients = []
-    for client in (res_clients.data or []):
-        c = dict(client)
-        if c.get("id"): c["id"] = str(c["id"])
-        if c.get("subscription_ends_at") and not isinstance(c["subscription_ends_at"], str):
-            c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
-        safe_clients.append(c)
-        
     safe_plans = []
-    for plan in (res_plans.data or []):
-        p = dict(plan)
-        if p.get("id"): p["id"] = str(p["id"])
-        import json
-        if p.get("permissions") and isinstance(p["permissions"], str):
-            try: p["permissions"] = json.loads(p["permissions"])
-            except: p["permissions"] = {}
-        safe_plans.append(p)
+    
+    try:
+        # جلب العملاء
+        res_clients = supabase.table("clients").select("*").execute()
+        for client in (res_clients.data or []):
+            c = dict(client)
+            c["id"] = str(c.get("id", ""))
+            # تأمين التاريخ
+            if c.get("subscription_ends_at"):
+                try:
+                    if not isinstance(c["subscription_ends_at"], str):
+                        c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
+                except:
+                    c["subscription_ends_at"] = str(c["subscription_ends_at"])
+            safe_clients.append(c)
+            
+        # جلب الخطط
+        res_plans = supabase.table("subscription_plans").select("*").execute()
+        for plan in (res_plans.data or []):
+            p = dict(plan)
+            p["id"] = str(p.get("id", ""))
+            import json
+            if p.get("permissions"):
+                if isinstance(p["permissions"], str):
+                    try: p["permissions"] = json.loads(p["permissions"])
+                    except: p["permissions"] = {}
+                elif not isinstance(p["permissions"], dict):
+                    p["permissions"] = {}
+            else:
+                p["permissions"] = {}
+            safe_plans.append(p)
+            
+    except Exception as e:
+        print(f"Error in admin_subscriptions: {e}")
         
     return templates.TemplateResponse("admin_subscriptions.html", {
         "request": request, 

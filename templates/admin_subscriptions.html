@@ -444,7 +444,7 @@
         }
 
         // Time Calculation Logic
-        const clients = {{ clients | tojson }};
+        const clients = {{ (clients or []) | tojson }};
         clients.forEach(client => {
             const el = document.getElementById(`time-${client.id}`);
             if(!client.subscription_ends_at) { el.innerText = 'غير محدد'; return; }
