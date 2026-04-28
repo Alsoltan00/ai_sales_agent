@@ -55,6 +55,10 @@ class QueryBuilder:
         self._where.append((col, '=', val))
         return self
 
+    def neq(self, col, val):
+        self._where.append((col, '!=', val))
+        return self
+
     def limit(self, limit_val):
         self._limit = limit_val
         return self
@@ -74,7 +78,7 @@ class QueryBuilder:
             
             for i, (col, op, val) in enumerate(self._where):
                 p_name = f"p_where_{i}"
-                where_clauses.append(f"{col} = :{p_name}")
+                where_clauses.append(f"{col} {op} :{p_name}")
                 params[p_name] = val
                 
             where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""

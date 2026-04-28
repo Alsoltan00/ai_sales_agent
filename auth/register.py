@@ -54,8 +54,7 @@ def register_new_client(company_name: str, contact_number: str, email: str = Non
         
     supabase = get_supabase_client()
     try:
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        import bcrypt
         
         data = {
             "company_name": company_name,
@@ -67,9 +66,12 @@ def register_new_client(company_name: str, contact_number: str, email: str = Non
         }
         
         if password:
-            # Truncate to 50 bytes for maximum compatibility
-            safe_password = password.encode('utf-8')[:50].decode('utf-8', 'ignore')
-            data["password_hash"] = pwd_context.hash(safe_password)
+            # Truncate to 50 bytes for maximum compatibility with bcrypt
+            safe_password = password.encode('utf-8')[:50]
+            # Generate salt and hash
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(safe_password, salt)
+            data["password_hash"] = hashed.decode('utf-8')
             
         supabase.table("new_client_requests").insert(data).execute()
         return True, "تم تسجيل طلبك بنجاح، سيتم مراجعته من قبل الإدارة"

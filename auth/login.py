@@ -1,14 +1,18 @@
 import os
 from database.db_client import get_supabase_client
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception:
-        # Fallback for plain text passwords or different hashes during migration
+        if not hashed_password:
+            return False
+        # Truncate to match registration logic
+        safe_password = plain_password.encode('utf-8')[:50]
+        # Check if the hashed_password is a valid bcrypt hash
+        return bcrypt.checkpw(safe_password, hashed_password.encode('utf-8'))
+    except Exception as e:
+        print(f"Bcrypt verification error: {e}")
+        # Fallback for plain text passwords (not recommended for production but kept for migration)
         return plain_password == hashed_password
 
 def authenticate_user(contact_info: str, password: str) -> dict | None:
