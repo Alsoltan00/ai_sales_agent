@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مكتبة النماذج الذكية | الإدارة</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --primary-hover: #d97706;
+            --secondary: #ef4444;
+            --success: #10b981;
+            --bg-dark: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            background-image: radial-gradient(at top left, rgba(245, 158, 11, 0.1) 0%, transparent 40%);
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            right: 0; top: 0;
+            z-index: 100;
+        }
+
+        .logo { padding: 30px; font-size: 1.2rem; font-weight: 800; border-bottom: 1px solid var(--glass-border); }
+        .nav-links { flex: 1; padding: 20px 0; }
+        .nav-item {
+            padding: 15px 25px; display: flex; align-items: center; gap: 15px;
+            color: var(--text-muted); text-decoration: none; transition: 0.3s;
+            font-size: 0.95rem; border-right: 3px solid transparent;
+        }
+        .nav-item:hover, .nav-item.active {
+            color: var(--primary); background: rgba(245, 158, 11, 0.1); border-right-color: var(--primary);
+        }
+
+        .main-content { flex: 1; margin-right: var(--sidebar-width); padding: 40px; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header h1 { font-size: 2rem; font-weight: 800; }
+
+        .add-btn {
+            background: var(--primary); color: white; border: none; padding: 12px 25px;
+            border-radius: 12px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        }
+
+        .models-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 25px;
+        }
+
+        .model-card {
+            background: var(--card-bg); border: 1px solid var(--glass-border);
+            border-radius: 25px; padding: 25px; position: relative; overflow: hidden;
+            transition: 0.3s;
+        }
+        .model-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+
+        .provider-badge {
+            position: absolute; top: 15px; left: 15px;
+            background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 8px;
+            font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+        }
+
+        .model-info h3 { margin: 20px 0 10px; font-size: 1.3rem; }
+        .model-info p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 20px; font-family: monospace; }
+
+        .actions { display: flex; gap: 10px; }
+        .action-btn {
+            flex: 1; padding: 10px; border-radius: 10px; border: none; cursor: pointer;
+            font-weight: 600; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-delete { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+        .btn-delete:hover { background: rgba(239, 68, 68, 0.2); }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(5px); z-index: 1000;
+            align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: var(--bg-dark); border: 1px solid var(--glass-border);
+            padding: 30px; border-radius: 25px; width: 100%; max-width: 500px;
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-muted); }
+        .form-group input, .form-group select {
+            width: 100%; padding: 12px; background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border); border-radius: 12px; color: white; outline: none;
+        }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div class="logo"><i class="fa-solid fa-shield-halved"></i> الإدارة المركزية</div>
+        <div class="nav-links">
+            <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
+            <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
+            <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            <a href="/admin/models-pool" class="nav-item active"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
+            <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <h1>مكتبة النماذج الذكية</h1>
+            <button class="add-btn" onclick="openAddModal()"><i class="fa-solid fa-plus"></i> إضافة نموذج للمكتبة</button>
+        </div>
+
+        <div class="models-grid">
+            {% for model in models %}
+            <div class="model-card">
+                <div class="provider-badge">{{ model.provider }}</div>
+                <div class="model-info">
+                    <h3>{{ model.model_name }}</h3>
+                    <p>{{ model.model_id }}</p>
+                </div>
+                <div class="actions">
+                    <button class="action-btn btn-delete" onclick="deleteModel('{{ model.id }}')">
+                        <i class="fa-solid fa-trash"></i> حذف من المكتبة
+                    </button>
+                </div>
+            </div>
+            {% else %}
+            <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: var(--text-muted);">
+                المكتبة فارغة حالياً. ابدأ بإضافة نماذج عالمية لتتمكن من تخصيصها للعملاء.
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <!-- Add Model Modal -->
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin-bottom: 25px;">إضافة نموذج للمكتبة</h2>
+            <div class="form-group">
+                <label>اسم النموذج للعرض</label>
+                <input type="text" id="model_name" placeholder="مثلاً: GPT-4 Omni">
+            </div>
+            <div class="form-group">
+                <label>مزود الخدمة</label>
+                <select id="provider">
+                    <option value="groq">Groq</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="google">Google Gemini</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>معرف النموذج (ID)</label>
+                <input type="text" id="model_id" placeholder="مثلاً: gpt-4o">
+            </div>
+            <div class="form-group">
+                <label>مفتاح الـ API الافتراضي</label>
+                <input type="password" id="api_key" placeholder="أدخل المفتاح">
+            </div>
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button onclick="closeAddModal()" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 12px; color: white; cursor: pointer;">إلغاء</button>
+                <button onclick="saveModel()" style="flex: 2; padding: 12px; background: var(--primary); border: none; border-radius: 12px; color: white; cursor: pointer; font-weight: 700;">حفظ في المكتبة</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
+        function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
+
+        async function saveModel() {
+            const payload = {
+                model_name: document.getElementById('model_name').value,
+                provider: document.getElementById('provider').value,
+                model_id: document.getElementById('model_id').value,
+                api_key: document.getElementById('api_key').value
+            };
+
+            try {
+                const res = await fetch('/admin/api/models-pool', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                alert(data.message);
+                if(data.status === 'success') window.location.reload();
+            } catch(e) { alert('خطأ في الاتصال'); }
+        }
+
+        async function deleteModel(id) {
+            if(!confirm('هل أنت متأكد من حذف هذا النموذج من المكتبة؟')) return;
+            try {
+                const res = await fetch(`/admin/api/models-pool/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                alert(data.message);
+                if(data.status === 'success') window.location.reload();
+            } catch(e) { alert('خطأ في الحذف'); }
+        }
+    </script>
+</body>
+</html>

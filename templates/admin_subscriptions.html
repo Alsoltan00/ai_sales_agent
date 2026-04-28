@@ -195,6 +195,7 @@
             <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
             <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
             <a href="/admin/subscriptions" class="nav-item active"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            <a href="/admin/models-pool" class="nav-item"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
             <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
         </div>
         <div class="user-info">
@@ -322,11 +323,41 @@
                     <input type="number" id="planDuration" value="30">
                 </div>
             </div>
-            <div class="form-group">
-                <label>الصلاحيات (JSON)</label>
-                <textarea id="planPerms" rows="4" style="font-family: monospace;">{"max_models": 5, "voice_notes": true}</textarea>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 5px;">أدخل الصلاحيات بصيغة JSON</p>
+            <div class="form-group" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 15px; border: 1px solid var(--glass-border);">
+                <label style="color: var(--primary); margin-bottom: 15px; display: block;"><i class="fa-solid fa-gears"></i> صلاحيات الباقة</label>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span>أقصى عدد للنماذج النشطة</span>
+                    <input type="number" id="permMaxModels" value="1" style="width: 80px; text-align: center;">
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <span>دعم الرسائل الصوتية (Voice)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="permVoiceNotes">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>دعم الملفات والمستندات</span>
+                    <label class="switch">
+                        <input type="checkbox" id="permFilesSupport">
+                        <span class="slider round"></span>
+                    </label>
+                </div>
             </div>
+            <style>
+                /* Toggle Switch Styling */
+                .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+                .switch input { opacity: 0; width: 0; height: 0; }
+                .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: rgba(255,255,255,0.1); transition: .4s; }
+                .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; }
+                input:checked + .slider { background-color: var(--success); }
+                input:checked + .slider:before { transform: translateX(26px); }
+                .slider.round { border-radius: 34px; }
+                .slider.round:before { border-radius: 50%; }
+            </style>
             <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button class="btn-cancel" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); color: white; border: none; border-radius: 12px; cursor: pointer;" onclick="closePlanModal()">إلغاء</button>
                 <button class="btn-save" style="flex: 2; padding: 12px; background: var(--success); color: white; border: none; border-radius: 12px; cursor: pointer; font-weight: 700;" onclick="savePlan()">حفظ الخطة</button>
@@ -380,7 +411,12 @@
             document.getElementById('planLabel').value = plan ? plan.label_ar : '';
             document.getElementById('planPrice').value = plan ? plan.price : 0;
             document.getElementById('planDuration').value = plan ? plan.duration_days : 30;
-            document.getElementById('planPerms').value = plan ? JSON.stringify(plan.permissions, null, 2) : '{"max_models": 1, "voice_notes": false}';
+            
+            const perms = plan && plan.permissions ? plan.permissions : {max_models: 1, voice_notes: false, files_support: false};
+            document.getElementById('permMaxModels').value = perms.max_models || 1;
+            document.getElementById('permVoiceNotes').checked = !!perms.voice_notes;
+            document.getElementById('permFilesSupport').checked = !!perms.files_support;
+            
             document.getElementById('planModal').style.display = 'flex';
         }
 
@@ -392,7 +428,11 @@
                 label_ar: document.getElementById('planLabel').value,
                 price: parseFloat(document.getElementById('planPrice').value),
                 duration_days: parseInt(document.getElementById('planDuration').value),
-                permissions: JSON.parse(document.getElementById('planPerms').value)
+                permissions: {
+                    max_models: parseInt(document.getElementById('permMaxModels').value),
+                    voice_notes: document.getElementById('permVoiceNotes').checked,
+                    files_support: document.getElementById('permFilesSupport').checked
+                }
             };
 
             const method = currentPlanId ? 'PUT' : 'POST';
