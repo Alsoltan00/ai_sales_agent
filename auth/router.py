@@ -90,3 +90,7 @@ async def create_demo():
         return {"status": "success", "message": "تم إنشاء الحسابات بنجاح. بيانات الدخول للمدير: admin@ai-sales.com | admin وللتاجر: 123456789 | merchant"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+@router.get("/subscriptions", response_class=HTMLResponse)
+async def subscriptions_page(request: Request):
+    """صفحة خطط الاشتراك (سيتم إعدادها لاحقاً)"""
+    return templates.TemplateResponse("subscriptions.html", {"request": request})

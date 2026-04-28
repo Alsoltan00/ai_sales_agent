@@ -313,8 +313,11 @@
                 const data = await res.json();
                 
                 if (data.status === 'success') {
-                    showAlert('success', 'registerAlert', data.message);
+                    showAlert('success', 'registerAlert', data.message + ' ... جاري توجيهك لصفحة الاشتراكات');
                     document.getElementById('registerFormElement').reset();
+                    setTimeout(() => {
+                        window.location.href = '/subscriptions';
+                    }, 2000);
                 } else {
                     showAlert('error', 'registerAlert', data.message || 'حدث خطأ');
                 }
