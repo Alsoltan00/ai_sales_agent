@@ -106,14 +106,23 @@ async def startup_event():
                 if 'password_hash' not in req_columns:
                     try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN password_hash TEXT;"))
                     except: pass
-                if 'business_type' not in req_columns:
-                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN business_type TEXT;"))
-                    except: pass
                 if 'store_link' not in req_columns:
                     try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
                     except: pass
             except:
                 pass
+
+            # إنشاء جدول مكتبة النماذج العالمية
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS global_ai_models (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    model_name TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    api_key TEXT NOT NULL,
+                    model_id TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
                 
             conn.commit()
             print("[DB] Database schema verified and updated.")

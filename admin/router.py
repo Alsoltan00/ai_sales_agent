@@ -298,8 +298,8 @@ async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict 
 async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
     """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
     supabase = get_supabase_client()
-    # سنستخدم معرف خاص 'GLOBAL' لتمييز النماذج العامة في المكتبة
-    res = supabase.table("ai_models_config").select("*").eq("client_id", "GLOBAL").execute()
+    # جلب النماذج من الجدول العالمي الجديد
+    res = supabase.table("global_ai_models").select("*").execute()
     
     def sanitize_data(data):
         if isinstance(data, list): return [sanitize_data(item) for item in data]
@@ -314,11 +314,9 @@ async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)
 @router.post("/api/models-pool")
 async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
     """إضافة نموذج جديد للمكتبة العالمية"""
-    payload["client_id"] = "GLOBAL"
-    payload["is_active"] = False # المكتبة لا تملك نموذج نشط واحد، بل هي مخزن
     supabase = get_supabase_client()
     try:
-        supabase.table("ai_models_config").insert(payload).execute()
+        supabase.table("global_ai_models").insert(payload).execute()
         return {"status": "success", "message": "تم إضافة النموذج للمكتبة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -328,7 +326,7 @@ async def admin_api_delete_global_model(model_id: str, user: dict = Depends(veri
     """حذف نموذج من المكتبة"""
     supabase = get_supabase_client()
     try:
-        supabase.table("ai_models_config").delete().eq("id", model_id).eq("client_id", "GLOBAL").execute()
+        supabase.table("global_ai_models").delete().eq("id", model_id).execute()
         return {"status": "success", "message": "تم حذف النموذج من المكتبة"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
