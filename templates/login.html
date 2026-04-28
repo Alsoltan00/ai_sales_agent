@@ -387,7 +387,9 @@
                 alert.style.display = 'block';
                 
                 if(data.status === 'success') {
-                    setTimeout(() => switchView('login'), 3000);
+                    setTimeout(() => {
+                        window.location.href = '/register/success';
+                    }, 1500);
                 }
             } catch (err) {
                 alert('خطأ في الاتصال');

@@ -43,6 +43,10 @@ async def register_page(request: Request):
             
     return templates.TemplateResponse("login.html", {"request": request, "view": "register"})
 
+@router.get("/register/success", response_class=HTMLResponse)
+async def register_success_page(request: Request):
+    return templates.TemplateResponse("register_success.html", {"request": request})
+
 @router.post("/api/auth/login")
 async def api_login(request: Request, payload: LoginRequest):
     user_data = authenticate_user(payload.contact_info, payload.password)
