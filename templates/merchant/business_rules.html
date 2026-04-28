@@ -214,7 +214,7 @@
                     <h5 class="mb-3">سياسة الخصومات: "كيف يتم تطبيق الخصم في متجرك؟"</h5>
                     <label class="radio-label">
                         <input type="radio" name="discount_type" value="fixed" checked>
-                        <span>خصم ثابت بنسبة <input type="number" name="discount_percent" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or 10 }}"> % عند تجاوز مبلغ <input type="number" name="discount_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or 500 }}"> ريال.</span>
+                        <span>خصم ثابت بنسبة <input type="number" name="discount_percent" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % عند تجاوز مبلغ <input type="number" name="discount_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="discount_type" value="code">
@@ -235,11 +235,11 @@
                     <h5 class="mb-3">سياسة الشحن: "متى يستحق العميل الشحن المجاني؟"</h5>
                     <label class="radio-label">
                         <input type="radio" name="shipping_type" value="city" checked>
-                        <span>لجميع الطلبات داخل مدينة <input type="text" name="shipping_city" class="custom-input d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or 'الرياض' }}">.</span>
+                        <span>لجميع الطلبات داخل مدينة <input type="text" name="shipping_city" class="custom-input d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or '' }}">.</span>
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="shipping_type" value="amount">
-                        <span>عند وصول السلة لمبلغ <input type="number" name="shipping_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or 200 }}"> ريال.</span>
+                        <span>عند وصول السلة لمبلغ <input type="number" name="shipping_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال.</span>
                     </label>
                 </div>
 
@@ -381,7 +381,7 @@
                     </label>
                     <label class="radio-label">
                         <input type="radio" name="bargain_type" value="qty">
-                        <span>الموافقة إذا تجاوز القطع: <input type="number" name="bargain_qty" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.bargain_qty or 5 }}"></span>
+                        <span>الموافقة إذا تجاوز القطع: <input type="number" name="bargain_qty" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.bargain_qty or '' }}"></span>
                     </label>
                 </div>
 
