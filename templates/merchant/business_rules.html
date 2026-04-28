@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>قواعد العمل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f4ff, #e6e9ff);
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(8px);
+        }
+        .card h2 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            color: #34495e;
+        }
+        .options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        .options label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .options input[type="radio"] {
+            margin-left: 0.5rem;
+            accent-color: #3498db;
+        }
+        .options input[type="text"] {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccd0d5;
+            border-radius: 6px;
+            margin-top: 0.4rem;
+        }
+        .custom-msg {
+            margin-top: 0.75rem;
+        }
+        .custom-msg textarea {
+            width: 100%;
+            height: 80px;
+            padding: 0.5rem;
+            border: 1px solid #ccd0d5;
+            border-radius: 6px;
+            resize: vertical;
+        }
+        .add-rule-btn {
+            display: inline-flex;
+            align-items: center;
+            background: #27ae60;
+            color: #fff;
+            padding: 0.6rem 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .add-rule-btn:hover {
+            background: #219150;
+        }
+        .save-btn {
+            background: #2980b9;
+            color: #fff;
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            margin-top: 1rem;
+        }
+        .save-btn:hover {background:#2471a3;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>قواعد العمل – إعدادات الذكاء الاصطناعي</h1>
+
+        <!-- 1. العمليات والسياسات المالية -->
+        <div class="card" id="financial-logic">
+            <h2>قسم العمليات والسياسات المالية (Financial Logic)</h2>
+            <p>الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
+            <div class="options">
+                <label><input type="radio" name="discount_type" value="fixed" checked> خصم ثابت بنسبة <input type="text" placeholder="مثلاً 10" /> % عند تجاوز مبلغ <input type="text" placeholder="مثلاً 500" /> ريال.</label>
+                <label><input type="radio" name="discount_type" value="code"> خصم باستخدام كود معين هو <input type="text" placeholder="مثلاً SAVE20" />.</label>
+                <label><input type="radio" name="discount_type" value="custom"> <span>إجابة مخصصة:</span>
+                    <textarea placeholder="اكتب النص المخصص للخصم هنا"></textarea>
+                </label>
+            </div>
+            <div class="custom-msg">
+                <label>تخصيص رسالة الموظف عند تطبيق الخصم:</label>
+                <textarea placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!"></textarea>
+            </div>
+        </div>
+
+        <!-- 2. سياسة الشحن -->
+        <div class="card" id="shipping-policy">
+            <h2>قسم سياسة الشحن</h2>
+            <p>متى يستحق العميل الشحن المجاني؟</p>
+            <div class="options">
+                <label><input type="radio" name="shipping_type" value="city" checked> لجميع الطلبات داخل مدينة <input type="text" placeholder="مثلاً الرياض" />.</label>
+                <label><input type="radio" name="shipping_type" value="amount"> عند وصول السلة لمبلغ <input type="text" placeholder="مثلاً 200" /> ريال.</label>
+                <label><input type="radio" name="shipping_type" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب القاعدة المخصصة هنا"></textarea>
+                </label>
+            </div>
+            <div class="custom-msg">
+                <label>رسالة الموظف عند سؤال العميل عن تكلفة الشحن:</label>
+                <textarea placeholder="اكتب النص هنا"></textarea>
+            </div>
+        </div>
+
+        <!-- 3. طرق الدفع المتوفرة -->
+        <div class="card" id="payment-methods">
+            <h2>قسم طرق الدفع المتوفرة</h2>
+            <p>ما هي خيارات الدفع التي تدعمها؟</p>
+            <div class="options">
+                <label><input type="radio" name="payment_type" value="cash_card" checked> دفع عند الاستلام / مدى / بطاقة ائتمان.</label>
+                <label><input type="radio" name="payment_type" value="bank_transfer"> تحويل بنكي فقط.</label>
+                <label><input type="radio" name="payment_type" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب تفاصيل الدفع المخصصة"></textarea>
+                </label>
+            </div>
+        </div>
+
+        <!-- 4. سلوك إدارة المخزون -->
+        <div class="card" id="inventory-behavior">
+            <h2>قسم إدارة المخزون والمنتجات (Inventory Behavior)</h2>
+            <p>عند نفاد المخزون:</p>
+            <div class="options">
+                <label><input type="radio" name="out_of_stock" value="apology" checked> الاعتذار وعرض منتج بديل من نفس الفئة.</label>
+                <label><input type="radio" name="out_of_stock" value="notify"> طلب رقم العميل لإبلاغه عند توفر المنتج.</label>
+                <label><input type="radio" name="out_of_stock" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+            <div class="custom-msg">
+                <label>نص الاعتذار المعتمد لنفاذ الكمية:</label>
+                <textarea placeholder="اكتب رسالة الاعتذار هنا"></textarea>
+            </div>
+            <p>تفاصيل المنتجات غير المتوفرة في قاعدة البيانات:</p>
+            <div class="options">
+                <label><input type="radio" name="missing_details" value="static" checked> استخدم معلومات ثابتة: <input type="text" placeholder="مثلاً: قماش قطن، مصنع في الصين" />.</label>
+                <label><input type="radio" name="missing_details" value="human"> الاعتذار وإحالة السؤال لموظف بشري.</label>
+                <label><input type="radio" name="missing_details" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+        </div>
+
+        <!-- 5. نبرة خدمة العملاء -->
+        <div class="card" id="customer-tone">
+            <h2>قسم سلوك خدمة العملاء (Customer Service Tone)</h2>
+            <p>أسلوب الرد (Tone):</p>
+            <div class="options">
+                <label><input type="radio" name="tone" value="formal" checked> بأسلوب رسمي جداً (مثلاً: أهلاً بك سيدتي، يسعدنا خدمتك).</label>
+                <label><input type="radio" name="tone" value="friendly"> بأسلوب ودي وعامي (مثلاً: يا هلا فيكِ، نورتي / نورت متجرنا).</label>
+                <label><input type="radio" name="tone" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النبرة المخصصة"></textarea>
+                </label>
+            </div>
+            <p>التعامل مع الشكاوى:</p>
+            <div class="options">
+                <label><input type="radio" name="complaint" value="discount" checked> امتصاص الغضب وتقديم كود خصم تعويضي هو <input type="text" placeholder="مثلاً DISCOUNT10" />.</label>
+                <label><input type="radio" name="complaint" value="manager"> تحويل المحادثة فوراً للمدير (بشري).</label>
+                <label><input type="radio" name="complaint" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+            <div class="custom-msg">
+                <label>رسالة التهدئة للعميل الغاضب:</label>
+                <textarea placeholder="اكتب رسالة التهدئة"></textarea>
+            </div>
+            <p>خارج أوقات العمل:</p>
+            <div class="options">
+                <label><input type="radio" name="afterhours" value="store" checked> "نحن الآن خارج وقت العمل، سأقوم بتسجيل طلبك ليعود الفريق غداً".</label>
+                <label><input type="radio" name="afterhours" value="auto"> "خدمتك مستمرة آلياً، لكن الشحن يتم في أوقات العمل من <input type="text" placeholder="مثلاً 09:00" /> إلى <input type="text" placeholder="مثلاً 18:00" />".</label>
+                <label><input type="radio" name="afterhours" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+        </div>
+
+        <!-- 6. إتمام البيع -->
+        <div class="card" id="closing-sale">
+            <h2>قسم إتمام البيع (Closing the Sale)</h2>
+            <p>رابط الدفع:</p>
+            <div class="options">
+                <label><input type="radio" name="payment_link" value="direct" checked> أرسل له رابط المنتج المباشر من المتجر الإلكتروني.</label>
+                <label><input type="radio" name="payment_link" value="manual"> اطلب الاسم، العنوان، والرقم لتجهيز الفاتورة يدوياً.</label>
+                <label><input type="radio" name="payment_link" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+            <p>المتابعة (Follow‑up):</p>
+            <div class="options">
+                <label><input type="radio" name="followup" value="reminder" checked> نعم، يرسل رسالة تذكير بعد <input type="text" placeholder="مثلاً 3" /> ساعات.</label>
+                <label><input type="radio" name="followup" value="none"> لا، ينتظر مبادرة العميل.</label>
+                <label><input type="radio" name="followup" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+        </div>
+
+        <!-- 7. الحواجز الأمنية -->
+        <div class="card" id="guardrails">
+            <h2>حواجز الحماية (The Guardrails)</h2>
+            <p>المواضيع المحظورة:</p>
+            <div class="options">
+                <label><input type="checkbox" name="ban_topic" value="price_compare" checked> مقارنة الأسعار مع المنافسين.</label>
+                <label><input type="checkbox" name="ban_topic" value="exact_eta" checked> إعطاء وعود بمواعيد وصول دقيقة (نقدم تقدير فقط).</label>
+                <label><input type="checkbox" name="ban_topic" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب المواضيع المحظورة"></textarea>
+                </label>
+            </div>
+            <p>صلاحية "الفصال" (إعطاء خصم إضافي):</p>
+            <div class="options">
+                <label><input type="radio" name="extra_discount" value="reject" checked> الرفض التام: "أسعارنا ثابتة ومنافسة جداً".</label>
+                <label><input type="radio" name="extra_discount" value="threshold"> الموافقة فقط إذا تجاوز عدد القطع <input type="text" placeholder="مثلاً 5" />.</label>
+                <label><input type="radio" name="extra_discount" value="custom"> إجابة مخصصة:
+                    <textarea placeholder="اكتب النص المخصص"></textarea>
+                </label>
+            </div>
+        </div>
+
+        <button class="save-btn" type="button">حفظ الإعدادات</button>
+    </div>
+</body>
+</html>
