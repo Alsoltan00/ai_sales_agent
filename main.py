@@ -48,8 +48,17 @@ async def startup_event():
         engine = get_db_engine()
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS ignore_groups BOOLEAN DEFAULT TRUE;"))
+            # إنشاء جدول قواعد العمل إذا لم يكن موجوداً
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS business_rules (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    client_id UUID,
+                    rules_data JSONB,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
             conn.commit()
-            print("[DB] Database schema verified and updated (ignore_groups).")
+            print("[DB] Database schema verified and updated (ignore_groups, business_rules).")
     except Exception as e:
         print(f"[DB ERROR] Startup schema update failed: {e}")
 

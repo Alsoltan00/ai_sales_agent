@@ -188,6 +188,45 @@ async def api_activate_ai_model(model_id_pk: str, user: dict = Depends(verify_me
         return {"status": "success", "message": "تم تفعيل النموذج بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}
 
+# --- Business Rules ---
+
+@router.get("/business-rules", response_class=HTMLResponse)
+async def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة قواعد العمل (Business Rules)"""
+    supabase = get_supabase_client()
+    rules = {}
+    try:
+        res = supabase.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        if res.data:
+            rules = res.data.get("rules_data", {})
+    except:
+        pass
+    return templates.TemplateResponse("merchant/business_rules.html", {"request": request, "user": user, "rules": rules})
+
+@router.post("/api/business-rules")
+async def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
+    """تحديث قواعد العمل"""
+    supabase = get_supabase_client()
+    try:
+        # التحقق من وجود سجل سابق
+        existing = supabase.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        
+        if existing.data:
+            supabase.table("business_rules").update({
+                "rules_data": payload,
+                "updated_at": datetime.now().isoformat()
+            }).eq("client_id", user["id"]).execute()
+        else:
+            supabase.table("business_rules").insert({
+                "client_id": user["id"],
+                "rules_data": payload,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+            
+        return {"status": "success", "message": "تم تحديث قواعد العمل بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
+
 class AITestRequest(BaseModel):
     model_config = {'protected_namespaces': ()}
     provider: str

@@ -67,6 +67,28 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
 
+    # 3.5 جلب قواعد العمل (Business Rules)
+    business_rules_prompt = ""
+    try:
+        rules_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
+        if rules_res.data and rules_res.data.get("rules_data"):
+            rd = rules_res.data["rules_data"]
+            business_rules_prompt = f"""
+دستور عمل وقواعد العمل (يجب الالتزام بها قطعيًا):
+- سياسة الخصم: {rd.get('discount_type', 'حسب الحاجة')}. {rd.get('discount_msg', '')}
+- الشحن: {rd.get('shipping_type', 'حسب السياسة')}. {rd.get('shipping_msg', '')}
+- الدفع: {rd.get('payment_type', 'متاح بكافة الوسائل')}.
+- عند نفاذ المخزون: {rd.get('stock_out_type', 'الاعتذار')}. {rd.get('stock_out_msg', '')}
+- معلومات إضافية للمنتجات: {rd.get('details_missing_type', '')}. {rd.get('details_static_info', '')}
+- نبرة الصوت: {rd.get('tone_type', tone)}. {rd.get('complaint_msg', '')}
+- خارج أوقات العمل: {rd.get('afterhours_type', 'الرد غداً')}.
+- إتمام البيع: {rd.get('checkout_type', 'رابط مباشر')}.
+- حواجز الحماية: يمنع منعاً باتاً الحديث في: { 'مقارنة الأسعار، ' if rd.get('ban_prices') else '' }{ 'مواعيد وصول دقيقة، ' if rd.get('ban_eta') else '' }{rd.get('ban_custom', '')}
+- سياسة المكاسرة: {rd.get('bargain_type', 'ممنوعة')}.
+"""
+    except Exception as e:
+        print(f"Warning: Could not fetch business rules: {e}")
+
     # 4. بناء System Prompt
     system_prompt = f"""أنت {agent_name}، مندوب مبيعات ذكي يعمل لدى {company_name}.
 
@@ -77,7 +99,9 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 
 {f"بيانات المنتجات والمخزون الحالي (JSON):{chr(10)}{store_data}" if store_data else ""}
 
-قواعد مهمة:
+{business_rules_prompt}
+
+قواعد عامة إضافية:
 - رد دائماً بالعربية ما لم يتحدث العميل بلغة أخرى
 - كن مقنعاً ومحترماً ومركزاً على إتمام البيع
 - إذا سُئلت عن سعر غير موجود في البيانات، قل أنك ستتحقق وتعود للعميل
