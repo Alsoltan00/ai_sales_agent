@@ -288,6 +288,10 @@
             <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
             {% endif %}
             
+            {% if user.permissions.get('is_admin') %}
+            <a href="/admin/models-pool" class="nav-item"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
+            {% endif %}
+            
             {% if user.permissions.get('can_manage_users') or user.permissions.get('is_admin') %}
             <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
             {% endif %}
