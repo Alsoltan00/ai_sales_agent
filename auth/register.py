@@ -27,8 +27,8 @@ def validate_password(password: str) -> tuple[bool, str]:
     """يتحقق من قوة كلمة المرور"""
     if len(password) < 8:
         return False, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
-    if len(password) > 64:
-        return False, "كلمة المرور طويلة جداً، الحد الأقصى 64 حرفاً"
+    if len(password) > 50:
+        return False, "كلمة المرور طويلة جداً، الحد الأقصى 50 حرفاً"
     import re
     if not re.search(r"[A-Z]", password):
         return False, "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل"
@@ -67,8 +67,8 @@ def register_new_client(company_name: str, contact_number: str, email: str = Non
         }
         
         if password:
-            # Bcrypt has a 72-byte limit. We truncate by bytes to be safe with Unicode.
-            safe_password = password.encode('utf-8')[:72].decode('utf-8', 'ignore')
+            # Truncate to 50 bytes for maximum compatibility
+            safe_password = password.encode('utf-8')[:50].decode('utf-8', 'ignore')
             data["password_hash"] = pwd_context.hash(safe_password)
             
         supabase.table("new_client_requests").insert(data).execute()
