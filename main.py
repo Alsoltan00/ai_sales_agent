@@ -48,6 +48,8 @@ async def startup_event():
         engine = get_db_engine()
         with engine.connect() as conn:
             conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS ignore_groups BOOLEAN DEFAULT TRUE;"))
+            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS subscription_plan TEXT DEFAULT 'free';"))
+            conn.execute(text("ALTER TABLE clients ADD COLUMN IF NOT EXISTS subscription_ends_at TIMESTAMP;"))
             # إنشاء جدول قواعد العمل إذا لم يكن موجوداً
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS business_rules (

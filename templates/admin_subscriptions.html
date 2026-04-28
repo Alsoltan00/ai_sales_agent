@@ -11,6 +11,7 @@
             --primary: #f59e0b;
             --primary-hover: #d97706;
             --secondary: #ef4444;
+            --success: #10b981;
             --bg-dark: #0f172a;
             --bg-sidebar: rgba(15, 23, 42, 0.85);
             --card-bg: rgba(30, 41, 59, 0.7);
@@ -42,8 +43,7 @@
             flex-direction: column;
             position: fixed;
             height: 100vh;
-            right: 0;
-            top: 0;
+            right: 0; top: 0;
             z-index: 100;
         }
 
@@ -64,11 +64,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .nav-links {
-            flex: 1;
-            padding: 20px 0;
-            overflow-y: auto;
-        }
+        .nav-links { flex: 1; padding: 20px 0; }
 
         .nav-item {
             padding: 15px 25px;
@@ -90,6 +86,95 @@
 
         .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
 
+        .main-content {
+            flex: 1;
+            margin-right: var(--sidebar-width);
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid var(--glass-border); }
+        th { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; }
+        
+        .badge { padding: 5px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+        .badge.active { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .badge.expired { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .badge.pro { background: rgba(99, 102, 241, 0.1); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.2); }
+
+        .time-left { font-size: 0.85rem; font-weight: 600; }
+        .time-left.soon { color: #f59e0b; }
+        .time-left.urgent { color: #ef4444; }
+
+        .action-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .action-btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--bg-dark);
+            border: 1px solid var(--glass-border);
+            padding: 30px;
+            border-radius: 25px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+        }
+
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-muted); }
+        .form-group select, .form-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            color: white;
+            outline: none;
+        }
+
+        .modal-actions { display: flex; gap: 15px; margin-top: 25px; }
+        .btn-cancel { background: rgba(255,255,255,0.1); color: white; border: none; padding: 12px; border-radius: 12px; flex: 1; cursor: pointer; }
+        .btn-save { background: var(--success); color: white; border: none; padding: 12px; border-radius: 12px; flex: 2; cursor: pointer; font-weight: 700; }
+
         .user-info {
             padding: 20px;
             border-top: 1px solid var(--glass-border);
@@ -107,54 +192,6 @@
             justify-content: center;
             font-weight: bold;
         }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-        }
-
-        .header h2 { font-size: 2rem; font-weight: 700; }
-        
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 10px 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .logout-btn:hover { background: rgba(239, 68, 68, 0.2); }
-
-        .glass-panel {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 60px 25px;
-            text-align: center;
-        }
-
-        .coming-soon-icon {
-            font-size: 4rem;
-            color: var(--primary);
-            margin-bottom: 20px;
-            opacity: 0.5;
-        }
-
     </style>
 </head>
 <body>
@@ -184,19 +221,144 @@
         <div class="header">
             <div>
                 <h2>إدارة الاشتراكات</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">متابعة وتجديد اشتراكات العملاء والخطط البرمجية</p>
+                <p style="color: var(--text-muted); margin-top: 5px;">متابعة مدد اشتراكات العملاء وتجديدها</p>
             </div>
-            <a href="/auth/logout" class="logout-btn">
+            <a href="/auth/logout" class="action-btn" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 10px 20px; text-decoration: none;">
                 تسجيل الخروج <i class="fa-solid fa-arrow-right-from-bracket"></i>
             </a>
         </div>
 
         <div class="glass-panel">
-            <i class="fa-solid fa-toolbox coming-soon-icon"></i>
-            <h3>هذه الواجهة قيد التطوير حالياً</h3>
-            <p style="color: var(--text-muted); max-width: 500px; margin: 15px auto;">نعمل على بناء نظام متكامل لإدارة الفواتير والخطط الشهرية والسنوية بشكل آلي لسهولة التعامل مع العملاء.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>العميل</th>
+                        <th>الباقة</th>
+                        <th>تاريخ الانتهاء</th>
+                        <th>الوقت المتبقي</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for client in clients %}
+                    <tr>
+                        <td style="font-weight: 600;">{{ client.company_name }}</td>
+                        <td><span class="badge pro">{{ (client.subscription_plan or 'free') | upper }}</span></td>
+                        <td>{{ (client.subscription_ends_at[:10] if client.subscription_ends_at else '---') }}</td>
+                        <td>
+                            <div id="time-{{ client.id }}" class="time-left">
+                                <!-- سيتم الحساب عبر JS -->
+                                جاري الحساب...
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge {{ 'active' if client.status == 'active' else 'expired' }}">
+                                {{ 'نشط' if client.status == 'active' else 'منتهي' }}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="action-btn" onclick="openRenewModal('{{ client.id }}', '{{ client.company_name }}')">
+                                <i class="fa-solid fa-arrows-rotate"></i> تجديد
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </main>
 
+    <!-- Renew Modal -->
+    <div id="renewModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 20px;">تجديد اشتراك: <span id="modalClientName" style="color: var(--primary);"></span></h3>
+            <div class="form-group">
+                <label>اختر الباقة</label>
+                <select id="renewPlan">
+                    <option value="basic">الأساسية (Basic)</option>
+                    <option value="pro" selected>الاحترافية (Pro)</option>
+                    <option value="enterprise">الشركات (Enterprise)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>المدة (أيام)</label>
+                <input type="number" id="renewDays" value="30" min="1">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeModal()">إلغاء</button>
+                <button class="btn-save" onclick="submitRenewal()">حفظ التجديد</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let activeClientId = null;
+
+        function openRenewModal(id, name) {
+            activeClientId = id;
+            document.getElementById('modalClientName').innerText = name;
+            document.getElementById('renewModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('renewModal').style.display = 'none';
+        }
+
+        async function submitRenewal() {
+            const plan = document.getElementById('renewPlan').value;
+            const days = parseInt(document.getElementById('renewDays').value);
+            const btn = document.querySelector('.btn-save');
+            
+            btn.disabled = true;
+            btn.innerText = 'جاري الحفظ...';
+
+            try {
+                const res = await fetch(`/admin/api/subscriptions/${activeClientId}/renew`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ plan, days })
+                });
+                const data = await res.json();
+                alert(data.message);
+                if(data.status === 'success') window.location.reload();
+            } catch(err) {
+                alert('خطأ في الاتصال');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'حفظ التجديد';
+            }
+        }
+
+        // Calculate time left for each client
+        const clients = {{ clients | tojson }};
+        clients.forEach(client => {
+            const el = document.getElementById(`time-${client.id}`);
+            if(!client.subscription_ends_at) {
+                el.innerText = 'غير محدد';
+                return;
+            }
+
+            const endDate = new Date(client.subscription_ends_at);
+            const now = new Date();
+            const diff = endDate - now;
+
+            if(diff <= 0) {
+                el.innerText = 'منتهي';
+                el.classList.add('urgent');
+            } else {
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                
+                if(days > 0) {
+                    el.innerText = `${days} يوم و ${hours} ساعة`;
+                    if(days < 7) el.classList.add('soon');
+                } else {
+                    el.innerText = `${hours} ساعة فقط!`;
+                    el.classList.add('urgent');
+                }
+            }
+        });
+    </script>
 </body>
 </html>

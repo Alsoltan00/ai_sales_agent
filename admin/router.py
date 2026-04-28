@@ -114,8 +114,51 @@ async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
 @router.get("/subscriptions", response_class=HTMLResponse)
 async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
     """إدارة اشتراكات العملاء"""
-    # حالياً لا يوجد جدول اشتراكات، سنعرض رسالة قيد التطوير
-    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user})
+    supabase = get_supabase_client()
+    res = supabase.table("clients").select("*").execute()
+    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user, "clients": res.data})
+
+@router.post("/api/subscriptions/{client_id}/renew")
+async def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+    """تجديد اشتراك عميل"""
+    days = payload.get("days", 30)
+    plan = payload.get("plan", "pro")
+    
+    supabase = get_supabase_client()
+    try:
+        # جلب البيانات الحالية
+        client_res = supabase.table("clients").select("subscription_ends_at").eq("id", client_id).single().execute()
+        current_end = None
+        if client_res.data and client_res.data.get("subscription_ends_at"):
+            from datetime import datetime, timedelta
+            try:
+                if isinstance(client_res.data["subscription_ends_at"], str):
+                    current_end = datetime.fromisoformat(client_res.data["subscription_ends_at"].replace('Z', '+00:00'))
+                else:
+                    current_end = client_res.data["subscription_ends_at"]
+            except:
+                current_end = datetime.now()
+        else:
+            from datetime import datetime, timedelta
+            current_end = datetime.now()
+
+        # حساب التاريخ الجديد
+        from datetime import datetime, timedelta
+        if current_end < datetime.now():
+            new_end = datetime.now() + timedelta(days=days)
+        else:
+            new_end = current_end + timedelta(days=days)
+            
+        supabase.table("clients").update({
+            "subscription_plan": plan,
+            "subscription_ends_at": new_end.isoformat(),
+            "status": "active"
+        }).eq("id", client_id).execute()
+        
+        return {"status": "success", "message": f"تم تجديد الاشتراك لمدة {days} يوم بنجاح"}
+    except Exception as e:
+        print(f"Error renewing subscription: {e}")
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/users", response_class=HTMLResponse)
 async def admin_users(request: Request, user: dict = Depends(verify_admin)):
