@@ -96,6 +96,25 @@ async def startup_event():
                     """))
             except:
                 pass
+            # التحقق من الأعمدة في جدول طلبات الانضمام
+            try:
+                inspector = inspect(engine)
+                req_columns = [c['name'] for c in inspector.get_columns('new_client_requests')]
+                if 'email' not in req_columns:
+                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN email TEXT;"))
+                    except: pass
+                if 'password_hash' not in req_columns:
+                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN password_hash TEXT;"))
+                    except: pass
+                if 'business_type' not in req_columns:
+                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN business_type TEXT;"))
+                    except: pass
+                if 'store_link' not in req_columns:
+                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
+                    except: pass
+            except:
+                pass
+                
             conn.commit()
             print("[DB] Database schema verified and updated.")
     except Exception as e:

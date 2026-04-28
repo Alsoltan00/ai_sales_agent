@@ -61,11 +61,13 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
             
         client_info = req_data.data
         
-        # إنشاء حساب العميل في جدول clients
-        # افتراضياً كلمة المرور هي رقم التواصل (يتم تغييرها لاحقاً من قبل العميل)
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        default_pwd = pwd_context.hash(client_info["contact_number"])
+        # إذا كان الطلب يحتوي على هاش كلمة مرور، نستخدمه
+        # وإلا ننشئ كلمة مرور افتراضية (رقم التواصل)
+        final_pwd_hash = client_info.get("password_hash")
+        if not final_pwd_hash:
+            from passlib.context import CryptContext
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            final_pwd_hash = pwd_context.hash(client_info["contact_number"])
         
         # حساب تاريخ انتهاء الاشتراك الافتراضي (30 يوم من الآن)
         from datetime import datetime, timedelta
@@ -74,7 +76,9 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         new_client = {
             "company_name": client_info["company_name"],
             "contact_number": client_info["contact_number"],
-            "password_hash": default_pwd,
+            "email": client_info.get("email"),
+            "password_hash": final_pwd_hash,
+            "store_url": client_info.get("store_link"),
             "status": "active",
             "subscription_plan": "basic",
             "subscription_ends_at": expiry_date.isoformat()

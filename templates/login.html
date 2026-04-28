@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الدخول | نظام وكيل المبيعات الذكي</title>
+    <title>تسجيل الدخول والاشتراك | نظام وكيل المبيعات الذكي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -12,7 +12,7 @@
             --primary-hover: #4f46e5;
             --secondary: #ec4899;
             --bg-dark: #0f172a;
-            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-bg: rgba(15, 23, 42, 0.8);
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
             --glass-border: rgba(255, 255, 255, 0.08);
@@ -27,57 +27,34 @@
                 radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
                 radial-gradient(at 100% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
             color: var(--text-main);
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            overflow: hidden;
+            padding: 20px;
+            overflow-y: auto;
         }
 
-        /* Animated Blobs for Premium Aesthetic */
-        .blobs-container {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: -1;
-            overflow: hidden;
-            pointer-events: none;
-        }
-
-        .blob {
-            position: absolute;
-            filter: blur(80px);
-            opacity: 0.4;
-            border-radius: 50%;
-            animation: float 20s infinite alternate ease-in-out;
-        }
-
-        .blob-1 { width: 400px; height: 400px; background: var(--primary); top: -10%; left: -10%; animation-delay: 0s; }
-        .blob-2 { width: 350px; height: 350px; background: var(--secondary); bottom: -10%; right: -10%; animation-delay: -5s; }
-
-        @keyframes float {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(50px, 50px) scale(1.1); }
-        }
-
-        /* Glassmorphism Card */
         .auth-card {
             background: var(--card-bg);
             backdrop-filter: blur(24px);
             -webkit-backdrop-filter: blur(24px);
             border: 1px solid var(--glass-border);
-            padding: 45px 40px;
-            border-radius: 28px;
+            padding: 40px;
+            border-radius: 32px;
             width: 100%;
-            max-width: 420px;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.1);
-            position: relative;
-            z-index: 10;
+            max-width: 500px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: all 0.5s ease;
         }
 
-        .header-text { text-align: center; margin-bottom: 30px; }
-        .header-text i { font-size: 2.5rem; color: var(--primary); margin-bottom: 15px; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .header-text h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 8px; }
-        .header-text p { color: var(--text-muted); font-size: 0.9rem; }
+        .header-text { text-align: center; margin-bottom: 35px; }
+        .header-text i { font-size: 2.8rem; color: var(--primary); margin-bottom: 15px; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-text h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 10px; }
+        .header-text p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .full-width { grid-column: span 2; }
 
         .form-group { margin-bottom: 20px; }
         .label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: #cbd5e1; font-weight: 600; }
@@ -85,12 +62,12 @@
         .input-wrapper { position: relative; }
         .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; transition: 0.3s; }
         
-        .input {
+        .input, select {
             width: 100%;
             padding: 14px 45px 14px 16px;
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 0.6);
             border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 14px;
+            border-radius: 16px;
             color: white;
             font-size: 0.95rem;
             font-family: inherit;
@@ -98,8 +75,11 @@
             transition: all 0.3s ease;
         }
 
-        .input:focus {
+        select option { background: var(--bg-dark); color: white; }
+
+        .input:focus, select:focus {
             border-color: var(--primary);
+            background: rgba(15, 23, 42, 0.9);
             box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
         }
         
@@ -107,89 +87,63 @@
 
         .btn {
             width: 100%;
-            padding: 14px;
+            padding: 16px;
             background: linear-gradient(135deg, var(--primary), var(--primary-hover));
             color: white;
             border: none;
-            border-radius: 14px;
-            font-size: 1rem;
+            border-radius: 16px;
+            font-size: 1.05rem;
             font-weight: 700;
-            font-family: inherit;
             cursor: pointer;
             transition: all 0.3s;
-            margin-top: 10px;
+            margin-top: 15px;
             box-shadow: 0 10px 20px -10px var(--primary);
         }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 25px -10px var(--primary);
-        }
-
-        .btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            transform: none;
-        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 15px 30px -10px var(--primary); }
+        .btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
 
         .toggle-link {
             display: block;
             text-align: center;
             margin-top: 25px;
             color: var(--text-muted);
-            font-size: 0.9rem;
+            font-size: 0.95rem;
             text-decoration: none;
-            transition: 0.3s;
         }
-
         .toggle-link span { color: var(--primary); font-weight: 700; margin-right: 5px; }
-        .toggle-link:hover span { text-decoration: underline; }
 
-        /* Alerts */
         .alert {
-            padding: 12px 16px;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            font-size: 0.85rem;
-            display: none;
-            animation: slideDown 0.3s ease;
+            padding: 14px; border-radius: 14px; margin-bottom: 25px;
+            font-size: 0.9rem; display: none; text-align: center;
         }
+        .alert-error { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+        .alert-success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
 
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
-        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
-
-        /* Form Switching */
-        #registerForm { display: none; }
+        /* Conditional Field Animation */
+        #storeLinkGroup { display: none; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
 <body>
-    <div class="blobs-container">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
-    </div>
 
-    <div class="auth-card">
-        <!-- Login Form -->
+    <div class="auth-card" id="authCard">
+        <!-- Login View -->
         <div id="loginView">
             <div class="header-text">
-                <i class="fa-solid fa-robot"></i>
-                <h1>تسجيل الدخول</h1>
-                <p>قم بالدخول إلى لوحة تحكم وكيل المبيعات الخاص بك</p>
+                <i class="fa-solid fa-rocket"></i>
+                <h1>مرحباً بعودتك</h1>
+                <p>سجل دخولك لإدارة وكلاء المبيعات الذكية</p>
             </div>
 
             <div id="loginAlert" class="alert alert-error"></div>
 
-            <form id="loginForm" onsubmit="handleLogin(event)">
+            <form onsubmit="handleLogin(event)">
                 <div class="form-group">
-                    <label class="label">البريد الإلكتروني أو رقم التواصل</label>
+                    <label class="label">البريد أو رقم التواصل</label>
                     <div class="input-wrapper">
-                        <input type="text" id="loginContact" class="input" placeholder="أدخل البريد أو الرقم" required>
-                        <i class="fa-solid fa-user"></i>
+                        <input type="text" id="loginContact" class="input" placeholder="example@mail.com" required>
+                        <i class="fa-solid fa-envelope"></i>
                     </div>
                 </div>
                 <div class="form-group">
@@ -199,64 +153,104 @@
                         <i class="fa-solid fa-lock"></i>
                     </div>
                 </div>
-                <button type="submit" class="btn" id="loginBtn">دخول</button>
-                
-                <a href="#" class="toggle-link" onclick="switchView('register')">
-                    ليس لديك حساب؟ <span>سجل الآن كعميل جديد</span>
-                </a>
+                <button type="submit" class="btn" id="loginBtn">تسجيل الدخول</button>
+                <a href="#" class="toggle-link" onclick="switchView('register')">ليس لديك حساب؟ <span>سجل الآن كتاجر</span></a>
             </form>
         </div>
 
-        <!-- Register Form -->
+        <!-- Register View -->
         <div id="registerView" style="display: none;">
             <div class="header-text">
-                <i class="fa-solid fa-building-user"></i>
-                <h1>طلب حساب جديد</h1>
-                <p>سجل بيانات شركتك وسنقوم بمراجعة طلبك</p>
+                <i class="fa-solid fa-user-plus"></i>
+                <h1>ابدأ رحلة نموك اليوم</h1>
+                <p>سجل بياناتك وانضم لآلاف التجار الذين يستخدمون الوكيل الذكي</p>
             </div>
 
             <div id="registerAlert" class="alert"></div>
 
-            <form id="registerFormElement" onsubmit="handleRegister(event)">
-                <div class="form-group">
-                    <label class="label">اسم الشركة / المؤسسة</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="regCompany" class="input" placeholder="أدخل اسم شركتك" required>
-                        <i class="fa-solid fa-building"></i>
+            <form onsubmit="handleRegister(event)">
+                <div class="form-grid">
+                    <div class="form-group full-width">
+                        <label class="label">اسم الشركة / المتجر</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="regCompany" class="input" placeholder="أدخل اسم نشاطك التجاري" required>
+                            <i class="fa-solid fa-store"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">البريد الإلكتروني</label>
+                        <div class="input-wrapper">
+                            <input type="email" id="regEmail" class="input" placeholder="mail@example.com" required>
+                            <i class="fa-solid fa-envelope"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">رقم الجوال (واتساب)</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="regContact" class="input" placeholder="9665XXXXXXXX" required>
+                            <i class="fa-solid fa-phone"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">نوع النشاط</label>
+                        <div class="input-wrapper">
+                            <select id="regBusinessType" class="input" onchange="toggleStoreLink()" required>
+                                <option value="">اختر نوع النشاط</option>
+                                <option value="store">متجر إلكتروني</option>
+                                <option value="service">شركة خدمات</option>
+                                <option value="freelance">عمل حر / فردي</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                            <i class="fa-solid fa-briefcase"></i>
+                        </div>
+                    </div>
+                    <div class="form-group" id="storeLinkGroup">
+                        <label class="label">رابط المتجر</label>
+                        <div class="input-wrapper">
+                            <input type="url" id="regStoreLink" class="input" placeholder="https://salla.sa/yourstore">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">كلمة المرور</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="regPassword" class="input" placeholder="••••••••" required>
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="label">تأكيد كلمة المرور</label>
+                        <div class="input-wrapper">
+                            <input type="password" id="regConfirmPassword" class="input" placeholder="••••••••" required>
+                            <i class="fa-solid fa-shield-check"></i>
+                        </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label class="label">رقم التواصل (واتساب)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="regContact" class="input" placeholder="مثال: 966500000000+" required>
-                        <i class="fa-solid fa-phone"></i>
-                    </div>
-                </div>
-                <button type="submit" class="btn" id="registerBtn">إرسال الطلب</button>
-                
-                <a href="#" class="toggle-link" onclick="switchView('login')">
-                    لديك طلب مسبق أو حساب؟ <span>تسجيل الدخول</span>
-                </a>
+                <button type="submit" class="btn" id="registerBtn">إنشاء الحساب</button>
+                <a href="#" class="toggle-link" onclick="switchView('login')">لديك حساب بالفعل؟ <span>تسجيل الدخول</span></a>
             </form>
         </div>
     </div>
 
     <script>
         function switchView(view) {
+            const card = document.getElementById('authCard');
             if(view === 'register') {
                 document.getElementById('loginView').style.display = 'none';
                 document.getElementById('registerView').style.display = 'block';
+                card.style.maxWidth = '600px';
             } else {
                 document.getElementById('registerView').style.display = 'none';
                 document.getElementById('loginView').style.display = 'block';
+                card.style.maxWidth = '500px';
             }
         }
 
-        function showAlert(type, elementId, message) {
-            const el = document.getElementById(elementId);
-            el.className = `alert alert-${type}`;
-            el.innerText = message;
-            el.style.display = 'block';
+        function toggleStoreLink() {
+            const type = document.getElementById('regBusinessType').value;
+            const group = document.getElementById('storeLinkGroup');
+            group.style.display = type === 'store' ? 'block' : 'none';
+            if(type === 'store') group.classList.add('full-width');
         }
 
         async function handleLogin(e) {
@@ -264,9 +258,7 @@
             const contactInfo = document.getElementById('loginContact').value;
             const password = document.getElementById('loginPassword').value;
             const btn = document.getElementById('loginBtn');
-            const alertEl = document.getElementById('loginAlert');
             
-            alertEl.style.display = 'none';
             btn.disabled = true;
             btn.innerText = 'جاري التحقق...';
 
@@ -276,56 +268,68 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ contact_info: contactInfo, password: password })
                 });
-                
                 const data = await res.json();
-                
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
                 } else {
-                    showAlert('error', 'loginAlert', data.message || 'فشل تسجيل الدخول');
+                    const alert = document.getElementById('loginAlert');
+                    alert.innerText = data.message;
+                    alert.style.display = 'block';
                 }
             } catch (err) {
-                showAlert('error', 'loginAlert', 'خطأ في الاتصال بالخادم');
+                alert('خطأ في الاتصال بالخادم');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'دخول';
+                btn.innerText = 'تسجيل الدخول';
             }
         }
 
         async function handleRegister(e) {
             e.preventDefault();
-            const companyName = document.getElementById('regCompany').value;
-            const contactNumber = document.getElementById('regContact').value;
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+
+            if (password !== confirmPassword) {
+                const alert = document.getElementById('registerAlert');
+                alert.innerText = 'كلمات المرور غير متطابقة';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+                return;
+            }
+
             const btn = document.getElementById('registerBtn');
-            const alertEl = document.getElementById('registerAlert');
-            
-            alertEl.style.display = 'none';
             btn.disabled = true;
-            btn.innerText = 'جاري الإرسال...';
+            btn.innerText = 'جاري المعالجة...';
+
+            const payload = {
+                company_name: document.getElementById('regCompany').value,
+                contact_number: document.getElementById('regContact').value,
+                email: document.getElementById('regEmail').value,
+                password: password,
+                business_type: document.getElementById('regBusinessType').value,
+                store_link: document.getElementById('regStoreLink').value
+            };
 
             try {
                 const res = await fetch('/api/auth/register', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ company_name: companyName, contact_number: contactNumber })
+                    body: JSON.stringify(payload)
                 });
-                
                 const data = await res.json();
+                const alert = document.getElementById('registerAlert');
+                alert.innerText = data.message;
+                alert.className = data.status === 'success' ? 'alert alert-success' : 'alert alert-error';
+                alert.style.display = 'block';
                 
-                if (data.status === 'success') {
-                    showAlert('success', 'registerAlert', data.message + ' ... جاري توجيهك لصفحة الاشتراكات');
-                    document.getElementById('registerFormElement').reset();
-                    setTimeout(() => {
-                        window.location.href = '/subscriptions';
-                    }, 2000);
-                } else {
-                    showAlert('error', 'registerAlert', data.message || 'حدث خطأ');
+                if(data.status === 'success') {
+                    setTimeout(() => switchView('login'), 3000);
                 }
             } catch (err) {
-                showAlert('error', 'registerAlert', 'خطأ في الاتصال بالخادم');
+                alert('خطأ في الاتصال');
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'إرسال الطلب';
+                btn.innerText = 'إنشاء الحساب';
             }
         }
     </script>

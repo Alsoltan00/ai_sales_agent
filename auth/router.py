@@ -17,6 +17,10 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     company_name: str
     contact_number: str
+    email: str = None
+    password: str = None
+    business_type: str = None
+    store_link: str = None
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -50,7 +54,14 @@ async def api_login(request: Request, payload: LoginRequest):
 
 @router.post("/api/auth/register")
 async def api_register(payload: RegisterRequest):
-    success, message = register_new_client(payload.company_name, payload.contact_number)
+    success, message = register_new_client(
+        payload.company_name, 
+        payload.contact_number, 
+        payload.email, 
+        payload.password,
+        payload.business_type,
+        payload.store_link
+    )
     if success:
         return {"status": "success", "message": message}
     return JSONResponse(
