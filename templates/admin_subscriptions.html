@@ -139,16 +139,56 @@
             padding: 20px; border-top: 1px solid var(--glass-border);
             display: flex; align-items: center; gap: 15px;
         }
-        .user-avatar {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            display: flex; align-items: center; justify-content: center; font-weight: bold;
+        /* Mobile Responsiveness */
+        .mobile-header {
+            display: none; align-items: center; justify-content: space-between;
+            padding: 15px 20px; background: var(--bg-sidebar); border-bottom: 1px solid var(--glass-border);
+            position: sticky; top: 0; z-index: 90; backdrop-filter: blur(10px);
         }
+        
+        .mobile-menu-btn {
+            background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar { 
+                right: -100%; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+                width: 280px; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+            }
+            .sidebar.active { right: 0; }
+            .main-content { margin-right: 0; padding: 20px; }
+            .mobile-header { display: flex; }
+            .header { flex-direction: column; align-items: flex-start; gap: 20px; margin-bottom: 30px; }
+            .header button { width: 100%; justify-content: center; }
+            .tabs { overflow-x: auto; gap: 10px; padding-bottom: 5px; }
+            .tab-btn { font-size: 0.9rem; padding: 8px 15px; flex-shrink: 0; }
+            
+            /* Responsive Table */
+            .glass-panel { border-radius: 15px; padding: 15px; }
+            th, td { padding: 10px 8px; font-size: 0.8rem; }
+            .badge { font-size: 0.7rem; padding: 3px 6px; }
+            .action-btn { padding: 6px 10px; font-size: 0.75rem; }
+        }
+
+        .overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); z-index: 95;
+        }
+        .overlay.active { display: block; }
     </style>
 </head>
 <body>
 
-    <aside class="sidebar">
+    <div class="overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+    <div class="mobile-header">
+        <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
+            <i class="fa-solid fa-shield-halved"></i> الإدارة المركزية
+        </div>
+        <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars-staggered"></i></button>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
         <div class="logo"><i class="fa-solid fa-shield-halved"></i> <span>الإدارة المركزية</span></div>
         <div class="nav-links">
             <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
@@ -320,6 +360,11 @@
     <script>
         let currentPlanId = null;
         let activeRenewClientId = null;
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('active');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
