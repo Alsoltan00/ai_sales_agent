@@ -67,8 +67,9 @@ def register_new_client(company_name: str, contact_number: str, email: str = Non
         }
         
         if password:
-            # Bcrypt has a 72-byte limit, we truncate to be safe
-            data["password_hash"] = pwd_context.hash(password[:72])
+            # Bcrypt has a 72-byte limit. We truncate by bytes to be safe with Unicode.
+            safe_password = password.encode('utf-8')[:72].decode('utf-8', 'ignore')
+            data["password_hash"] = pwd_context.hash(safe_password)
             
         supabase.table("new_client_requests").insert(data).execute()
         return True, "تم تسجيل طلبك بنجاح، سيتم مراجعته من قبل الإدارة"
