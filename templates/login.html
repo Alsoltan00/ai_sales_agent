@@ -121,7 +121,7 @@
         .alert-success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
 
         /* Conditional Field Animation */
-        #storeLinkGroup { display: none; animation: fadeIn 0.4s ease; }
+        #storeLinkGroup, #otherActivityGroup { display: none; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
@@ -194,7 +194,7 @@
                     <div class="form-group">
                         <label class="label">نوع النشاط</label>
                         <div class="input-wrapper">
-                            <select id="regBusinessType" class="input" onchange="toggleStoreLink()" required>
+                            <select id="regBusinessType" class="input" onchange="handleBusinessTypeChange()" required>
                                 <option value="">اختر نوع النشاط</option>
                                 <option value="store">متجر إلكتروني</option>
                                 <option value="service">شركة خدمات</option>
@@ -202,6 +202,13 @@
                                 <option value="other">أخرى</option>
                             </select>
                             <i class="fa-solid fa-briefcase"></i>
+                        </div>
+                    </div>
+                    <div class="form-group" id="otherActivityGroup">
+                        <label class="label">وصف النشاط</label>
+                        <div class="input-wrapper">
+                            <input type="text" id="regOtherActivity" class="input" placeholder="مثلاً: صالون حلاقة، مطعم...">
+                            <i class="fa-solid fa-pen-to-square"></i>
                         </div>
                     </div>
                     <div class="form-group" id="storeLinkGroup">
@@ -246,11 +253,16 @@
             }
         }
 
-        function toggleStoreLink() {
+        function handleBusinessTypeChange() {
             const type = document.getElementById('regBusinessType').value;
-            const group = document.getElementById('storeLinkGroup');
-            group.style.display = type === 'store' ? 'block' : 'none';
-            if(type === 'store') group.classList.add('full-width');
+            const storeGroup = document.getElementById('storeLinkGroup');
+            const otherGroup = document.getElementById('otherActivityGroup');
+            
+            storeGroup.style.display = type === 'store' ? 'block' : 'none';
+            otherGroup.style.display = type === 'other' ? 'block' : 'none';
+            
+            if(type === 'store') storeGroup.classList.add('full-width');
+            if(type === 'other') otherGroup.classList.add('full-width');
         }
 
         async function handleLogin(e) {
@@ -301,12 +313,17 @@
             btn.disabled = true;
             btn.innerText = 'جاري المعالجة...';
 
+            let businessType = document.getElementById('regBusinessType').value;
+            if (businessType === 'other') {
+                businessType = document.getElementById('regOtherActivity').value;
+            }
+
             const payload = {
                 company_name: document.getElementById('regCompany').value,
                 contact_number: document.getElementById('regContact').value,
                 email: document.getElementById('regEmail').value,
                 password: password,
-                business_type: document.getElementById('regBusinessType').value,
+                business_type: businessType,
                 store_link: document.getElementById('regStoreLink').value
             };
 
