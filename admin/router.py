@@ -116,7 +116,18 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
     """إدارة اشتراكات العملاء"""
     supabase = get_supabase_client()
     res = supabase.table("clients").select("*").execute()
-    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user, "clients": res.data})
+    
+    # تحويل التواريخ إلى نصوص لتجنب مشاكل الرندر
+    safe_clients = []
+    for client in (res.data or []):
+        c = dict(client)
+        if c.get("subscription_ends_at") and not isinstance(c["subscription_ends_at"], str):
+            c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
+        if c.get("created_at") and not isinstance(c["created_at"], str):
+            c["created_at"] = c["created_at"].isoformat()
+        safe_clients.append(c)
+        
+    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user, "clients": safe_clients})
 
 @router.post("/api/subscriptions/{client_id}/renew")
 async def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
