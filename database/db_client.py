@@ -84,6 +84,7 @@ class QueryBuilder:
                 if self._limit:
                     query += f" LIMIT {self._limit}"
                 
+                # print(f"[DB] {query} | Params: {params}")
                 result = conn.execute(text(query), params)
                 rows = [dict(mapping) for mapping in result.mappings()]
                 
@@ -93,7 +94,6 @@ class QueryBuilder:
 
             elif self._action == "INSERT":
                 if isinstance(self._data, list):
-                    # Not fully implemented for lists yet, fallback to single
                     if len(self._data) > 0:
                         data = self._data[0]
                     else:
@@ -110,10 +110,9 @@ class QueryBuilder:
                         params[f"p_ins_{k}"] = v
                     
                 query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
-                
-                # Check for return id (postgres syntax only, ignore for now)
+                # print(f"[DB] {query} | Params: {params}")
                 conn.execute(text(query), params)
-                return MockResponse([data]) # mock return
+                return MockResponse([data])
 
             elif self._action == "UPDATE":
                 set_clauses = []
@@ -126,11 +125,14 @@ class QueryBuilder:
                 
                 set_sql = ", ".join(set_clauses)
                 query = f"UPDATE {self.table_name} SET {set_sql}{where_sql}"
-                conn.execute(text(query), params)
+                # print(f"[DB] {query} | Params: {params}")
+                res = conn.execute(text(query), params)
+                # print(f"[DB] Rows affected: {res.rowcount}")
                 return MockResponse([self._data])
 
             elif self._action == "DELETE":
                 query = f"DELETE FROM {self.table_name}{where_sql}"
+                # print(f"[DB] {query} | Params: {params}")
                 conn.execute(text(query), params)
                 return MockResponse([])
 

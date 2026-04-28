@@ -44,17 +44,13 @@ def activate_ai_model(client_id: str, model_id_pk: str) -> bool:
     """تنشيط نموذج معين بناء على الـ ID الخاص بالصف في الداتابيز وإلغاء تنشيط البقية"""
     supabase = get_supabase_client()
     try:
-        # تحويل الـ ID إلى رقم في حال كان النظام يستخدم Serial ID
-        try:
-            target_id = int(model_id_pk)
-        except:
-            target_id = model_id_pk
-
-        # 1. إلغاء تفعيل الجميع لهذا العميل
+        # 1. إلغاء تفعيل جميع النماذج لهذا العميل أولاً
         supabase.table("ai_models_config").update({"is_active": False}).eq("client_id", client_id).execute()
         
-        # 2. تفعيل النموذج المطلوب فقط
-        supabase.table("ai_models_config").update({"is_active": True}).eq("id", target_id).eq("client_id", client_id).execute()
+        # 2. تفعيل النموذج المختار فقط باستخدام المعرف الفريد (PK)
+        # نستخدم ستريب (strip) للتأكد من عدم وجود مسافات زائدة
+        clean_id = str(model_id_pk).strip()
+        supabase.table("ai_models_config").update({"is_active": True}).eq("id", clean_id).eq("client_id", client_id).execute()
         
         return True
     except Exception as e:
