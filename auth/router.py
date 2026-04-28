@@ -32,7 +32,16 @@ async def login_page(request: Request):
         else:
             return RedirectResponse(url="/merchant/home", status_code=303)
             
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse("login.html", {"request": request, "view": "login"})
+
+@router.get("/register", response_class=HTMLResponse)
+async def register_page(request: Request):
+    # Check if already logged in
+    user = request.session.get("user")
+    if user:
+        return RedirectResponse(url="/merchant/home", status_code=303)
+            
+    return templates.TemplateResponse("login.html", {"request": request, "view": "register"})
 
 @router.post("/api/auth/login")
 async def api_login(request: Request, payload: LoginRequest):

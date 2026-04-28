@@ -134,9 +134,9 @@
 </head>
 <body>
 
-    <div class="auth-card" id="authCard">
+    <div class="auth-card" id="authCard" style="max-width: {{ '600px' if view == 'register' else '500px' }}">
         <!-- Login View -->
-        <div id="loginView">
+        <div id="loginView" style="display: {{ 'none' if view == 'register' else 'block' }}">
             <div class="header-text">
                 <i class="fa-solid fa-rocket"></i>
                 <h1>مرحباً بعودتك</h1>
@@ -161,12 +161,12 @@
                     </div>
                 </div>
                 <button type="submit" class="btn" id="loginBtn">تسجيل الدخول</button>
-                <a href="#" class="toggle-link" onclick="switchView('register')">ليس لديك حساب؟ <span>سجل الآن كتاجر</span></a>
+                <a href="/register" class="toggle-link" onclick="history.pushState(null, '', '/register'); switchView('register'); return false;">ليس لديك حساب؟ <span>سجل الآن كتاجر</span></a>
             </form>
         </div>
 
         <!-- Register View -->
-        <div id="registerView" style="display: none;">
+        <div id="registerView" style="display: {{ 'block' if view == 'register' else 'none' }}">
             <div class="header-text">
                 <i class="fa-solid fa-user-plus"></i>
                 <h1>ابدأ رحلة نموك اليوم</h1>
@@ -247,7 +247,7 @@
                     </div>
                 </div>
                 <button type="submit" class="btn" id="registerBtn">إنشاء الحساب</button>
-                <a href="#" class="toggle-link" onclick="switchView('login')">لديك حساب بالفعل؟ <span>تسجيل الدخول</span></a>
+                <a href="/login" class="toggle-link" onclick="history.pushState(null, '', '/login'); switchView('login'); return false;">لديك حساب بالفعل؟ <span>تسجيل الدخول</span></a>
             </form>
         </div>
     </div>
