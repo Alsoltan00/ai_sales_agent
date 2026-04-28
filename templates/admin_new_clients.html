@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة الإدارة | نظام وكيل المبيعات الذكي</title>
+    <title>العملاء الجدد | نظام وكيل المبيعات الذكي</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -32,7 +32,6 @@
             background-image: radial-gradient(at top left, rgba(245, 158, 11, 0.1) 0%, transparent 40%);
         }
 
-        /* Sidebar */
         .sidebar {
             width: var(--sidebar-width);
             background: var(--bg-sidebar);
@@ -42,8 +41,7 @@
             flex-direction: column;
             position: fixed;
             height: 100vh;
-            right: 0;
-            top: 0;
+            right: 0; top: 0;
             z-index: 100;
         }
 
@@ -64,11 +62,7 @@
             -webkit-text-fill-color: transparent;
         }
 
-        .nav-links {
-            flex: 1;
-            padding: 20px 0;
-            overflow-y: auto;
-        }
+        .nav-links { flex: 1; padding: 20px 0; }
 
         .nav-item {
             padding: 15px 25px;
@@ -90,6 +84,41 @@
 
         .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
 
+        .main-content {
+            flex: 1;
+            margin-right: var(--sidebar-width);
+            padding: 40px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 40px;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 25px;
+            overflow-x: auto;
+        }
+
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: right; border-bottom: 1px solid var(--glass-border); }
+        th { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; }
+        
+        .badge { padding: 5px 10px; border-radius: 8px; font-size: 0.8rem; font-weight: 600; }
+        .badge.pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+        
+        .action-btn {
+            background: none; border: none; color: var(--text-main); cursor: pointer;
+            padding: 8px; border-radius: 8px; transition: 0.3s;
+        }
+        .action-btn.accept:hover { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .action-btn.reject:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+
         .user-info {
             padding: 20px;
             border-top: 1px solid var(--glass-border);
@@ -107,124 +136,6 @@
             justify-content: center;
             font-weight: bold;
         }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-        }
-
-        .header h2 { font-size: 2rem; font-weight: 700; }
-        
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 10px 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .logout-btn:hover { background: rgba(239, 68, 68, 0.2); }
-
-        /* Dashboard Grid */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 25px;
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .stat-icon {
-            width: 60px; height: 60px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-        }
-
-        .stat-info h3 { font-size: 2rem; font-weight: 800; margin-bottom: 5px; }
-        .stat-info p { color: var(--text-muted); font-size: 0.9rem; }
-
-        .stat-card.orange .stat-icon { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
-        .stat-card.blue .stat-icon { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
-        
-        /* Table Section */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .glass-panel {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 25px;
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th, td {
-            padding: 15px;
-            text-align: right;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        th { color: var(--text-muted); font-weight: 600; font-size: 0.9rem; }
-        
-        .badge {
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .badge.pending { background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
-        .badge.active { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
-        
-        .action-btn {
-            background: none;
-            border: none;
-            color: var(--text-main);
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 8px;
-            transition: 0.3s;
-        }
-
-        .action-btn.accept:hover { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .action-btn.reject:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-
     </style>
 </head>
 <body>
@@ -235,20 +146,11 @@
             <span>الإدارة المركزية</span>
         </div>
         <div class="nav-links">
-            <a href="/admin/dashboard" class="nav-item active"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
-            
-            {% if user.permissions.get('can_manage_new_clients') or user.permissions.get('is_admin') %}
-            <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
+            <a href="/admin/requests" class="nav-item active"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
             <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
-            {% endif %}
-            
-            {% if user.permissions.get('can_manage_subscriptions') or user.permissions.get('is_admin') %}
             <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
-            {% endif %}
-            
-            {% if user.permissions.get('can_manage_users') or user.permissions.get('is_admin') %}
             <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
-            {% endif %}
         </div>
         <div class="user-info">
             <div class="user-avatar">{{ user.name[0] if user and user.name else 'A' }}</div>
@@ -262,36 +164,12 @@
     <main class="main-content">
         <div class="header">
             <div>
-                <h2>لوحة التحكم</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">مرحباً بك في الإدارة المركزية لنظام الذكاء الاصطناعي</p>
+                <h2>طلبات العملاء الجدد</h2>
+                <p style="color: var(--text-muted); margin-top: 5px;">إدارة طلبات الانضمام بانتظار الموافقة</p>
             </div>
-            <a href="/auth/logout" class="logout-btn">
+            <a href="/auth/logout" class="action-btn" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 10px 20px; text-decoration: none;">
                 تسجيل الخروج <i class="fa-solid fa-arrow-right-from-bracket"></i>
             </a>
-        </div>
-
-        <div class="grid-container">
-            <div class="stat-card orange">
-                <div class="stat-icon"><i class="fa-solid fa-user-clock"></i></div>
-                <div class="stat-info">
-                    <h3 id="pendingCount">{{ stats.pending_requests | default(0) }}</h3>
-                    <p>طلبات بانتظار الموافقة</p>
-                </div>
-            </div>
-
-            <div class="stat-card blue">
-                <div class="stat-icon"><i class="fa-solid fa-users"></i></div>
-                <div class="stat-info">
-                    <h3 id="activeCount">{{ stats.active_clients | default(0) }}</h3>
-                    <p>إجمالي العملاء النشطين</p>
-                </div>
-            </div>
-        </div>
-
-        {% if user.permissions.get('can_manage_new_clients') or user.permissions.get('is_admin') %}
-        <div class="section-header">
-            <h3>طلبات الانضمام الحديثة (العملاء الجدد)</h3>
-            <button class="action-btn" style="background: rgba(255,255,255,0.1); padding: 8px 15px;" onclick="loadRequests()">تحديث <i class="fa-solid fa-rotate-right"></i></button>
         </div>
 
         <div class="glass-panel">
@@ -306,17 +184,13 @@
                     </tr>
                 </thead>
                 <tbody id="requestsTableBody">
-                    <tr>
-                        <td colspan="5" style="text-align: center; color: var(--text-muted);">جاري التحميل...</td>
-                    </tr>
+                    <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">جاري التحميل...</td></tr>
                 </tbody>
             </table>
         </div>
-        {% endif %}
     </main>
 
     <script>
-        // Load pending requests dynamically
         async function loadRequests() {
             const tbody = document.getElementById('requestsTableBody');
             try {
@@ -354,7 +228,6 @@
 
         async function handleRequest(id, action) {
             if(!confirm(action === 'accept' ? 'هل أنت متأكد من قبول هذا العميل وإنشاء حساب له؟' : 'هل أنت متأكد من رفض هذا الطلب؟')) return;
-            
             try {
                 const res = await fetch(`/admin/api/requests/${id}/${action}`, { method: 'POST' });
                 const data = await res.json();
@@ -365,10 +238,7 @@
             }
         }
 
-        // Initial load
-        {% if user.permissions.get('can_manage_new_clients') or user.permissions.get('is_admin') %}
         loadRequests();
-        {% endif %}
     </script>
 </body>
 </html>

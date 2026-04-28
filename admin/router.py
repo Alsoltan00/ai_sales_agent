@@ -86,6 +86,11 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         print(f"Error accepting request: {e}")
         return {"status": "error", "message": "حدث خطأ أثناء معالجة الطلب"}
 
+@router.get("/requests", response_class=HTMLResponse)
+async def admin_requests(request: Request, user: dict = Depends(verify_admin)):
+    """صفحة طلبات العملاء الجدد (بانتظار الموافقة)"""
+    return templates.TemplateResponse("admin_new_clients.html", {"request": request, "user": user})
+
 @router.post("/api/requests/{request_id}/reject")
 async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
     """رفض طلب العميل"""
