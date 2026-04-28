@@ -59,6 +59,28 @@ async def startup_event():
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
+            # إنشاء جدول خطط الاشتراك
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS subscription_plans (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    name TEXT NOT NULL,
+                    label_ar TEXT,
+                    price DECIMAL(10, 2) DEFAULT 0,
+                    duration_days INTEGER DEFAULT 30,
+                    permissions JSONB DEFAULT '{}',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """))
+            # إضافة خطط افتراضية إذا كان الجدول فارغاً
+            count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
+            if count == 0:
+                conn.execute(text("""
+                    INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
+                    ('basic', 'الأساسية', 0, 30, '{"max_models": 1, "voice_notes": false}'),
+                    ('pro', 'الاحترافية', 100, 30, '{"max_models": 3, "voice_notes": true}'),
+                    ('enterprise', 'الشركات', 500, 30, '{"max_models": 10, "voice_notes": true, "custom_support": true}')
+                """))
+            conn.commit()
             conn.commit()
             print("[DB] Database schema verified and updated (ignore_groups, business_rules).")
     except Exception as e:

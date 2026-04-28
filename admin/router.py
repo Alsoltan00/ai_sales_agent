@@ -113,31 +113,76 @@ async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
 
 @router.get("/subscriptions", response_class=HTMLResponse)
 async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
-    """إدارة اشتراكات العملاء"""
+    """إدارة اشتراكات العملاء والخطط"""
     supabase = get_supabase_client()
-    res = supabase.table("clients").select("*").execute()
+    
+    # جلب العملاء
+    res_clients = supabase.table("clients").select("*").execute()
+    
+    # جلب الخطط
+    res_plans = supabase.table("subscription_plans").select("*").execute()
     
     # تحويل التواريخ والمعرفات إلى نصوص لتجنب مشاكل الرندر
     safe_clients = []
-    for client in (res.data or []):
+    for client in (res_clients.data or []):
         c = dict(client)
-        # تحويل المعرف UUID إلى نص
-        if c.get("id"):
-            c["id"] = str(c["id"])
-        
+        if c.get("id"): c["id"] = str(c["id"])
         if c.get("subscription_ends_at") and not isinstance(c["subscription_ends_at"], str):
             c["subscription_ends_at"] = c["subscription_ends_at"].isoformat()
-        if c.get("created_at") and not isinstance(c["created_at"], str):
-            c["created_at"] = c["created_at"].isoformat()
         safe_clients.append(c)
         
-    return templates.TemplateResponse("admin_subscriptions.html", {"request": request, "user": user, "clients": safe_clients})
+    safe_plans = []
+    for plan in (res_plans.data or []):
+        p = dict(plan)
+        if p.get("id"): p["id"] = str(p["id"])
+        import json
+        if p.get("permissions") and isinstance(p["permissions"], str):
+            try: p["permissions"] = json.loads(p["permissions"])
+            except: p["permissions"] = {}
+        safe_plans.append(p)
+        
+    return templates.TemplateResponse("admin_subscriptions.html", {
+        "request": request, 
+        "user": user, 
+        "clients": safe_clients,
+        "plans": safe_plans
+    })
+
+@router.post("/api/plans")
+async def api_create_plan(payload: dict, user: dict = Depends(verify_admin)):
+    """إنشاء خطة اشتراك جديدة"""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("subscription_plans").insert(payload).execute()
+        return {"status": "success", "message": "تم إنشاء الخطة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.put("/api/plans/{plan_id}")
+async def api_update_plan(plan_id: str, payload: dict, user: dict = Depends(verify_admin)):
+    """تحديث خطة اشتراك موجودة"""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("subscription_plans").update(payload).eq("id", plan_id).execute()
+        return {"status": "success", "message": "تم تحديث الخطة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/api/plans/{plan_id}")
+async def api_delete_plan(plan_id: str, user: dict = Depends(verify_admin)):
+    """حذف خطة اشتراك"""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("subscription_plans").delete().eq("id", plan_id).execute()
+        return {"status": "success", "message": "تم حذف الخطة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @router.post("/api/subscriptions/{client_id}/renew")
 async def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
     """تجديد اشتراك عميل"""
-    days = payload.get("days", 30)
-    plan = payload.get("plan", "pro")
+    days = int(payload.get("days", 30))
+    plan_name = payload.get("plan", "pro")
     
     supabase = get_supabase_client()
     try:
@@ -145,7 +190,7 @@ async def renew_subscription(client_id: str, payload: dict, user: dict = Depends
         client_res = supabase.table("clients").select("subscription_ends_at").eq("id", client_id).single().execute()
         current_end = None
         if client_res.data and client_res.data.get("subscription_ends_at"):
-            from datetime import datetime, timedelta
+            from datetime import datetime
             try:
                 if isinstance(client_res.data["subscription_ends_at"], str):
                     current_end = datetime.fromisoformat(client_res.data["subscription_ends_at"].replace('Z', '+00:00'))
@@ -154,7 +199,7 @@ async def renew_subscription(client_id: str, payload: dict, user: dict = Depends
             except:
                 current_end = datetime.now()
         else:
-            from datetime import datetime, timedelta
+            from datetime import datetime
             current_end = datetime.now()
 
         # حساب التاريخ الجديد
@@ -165,14 +210,13 @@ async def renew_subscription(client_id: str, payload: dict, user: dict = Depends
             new_end = current_end + timedelta(days=days)
             
         supabase.table("clients").update({
-            "subscription_plan": plan,
+            "subscription_plan": plan_name,
             "subscription_ends_at": new_end.isoformat(),
             "status": "active"
         }).eq("id", client_id).execute()
         
         return {"status": "success", "message": f"تم تجديد الاشتراك لمدة {days} يوم بنجاح"}
     except Exception as e:
-        print(f"Error renewing subscription: {e}")
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/users", response_class=HTMLResponse)
