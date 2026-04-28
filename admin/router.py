@@ -97,7 +97,7 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "success", "message": "تم قبول العميل وإنشاء حسابه بنجاح", "client_id": str(new_client_id)}
     except Exception as e:
         print(f"Error accepting request: {e}")
-        return {"status": "error", "message": "حدث خطأ أثناء معالجة الطلب"}
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/requests", response_class=HTMLResponse)
 async def admin_requests(request: Request, user: dict = Depends(verify_admin)):
