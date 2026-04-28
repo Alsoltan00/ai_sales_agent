@@ -265,7 +265,7 @@
                         {% if model.is_active %}
                         <span style="color: #4ade80; font-weight: bold; padding: 8px 15px; border-radius: 8px; background: rgba(34, 197, 94, 0.2);"><i class="fa-solid fa-check"></i> مفعل حالياً</span>
                         {% else %}
-                        <button onclick="activateModel('{{ model.id }}')" style="padding: 8px 15px; border-radius: 8px; background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; transition: 0.3s; font-family: inherit; font-weight: bold;">
+                        <button onclick="activateModel('{{ model.id }}', event)" style="padding: 8px 15px; border-radius: 8px; background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; transition: 0.3s; font-family: inherit; font-weight: bold;">
                             تفعيل هذا النموذج
                         </button>
                         {% endif %}
@@ -278,22 +278,41 @@
     </main>
 
     <script>
-        async function activateModel(modelId) {
+        async function activateModel(modelId, event) {
+            if (!modelId) {
+                alert('خطأ: معرف النموذج غير موجود');
+                return;
+            }
+
+            // البحث عن الزر وتغيير حالته
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التفعيل...';
+
             try {
                 const response = await fetch(`/merchant/api/ai-training/activate/${modelId}`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'}
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
                 const result = await response.json();
                 
                 if (result.status === 'success') {
                     window.location.reload();
                 } else {
-                    alert(result.message);
+                    alert('فشل التفعيل: ' + result.message);
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
                 }
             } catch (error) {
-                alert('حدث خطأ في الاتصال بالخادم');
+                alert('حدث خطأ في الاتصال: ' + error.message);
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
             }
         }
 
