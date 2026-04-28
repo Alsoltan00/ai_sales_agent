@@ -27,11 +27,31 @@ def check_existing_account(contact_number: str, email: str = None) -> bool:
         print(f"Error checking existing account: {e}")
     return False
 
+def validate_password(password: str) -> tuple[bool, str]:
+    """يتحقق من قوة كلمة المرور"""
+    if len(password) < 8:
+        return False, "كلمة المرور يجب أن تكون 8 أحرف على الأقل"
+    import re
+    if not re.search(r"[A-Z]", password):
+        return False, "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل"
+    if not re.search(r"[a-z]", password):
+        return False, "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل"
+    if not re.search(r"\d", password):
+        return False, "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل"
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "يجب أن تحتوي كلمة المرور على رمز خاص واحد على الأقل (!@#$%^&*...)"
+    return True, ""
+
 def register_new_client(company_name: str, contact_number: str, email: str = None, password: str = None, business_type: str = None, store_link: str = None) -> tuple[bool, str]:
-    """يسجل طلب عميل جديد مع البيانات الموسعة"""
+    """يسجل طلب عميل جديد مع التحقق من قوة كلمة المرور"""
     if not company_name or not contact_number:
         return False, "يجب إدخال اسم الشركة ورقم التواصل"
         
+    if password:
+        is_strong, error_msg = validate_password(password)
+        if not is_strong:
+            return False, error_msg
+            
     if check_existing_account(contact_number, email):
         return False, "بيانات الاتصال مسجلة بالفعل، يرجى تسجيل الدخول"
         

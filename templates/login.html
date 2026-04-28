@@ -121,8 +121,15 @@
         .alert-success { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
 
         /* Conditional Field Animation */
-        #storeLinkGroup, #otherActivityGroup { display: none; animation: fadeIn 0.4s ease; }
+        #storeLinkGroup, #otherActivityGroup, #passwordRequirements { display: none; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .requirements-list { 
+            font-size: 0.75rem; color: var(--text-muted); padding: 10px; 
+            background: rgba(0,0,0,0.2); border-radius: 10px; margin-top: 5px;
+        }
+        .requirement.met { color: #4ade80; }
+        .requirement.met i { content: '\f00c'; }
     </style>
 </head>
 <body>
@@ -221,8 +228,14 @@
                     <div class="form-group">
                         <label class="label">كلمة المرور</label>
                         <div class="input-wrapper">
-                            <input type="password" id="regPassword" class="input" placeholder="••••••••" required>
+                            <input type="password" id="regPassword" class="input" placeholder="••••••••" onfocus="showPassRequirements()" oninput="validatePassStrength()" required>
                             <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <div id="passwordRequirements" class="requirements-list">
+                            <div id="req-len" class="requirement"><i class="fa-solid fa-circle-dot"></i> 8 أحرف على الأقل</div>
+                            <div id="req-up" class="requirement"><i class="fa-solid fa-circle-dot"></i> حرف كبير واحد (A-Z)</div>
+                            <div id="req-num" class="requirement"><i class="fa-solid fa-circle-dot"></i> رقم واحد على الأقل</div>
+                            <div id="req-spec" class="requirement"><i class="fa-solid fa-circle-dot"></i> رمز خاص (!@#$)</div>
                         </div>
                     </div>
                     <div class="form-group">
@@ -240,6 +253,31 @@
     </div>
 
     <script>
+        function showPassRequirements() {
+            document.getElementById('passwordRequirements').style.display = 'block';
+        }
+
+        function validatePassStrength() {
+            const pass = document.getElementById('regPassword').value;
+            const reqs = {
+                'req-len': pass.length >= 8,
+                'req-up': /[A-Z]/.test(pass),
+                'req-num': /[0-9]/.test(pass),
+                'req-spec': /[!@#$%^&*(),.?":{}|<>]/.test(pass)
+            };
+
+            for (const [id, met] of Object.entries(reqs)) {
+                const el = document.getElementById(id);
+                if (met) {
+                    el.classList.add('met');
+                    el.querySelector('i').className = 'fa-solid fa-circle-check';
+                } else {
+                    el.classList.remove('met');
+                    el.querySelector('i').className = 'fa-solid fa-circle-dot';
+                }
+            }
+        }
+
         function switchView(view) {
             const card = document.getElementById('authCard');
             if(view === 'register') {
@@ -304,6 +342,15 @@
             if (password !== confirmPassword) {
                 const alert = document.getElementById('registerAlert');
                 alert.innerText = 'كلمات المرور غير متطابقة';
+                alert.className = 'alert alert-error';
+                alert.style.display = 'block';
+                return;
+            }
+
+            const passRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}$/;
+            if (!passRegex.test(password)) {
+                const alert = document.getElementById('registerAlert');
+                alert.innerText = 'يرجى الالتزام بسياسة كلمة المرور القوية';
                 alert.className = 'alert alert-error';
                 alert.style.display = 'block';
                 return;
