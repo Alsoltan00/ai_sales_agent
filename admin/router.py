@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from auth.session_manager import get_current_user
 from database.db_client import get_supabase_client
+from merchant.ai_training.ai_config import get_ai_config, update_ai_config, get_all_ai_configs, activate_ai_model
 
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
 templates = Jinja2Templates(directory="templates")
@@ -255,3 +256,40 @@ async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     supabase = get_supabase_client()
     res = supabase.table("sales_admin_users").select("*").execute()
     return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": res.data})
+
+@router.get("/clients/{client_id}/ai", response_class=HTMLResponse)
+async def admin_client_ai_config(client_id: str, request: Request, user: dict = Depends(verify_admin)):
+    """إدارة إعدادات الذكاء الاصطناعي لعميل محدد من قبل الأدمن"""
+    supabase = get_supabase_client()
+    # جلب بيانات العميل للتأكد من وجوده
+    client_res = supabase.table("clients").select("company_name").eq("id", client_id).single().execute()
+    if not client_res.data:
+        raise HTTPException(status_code=404, detail="العميل غير موجود")
+    
+    ai_config = get_ai_config(client_id)
+    all_models = get_all_ai_configs(client_id)
+    
+    return templates.TemplateResponse("admin/client_ai_config.html", {
+        "request": request,
+        "user": user,
+        "client_name": client_res.data["company_name"],
+        "client_id": client_id,
+        "ai_config": ai_config,
+        "all_models": all_models
+    })
+
+@router.post("/api/clients/{client_id}/ai")
+async def admin_api_update_ai(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+    """تحديث إعدادات الذكاء لعميل من قبل الأدمن"""
+    success = update_ai_config(client_id, payload)
+    if success:
+        return {"status": "success", "message": "تم حفظ الإعدادات للعميل بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
+
+@router.post("/api/clients/{client_id}/ai/activate/{model_id_pk}")
+async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict = Depends(verify_admin)):
+    """تفعيل نموذج لعميل من قبل الأدمن"""
+    success = activate_ai_model(client_id, model_id_pk)
+    if success:
+        return {"status": "success", "message": "تم تفعيل النموذج للعميل بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}

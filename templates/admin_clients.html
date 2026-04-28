@@ -257,6 +257,7 @@
                         <th>رقم التواصل</th>
                         <th>الحالة</th>
                         <th>تاريخ الانضمام</th>
+                        <th>الإجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -271,6 +272,11 @@
                             </span>
                         </td>
                         <td>{{ client.created_at.strftime('%Y-%m-%d') if client.created_at and client.created_at.strftime else (client.created_at[:10] if client.created_at else '---') }}</td>
+                        <td>
+                            <a href="/admin/clients/{{ client.id }}/ai" class="action-btn" style="background: var(--primary); color: white; padding: 5px 12px; border-radius: 8px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px;">
+                                <i class="fa-solid fa-brain"></i> إعداد الذكاء
+                            </a>
+                        </td>
                     </tr>
                     {% else %}
                     <tr>

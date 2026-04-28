@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعداد الذكاء لـ {{ client_name }} | الإدارة</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #f59e0b;
+            --primary-hover: #d97706;
+            --secondary: #ef4444;
+            --success: #10b981;
+            --bg-dark: #0f172a;
+            --bg-sidebar: rgba(15, 23, 42, 0.85);
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --sidebar-width: 280px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+            background-image: radial-gradient(at top left, rgba(245, 158, 11, 0.1) 0%, transparent 40%);
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-sidebar);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid var(--glass-border);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            right: 0; top: 0;
+        }
+
+        .main-content { flex: 1; margin-right: var(--sidebar-width); padding: 40px; }
+
+        .header { margin-bottom: 40px; display: flex; align-items: center; justify-content: space-between; }
+        .back-link { color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+        .back-link:hover { color: var(--primary); }
+
+        .glass-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 25px;
+            padding: 35px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 12px; font-weight: 700; color: var(--text-muted); }
+        .form-group input, .form-group select {
+            width: 100%; padding: 15px; background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border); border-radius: 15px; color: white; outline: none;
+            transition: 0.3s;
+        }
+        .form-group input:focus { border-color: var(--primary); background: rgba(255, 255, 255, 0.08); }
+
+        .save-btn {
+            background: var(--primary); color: white; border: none; padding: 15px 30px;
+            border-radius: 15px; font-weight: 700; cursor: pointer; transition: 0.3s;
+            width: 100%; font-size: 1.1rem; margin-top: 10px;
+        }
+        .save-btn:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+        .models-list { margin-top: 50px; max-width: 800px; margin-left: auto; margin-right: auto; }
+        .model-card {
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border);
+            border-radius: 20px; padding: 20px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .model-card.active { border-color: var(--success); background: rgba(16, 185, 129, 0.05); }
+        
+        .active-badge { color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 8px; }
+        .activate-btn {
+            background: var(--success); color: white; border: none; padding: 8px 15px;
+            border-radius: 10px; font-weight: 600; cursor: pointer;
+        }
+
+        .alert { padding: 15px; border-radius: 12px; margin-bottom: 25px; display: none; text-align: center; }
+        .alert-success { background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+        .alert-error { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <div style="padding: 30px; font-weight: 800; font-size: 1.2rem; border-bottom: 1px solid var(--glass-border);">
+            <i class="fa-solid fa-shield-halved"></i> الإدارة المركزية
+        </div>
+        <!-- Sidebar links omitted for brevity but should be consistent -->
+    </aside>
+
+    <main class="main-content">
+        <div class="header">
+            <div>
+                <a href="/admin/clients" class="back-link"><i class="fa-solid fa-arrow-right"></i> العودة لقائمة العملاء</a>
+                <h1 style="margin-top: 15px;">إعدادات الذكاء الاصطناعي لـ <span style="color: var(--primary);">{{ client_name }}</span></h1>
+            </div>
+        </div>
+
+        <div id="alertBox" class="alert"></div>
+
+        <div class="glass-card">
+            <h3 style="margin-bottom: 25px;">إضافة/تحديث نموذج الذكاء</h3>
+            
+            <div class="form-group">
+                <label>مزود الخدمة (Provider)</label>
+                <select id="provider">
+                    <option value="groq" {% if ai_config.provider == 'groq' %}selected{% endif %}>Groq (Fast Inference)</option>
+                    <option value="openai" {% if ai_config.provider == 'openai' %}selected{% endif %}>OpenAI (ChatGPT)</option>
+                    <option value="google" {% if ai_config.provider == 'google' %}selected{% endif %}>Google Gemini</option>
+                    <option value="anthropic" {% if ai_config.provider == 'anthropic' %}selected{% endif %}>Anthropic (Claude)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>اسم النموذج للعرض (Model Name)</label>
+                <input type="text" id="model_name" value="{{ ai_config.model_name or '' }}" placeholder="مثلاً: GPT-4 Turbo">
+            </div>
+
+            <div class="form-group">
+                <label>معرف النموذج البرمجي (Model ID)</label>
+                <input type="text" id="model_id" value="{{ ai_config.model_id or '' }}" placeholder="مثلاً: gpt-4-1106-preview">
+            </div>
+
+            <div class="form-group">
+                <label>مفتاح الربط الخاص بك (Admin API Key)</label>
+                <input type="password" id="api_key" value="{{ ai_config.api_key or '' }}" placeholder="أدخل مفتاح الـ API">
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 8px;">ملاحظة: هذا المفتاح سيتم استخدامه خصيصاً لهذا العميل.</p>
+            </div>
+
+            <button class="save-btn" onclick="saveAIConfig()">حفظ وتفعيل هذا النموذج</button>
+        </div>
+
+        <div class="models-list">
+            <h3 style="margin-bottom: 20px;">النماذج المحفوظة لهذا العميل</h3>
+            {% for model in all_models %}
+            <div class="model-card {% if model.is_active %}active{% endif %}">
+                <div>
+                    <div style="font-weight: 700;">{{ model.model_name }} ({{ model.provider | upper }})</div>
+                    <div style="font-size: 0.85rem; color: var(--text-muted);">{{ model.model_id }}</div>
+                </div>
+                <div>
+                    {% if model.is_active %}
+                        <div class="active-badge"><i class="fa-solid fa-circle-check"></i> مفعّل حالياً</div>
+                    {% else %}
+                        <button class="activate-btn" onclick="activateModel('{{ model.id }}')">تفعيل هذا</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </main>
+
+    <script>
+        const clientId = "{{ client_id }}";
+
+        function showAlert(msg, type) {
+            const box = document.getElementById('alertBox');
+            box.innerText = msg;
+            box.className = `alert alert-${type}`;
+            box.style.display = 'block';
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        async function saveAIConfig() {
+            const payload = {
+                provider: document.getElementById('provider').value,
+                model_name: document.getElementById('model_name').value,
+                model_id: document.getElementById('model_id').value,
+                api_key: document.getElementById('api_key').value
+            };
+
+            try {
+                const res = await fetch(`/admin/api/clients/${clientId}/ai`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch(e) { showAlert('خطأ في الاتصال', 'error'); }
+        }
+
+        async function activateModel(modelId) {
+            try {
+                const res = await fetch(`/admin/api/clients/${clientId}/ai/activate/${modelId}`, {
+                    method: 'POST'
+                });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    showAlert(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showAlert(data.message, 'error');
+                }
+            } catch(e) { showAlert('خطأ في التفعيل', 'error'); }
+        }
+    </script>
+</body>
+</html>
