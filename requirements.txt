@@ -32,6 +32,7 @@ apscheduler==3.10.4
 
 # Security
 passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
 python-jose[cryptography]==3.3.0
 
 # Data Processing

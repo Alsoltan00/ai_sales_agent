@@ -319,10 +319,13 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         
         raw_pwd = payload.get("password", "")
+        # Bcrypt له حد أقصى 72 بايت
+        safe_pwd = raw_pwd.encode('utf-8')[:72].decode('utf-8', 'ignore')
+        
         new_user = {
             "name": payload.get("name"),
             "email": payload.get("email"),
-            "password_hash": pwd_context.hash(raw_pwd[:72]),
+            "password_hash": pwd_context.hash(safe_pwd),
             "permissions": payload.get("permissions", {})
         }
         
@@ -350,8 +353,9 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
         if raw_password:
             from passlib.context import CryptContext
             pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-            # Bcrypt له حد أقصى 72 حرفاً، نقوم بقصه لتجنب الخطأ التقني
-            update_data["password_hash"] = pwd_context.hash(raw_password[:72])
+            # Bcrypt له حد أقصى 72 بايت وليس حرفاً، نقوم بالقص بدقة
+            safe_password = raw_password.encode('utf-8')[:72].decode('utf-8', 'ignore')
+            update_data["password_hash"] = pwd_context.hash(safe_password)
             
         supabase.table("sales_admin_users").update(update_data).eq("id", user_id).execute()
         
