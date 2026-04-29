@@ -15,15 +15,16 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         client_res = supabase.table("clients").select("company_name").eq("id", client_id).single().execute()
         company_name = client_res.data.get("company_name", "الشركة") if client_res.data else "الشركة"
 
-        # جلب إعدادات التخطيط (الشخصية)
+        # جلب إعدادات التخطيط (الشخصية والنشاط)
         planning_res = supabase.table("planning_config").select(
-            "sales_agent_name, dialect_instructions, company_description"
+            "sales_agent_name, dialect_instructions, company_description, store_activity"
         ).eq("client_id", client_id).single().execute()
         
         p = planning_res.data or {}
-        agent_name  = p.get("sales_agent_name") or company_name
-        tone        = p.get("dialect_instructions") or "احترافي ومهذب"
-        description = p.get("company_description") or ""
+        agent_name     = p.get("sales_agent_name") or company_name
+        tone           = p.get("dialect_instructions") or "احترافي ومهذب"
+        description    = p.get("company_description") or ""
+        store_activity = p.get("store_activity") or ""
     except Exception as e:
         print(f"Error fetching planning config: {e}")
         company_name = "الشركة"
@@ -151,12 +152,18 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 
 {business_rules_prompt}
 
-قواعد عامة إضافية:
-- رد دائماً بالعربية ما لم يتحدث العميل بلغة أخرى
-- كن مقنعاً ومحترماً ومركزاً على إتمام البيع
-- إذا سُئلت عن سعر غير موجود في البيانات، قل أنك ستتحقق وتعود للعميل
-- لا تذكر أنك ذكاء اصطناعي إلا إذا سُئلت مباشرة
-- الردود تكون مختصرة وواضحة (حد أقصى 3 فقرات قصيرة)
+قواعد صارمة جداً (خط أحمر):
+1. نشاط المتجر الأساسي هو: [{store_activity}]. 
+   - إذا سألك العميل عن أي شيء خارج هذا النشاط تماماً (مثلاً يسأل عن سيارات في متجر عطور، أو عن طائرات في صيدلية)، يجب عليك الرد هكذا: "عذراً، نحن [متجر عطور/نشاطك] فقط، ولا تتوفر لدينا مثل هذه الخدمات أو المنتجات".
+   - لا تحاول البحث في قاعدة البيانات إذا كان السؤال خارج التخصص تماماً.
+   - إذا كان السؤال مرتبطاً بالنشاط (مثلاً يسأل عن عطر معين أو دواء) فقم بالبحث في البيانات والإجابة كالمعتاد.
+
+2. قواعد عامة:
+- رد دائماً بالعربية ما لم يتحدث العميل بلغة أخرى.
+- كن مقنعاً ومحترماً ومركزاً على إتمام البيع.
+- إذا سُئلت عن سعر غير موجود في البيانات، قل أنك ستتحقق وتعود للعميل.
+- لا تذكر أنك ذكاء اصطناعي إلا إذا سُئلت مباشرة.
+- الردود تكون مختصرة وواضحة (حد أقصى 3 فقرات قصيرة).
 """
 
     messages = [

@@ -75,6 +75,7 @@ class PlanningRequest(BaseModel):
     ai_agent_name: str = None
     ai_tone: str = None
     business_description: str = None
+    store_activity: str = None
 
 @router.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request, user: dict = Depends(verify_merchant)):

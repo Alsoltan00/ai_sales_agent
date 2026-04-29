@@ -278,6 +278,16 @@
                 </div>
 
                 <div class="form-group">
+                    <label class="label">نشاط المتجر (ماذا تبيع؟)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="store_activity" class="input" value="{{ planning.store_activity or '' }}" 
+                            placeholder="انقر هنا لاختيار نشاطك أو اكتبه يدوياً" onclick="openActivityModal()" readonly>
+                        <i class="fa-solid fa-store"></i>
+                    </div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">يساعد هذا في منع الذكاء الاصطناعي من الإجابة على أسئلة خارج تخصصك.</p>
+                </div>
+
+                <div class="form-group">
                     <label class="label">وصف مفصل للعمل (Business Description)</label>
                     <div class="input-wrapper">
                         <textarea id="business_description" class="input" placeholder="اكتب وصفاً شاملاً عن منتجاتك وخدماتك، سياسة الاسترجاع، أوقات العمل، وأي معلومات قد تهم العميل...">{{ planning.business_description or '' }}</textarea>
@@ -290,6 +300,65 @@
                 </button>
             </form>
         </div>
+
+        <!-- Activity Modal -->
+        <div id="activityModal" class="modal-overlay">
+            <div class="activity-modal">
+                <div class="modal-header">
+                    <h3><i class="fa-solid fa-list-check"></i> اختر نشاط متجرك</h3>
+                    <button onclick="closeActivityModal()" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="activitySearch" placeholder="ابحث عن نشاط... (عطور، ملابس، صيدلية...)" oninput="filterActivities()">
+                </div>
+                <div class="activity-categories" id="activityList">
+                    <!-- سيتم تعبئتها بواسطة JS -->
+                </div>
+                <div class="modal-footer">
+                    <button class="btn secondary" onclick="closeActivityModal()">إلغاء</button>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .modal-overlay {
+                display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+                backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center;
+                padding: 20px;
+            }
+            .activity-modal {
+                background: var(--bg-dark); border: 1px solid var(--glass-border);
+                width: 100%; max-width: 650px; border-radius: 24px; overflow: hidden;
+                animation: modalScale 0.3s ease;
+            }
+            @keyframes modalScale { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+            .modal-header { padding: 25px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
+            .modal-header h3 { font-size: 1.3rem; display: flex; align-items: center; gap: 12px; }
+            .close-btn { background: none; border: none; color: var(--text-muted); font-size: 2rem; cursor: pointer; }
+
+            .modal-search { padding: 20px 25px; position: relative; }
+            .modal-search input {
+                width: 100%; padding: 15px 45px 15px 20px; background: rgba(255,255,255,0.05);
+                border: 1px solid var(--glass-border); border-radius: 15px; color: white; outline: none;
+            }
+            .modal-search i { position: absolute; right: 40px; top: 33px; color: var(--text-muted); }
+
+            .activity-categories { padding: 10px 25px 25px; max-height: 400px; overflow-y: auto; }
+            .cat-group { margin-bottom: 25px; }
+            .cat-title { color: var(--primary); font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; border-right: 3px solid var(--primary); padding-right: 10px; }
+            .activities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+            .activity-item {
+                background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
+                padding: 12px; border-radius: 12px; font-size: 0.85rem; text-align: center;
+                cursor: pointer; transition: 0.2s;
+            }
+            .activity-item:hover { background: rgba(168, 85, 247, 0.15); border-color: var(--primary); transform: translateY(-2px); }
+
+            .modal-footer { padding: 20px 25px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; }
+            .btn.secondary { background: rgba(255,255,255,0.1); }
+        </style>
 
         <!-- Column Training Section -->
         <div class="glass-panel" style="margin-top: 30px;">
@@ -317,6 +386,7 @@
             const payload = {
                 ai_agent_name: document.getElementById('ai_agent_name').value,
                 ai_tone: document.getElementById('ai_tone').value,
+                store_activity: document.getElementById('store_activity').value,
                 business_description: document.getElementById('business_description').value
             };
             try {
@@ -337,6 +407,65 @@
                 btn.disabled = false;
                 btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> تحديث التخطيط';
             }
+        }
+
+        // === Activity Selection Logic ===
+        const activityCategories = {
+            "عطور وتجميل": ["عطور شرقية", "عطور فرنسية", "بخور وعود", "مكياج", "العناية بالبشرة", "العناية بالشعر", "أدوات تجميل"],
+            "ملابس وأزياء": ["ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "أحذية", "حقائب", "إكسسوارات", "عبايات"],
+            "إلكترونيات": ["هواتف ذكية", "أجهزة كمبيوتر", "سماعات", "ساعات ذكية", "أجهزة منزلية", "كاميرات"],
+            "منزل وديكور": ["أثاث", "إضاءة", "سجاد", "مفروشات", "أدوات مطبخ", "ديكورات داخلية"],
+            "مطاعم ومقاهي": ["وجبات سريعة", "حلويات", "قهوة", "مخبوزات", "مطعم مشاوي", "مطعم شعبي"],
+            "خدمات": ["حلاقة رجالية", "صالون نسائي", "تنظيف سيارات", "صيانة منازل", "خياطة", "استشارات"],
+            "صحة ورياضة": ["مكملات غذائية", "معدات رياضية", "صيدلية", "ملابس رياضية"],
+            "أخرى": ["هدايا", "قرطاسية", "ألعاب أطفال", "حيوانات أليفة", "زهور", "سوبر ماركت"]
+        };
+
+        function openActivityModal() {
+            renderActivities();
+            document.getElementById('activityModal').style.display = 'flex';
+        }
+
+        function closeActivityModal() {
+            document.getElementById('activityModal').style.display = 'none';
+        }
+
+        function renderActivities(filter = "") {
+            const list = document.getElementById('activityList');
+            let html = "";
+            
+            for (const [cat, items] of Object.entries(activityCategories)) {
+                const filteredItems = items.filter(item => item.includes(filter));
+                if (filteredItems.length > 0) {
+                    html += `
+                        <div class="cat-group">
+                            <div class="cat-title">${cat}</div>
+                            <div class="activities-grid">
+                                ${filteredItems.map(item => `<div class="activity-item" onclick="selectActivity('${item}')">${item}</div>`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            
+            if (html === "") {
+                html = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">
+                    <p>لا توجد نتائج مطابقة لـ "${filter}"</p>
+                    <button class="btn" style="margin-top:15px; padding: 10px 20px; font-size:0.85rem;" onclick="selectActivity('${filter}')">استخدام "${filter}" كنشاط مخصص</button>
+                </div>`;
+            }
+            
+            list.innerHTML = html;
+        }
+
+        function filterActivities() {
+            const val = document.getElementById('activitySearch').value;
+            renderActivities(val);
+        }
+
+        function selectActivity(val) {
+            document.getElementById('store_activity').value = val;
+            closeActivityModal();
         }
 
         // === Column Training ===

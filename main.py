@@ -69,7 +69,14 @@ def _migrate_database():
             if 'messages_used' not in columns:
                 conn.execute(text("ALTER TABLE clients ADD COLUMN messages_used INTEGER DEFAULT 0;"))
 
-            # 2. تحديث جدول الاشتراكات
+            # 2. تحديث جدول التخطيط
+            try:
+                plan_cols = [c['name'] for c in inspector.get_columns('planning_config')]
+                if 'store_activity' not in plan_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN store_activity TEXT;"))
+            except: pass
+
+            # 3. تحديث جدول الاشتراكات
             try:
                 sub_columns = [c['name'] for c in inspector.get_columns('subscriptions')]
                 if 'messages_used' not in sub_columns:
