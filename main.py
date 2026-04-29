@@ -41,10 +41,10 @@ app.include_router(official_router, prefix="/webhook")
 @app.on_event("startup")
 async def startup_event():
     print("[STARTUP] AI Sales Agent starting...")
-    # إصلاح تلقائي لقاعدة البيانات في مهمة خلفية لعدم تعطيل بدء الخادم
-    asyncio.create_task(run_db_migrations())
+    # إصلاح تلقائي لقاعدة البيانات في مهمة خلفية في Thread منفصل لعدم تجميد الخادم
+    asyncio.create_task(asyncio.to_thread(_migrate_database))
 
-async def run_db_migrations():
+def _migrate_database():
     """تحديث قاعدة البيانات في الخلفية لضمان سرعة استجابة الخادم عند بدء التشغيل"""
     print("[DB] Starting database schema verification...")
     try:
