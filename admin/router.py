@@ -318,10 +318,11 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
         from passlib.context import CryptContext
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         
+        raw_pwd = payload.get("password", "")
         new_user = {
             "name": payload.get("name"),
             "email": payload.get("email"),
-            "password_hash": pwd_context.hash(payload.get("password")),
+            "password_hash": pwd_context.hash(raw_pwd[:72]),
             "permissions": payload.get("permissions", {})
         }
         
@@ -345,11 +346,12 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
     }
     
     try:
-        if payload.get("password"):
+        raw_password = payload.get("password")
+        if raw_password:
             from passlib.context import CryptContext
-            # استخدام bcrypt للتشفير الآمن
             pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-            update_data["password_hash"] = pwd_context.hash(payload.get("password"))
+            # Bcrypt له حد أقصى 72 حرفاً، نقوم بقصه لتجنب الخطأ التقني
+            update_data["password_hash"] = pwd_context.hash(raw_password[:72])
             
         supabase.table("sales_admin_users").update(update_data).eq("id", user_id).execute()
         
