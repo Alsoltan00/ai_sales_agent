@@ -203,10 +203,9 @@
                 <label>مفتاح الـ API الافتراضي</label>
                 <input type="password" id="api_key" placeholder="أدخل المفتاح" autocomplete="new-password">
             </div>
-            <div style="display: flex; gap: 10px; margin-top: 25px;">
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
                 <button onclick="closeAddModal()" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 12px; color: white; cursor: pointer;">إلغاء</button>
-                <button onclick="testModel()" id="testBtn" style="flex: 1; padding: 12px; background: #6b7280; border: none; border-radius: 12px; color: white; cursor: pointer; font-weight: 600;"><i class="fa-solid fa-vial"></i> تجربة</button>
-                <button onclick="saveModel()" id="saveBtn" style="flex: 2; padding: 12px; background: var(--primary); border: none; border-radius: 12px; color: white; cursor: pointer; font-weight: 700;">حفظ في المكتبة</button>
+                <button onclick="saveModel()" id="saveBtn" style="flex: 2; padding: 12px; background: var(--primary); border: none; border-radius: 12px; color: white; cursor: pointer; font-weight: 700;">التحقق والحفظ في المكتبة</button>
             </div>
         </div>
     </div>
@@ -214,43 +213,6 @@
     <script>
         function openAddModal() { document.getElementById('addModal').style.display = 'flex'; }
         function closeAddModal() { document.getElementById('addModal').style.display = 'none'; }
-
-        async function testModel() {
-            const payload = {
-                model_name: document.getElementById('model_name').value,
-                provider: document.getElementById('provider').value,
-                model_id: document.getElementById('model_id').value,
-                api_key: document.getElementById('api_key').value
-            };
-            
-            if(!payload.provider || !payload.model_id || !payload.api_key) {
-                alert("يرجى تعبئة جميع الحقول أولاً"); return;
-            }
-
-            const btn = document.getElementById('testBtn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التجربة...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch('/admin/api/models-pool/test', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if(data.status === 'success') {
-                    alert('✅ ' + data.message + '\nالنموذج يعمل بشكل ممتاز.');
-                } else {
-                    alert('❌ خطأ: ' + data.message);
-                }
-            } catch(e) { 
-                alert('خطأ في الاتصال بالخادم'); 
-            } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
-            }
-        }
 
         async function saveModel() {
             const payload = {
