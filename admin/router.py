@@ -519,6 +519,12 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
                     f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
                     json={"contents": [{"parts": [{"text": "Hi"}]}]}
                 )
+            elif provider == "openrouter":
+                res = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
             else:
                 return {"status": "error", "message": "مزود الخدمة غير مدعوم للتجربة"}
 

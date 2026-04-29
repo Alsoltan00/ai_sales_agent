@@ -174,6 +174,8 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             response = await _call_groq(api_key, model_id, messages)
         elif provider == "google":
             response = await _call_google(api_key, model_id, user_message, system_prompt)
+        elif provider == "openrouter":
+            response = await _call_openrouter(api_key, model_id, messages)
         else:
             response = await _call_openai(api_key, model_id, messages)
 
@@ -266,6 +268,26 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
             return data["candidates"][0]["content"]["parts"][0]["text"].strip()
         except (KeyError, IndexError):
             raise Exception("Unexpected Google API response format")
+
+async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://ai-sales-agent-dreu.onrender.com",
+                "X-Title": "AI Sales Agent"
+            },
+            json={"model": model_id, "messages": messages},
+            timeout=30
+        )
+        data = res.json()
+        if "choices" in data:
+            return data["choices"][0]["message"]["content"].strip()
+        else:
+            error_msg = data.get("error", {}).get("message", "Unknown OpenRouter error")
+            raise Exception(f"OpenRouter Error: {error_msg}")
 
 
 def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution"):
