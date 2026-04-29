@@ -322,6 +322,20 @@
             </form>
         </div>
 
+        <!-- Column Training Section -->
+        <div class="glass-panel" style="margin-top: 30px;">
+            <div class="section-title"><i class="fa-solid fa-table-columns"></i> تدريب الأعمدة</div>
+            <div class="section-desc">خصص تعليماتك لكل عمود بيانات، واتحكم في ما يفكر به النموذج وما يتجاهله.</div>
+
+            <div id="colsAlertBox" class="alert-cols"></div>
+            <div id="colsContainer">
+                <div class="col-empty"><i class="fa-solid fa-table"></i>جاري تحميل الأعمدة...</div>
+            </div>
+            <button class="btn-save-cols" id="saveColsBtn" onclick="saveCols()" style="display:none;">
+                <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة
+            </button>
+        </div>
+
         <style>
             /* Tags Input Styling */
             .tags-input-container {
