@@ -476,7 +476,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
 
     try:
         import httpx
-        timeout = httpx.Timeout(10.0)
+        timeout = httpx.Timeout(15.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             if provider == "openai":
                 res = await client.post(
@@ -490,6 +490,24 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
                     headers={"Authorization": f"Bearer {api_key}"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )
+                # إذا فشل الاختبار، نحاول جلب قائمة النماذج المتاحة
+                if res.status_code != 200:
+                    try:
+                        models_res = await client.get(
+                            "https://api.groq.com/openai/v1/models",
+                            headers={"Authorization": f"Bearer {api_key}"}
+                        )
+                        if models_res.status_code == 200:
+                            models_data = models_res.json()
+                            available = [m["id"] for m in models_data.get("data", [])]
+                            available_str = ", ".join(sorted(available)[:10])
+                            return {"status": "error", "message": f"النموذج '{model_id}' غير متاح. النماذج المتاحة لحسابك هي: {available_str}"}
+                    except:
+                        pass
+                    error_msg = res.text[:300] if res.text else str(res.status_code)
+                    return {"status": "error", "message": f"فشل الاتصال ({res.status_code}): {error_msg}"}
+                return {"status": "success", "message": "تم الاتصال بالنموذج بنجاح!"}
+                
             elif provider == "anthropic":
                 res = await client.post(
                     "https://api.anthropic.com/v1/messages",
@@ -507,7 +525,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
             if res.status_code == 200:
                 return {"status": "success", "message": "تم الاتصال بالنموذج بنجاح!"}
             else:
-                error_msg = res.json() if res.text else res.status_code
+                error_msg = res.text[:300] if res.text else str(res.status_code)
                 return {"status": "error", "message": f"فشل الاتصال ({res.status_code}): {error_msg}"}
     except Exception as e:
         return {"status": "error", "message": f"خطأ تقني أثناء التجربة: {str(e)}"}
