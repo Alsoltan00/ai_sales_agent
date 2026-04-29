@@ -277,14 +277,35 @@
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label class="label">نشاط المتجر (ماذا تبيع؟)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="store_activity" class="input" value="{{ planning.store_activity or '' }}" 
-                            placeholder="انقر هنا لاختيار نشاطك أو اكتبه يدوياً" onclick="openActivityModal()" readonly>
-                        <i class="fa-solid fa-store"></i>
+                <div class="form-group" style="position: relative;">
+                    <label class="label">نشاط المتجر (اختر تخصصك - يمكنك اختيار أكثر من نشاط)</label>
+                    <div class="tags-input-container" id="activityTrigger" onclick="toggleActivityDropdown(event)">
+                        <div id="selectedTags" class="tags-list">
+                            {% if planning.store_activity %}
+                                {% for tag in planning.store_activity.split('، ') %}
+                                    <span class="tag-chip">{{ tag }}<i class="fa-solid fa-xmark" onclick="removeTag(event, '{{ tag }}')"></i></span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="placeholder">انقر لاختيار الأنشطة...</span>
+                            {% endif %}
+                        </div>
+                        <input type="hidden" id="store_activity" value="{{ planning.store_activity or '' }}">
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 5px;">يساعد هذا في منع الذكاء الاصطناعي من الإجابة على أسئلة خارج تخصصك.</p>
+
+                    <!-- Professional Pop-out Dropdown -->
+                    <div id="activityDropdown" class="activity-dropdown">
+                        <div class="dropdown-search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="activitySearch" placeholder="ابحث عن نشاط..." oninput="filterActivities(event)" onclick="event.stopPropagation()">
+                        </div>
+                        <div class="dropdown-scroll" id="activityList">
+                            <!-- Categories and items will be rendered here -->
+                        </div>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
+                        <i class="fa-solid fa-circle-info"></i> سيقوم الذكاء الاصطناعي برفض أي طلبات لا تندرج تحت الأنشطة المختارة أعلاه.
+                    </p>
                 </div>
 
                 <div class="form-group">
@@ -301,81 +322,189 @@
             </form>
         </div>
 
-        <!-- Activity Modal -->
-        <div id="activityModal" class="modal-overlay">
-            <div class="activity-modal">
-                <div class="modal-header">
-                    <h3><i class="fa-solid fa-list-check"></i> اختر نشاط متجرك</h3>
-                    <button onclick="closeActivityModal()" class="close-btn">&times;</button>
-                </div>
-                <div class="modal-search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="activitySearch" placeholder="ابحث عن نشاط... (عطور، ملابس، صيدلية...)" oninput="filterActivities()">
-                </div>
-                <div class="activity-categories" id="activityList">
-                    <!-- سيتم تعبئتها بواسطة JS -->
-                </div>
-                <div class="modal-footer">
-                    <button class="btn secondary" onclick="closeActivityModal()">إلغاء</button>
-                </div>
-            </div>
-        </div>
-
         <style>
-            .modal-overlay {
-                display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8);
-                backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center;
-                padding: 20px;
+            /* Tags Input Styling */
+            .tags-input-container {
+                min-height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
+                border-radius: 14px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
+                cursor: pointer; transition: 0.3s; position: relative;
             }
-            .activity-modal {
-                background: var(--bg-dark); border: 1px solid var(--glass-border);
-                width: 100%; max-width: 650px; border-radius: 24px; overflow: hidden;
-                animation: modalScale 0.3s ease;
+            .tags-input-container:hover { border-color: var(--primary); }
+            .tags-list { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
+            .tag-chip {
+                background: var(--primary); color: white; padding: 4px 12px; border-radius: 8px;
+                font-size: 0.85rem; display: flex; align-items: center; gap: 8px; animation: tagPop 0.2s ease;
             }
-            @keyframes modalScale { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+            .tag-chip i { cursor: pointer; font-size: 0.7rem; opacity: 0.8; }
+            .tag-chip i:hover { opacity: 1; }
+            .placeholder { color: #64748b; font-size: 0.95rem; }
+            .toggle-icon { color: #64748b; font-size: 0.9rem; margin-right: 10px; }
 
-            .modal-header { padding: 25px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center; }
-            .modal-header h3 { font-size: 1.3rem; display: flex; align-items: center; gap: 12px; }
-            .close-btn { background: none; border: none; color: var(--text-muted); font-size: 2rem; cursor: pointer; }
+            @keyframes tagPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-            .modal-search { padding: 20px 25px; position: relative; }
-            .modal-search input {
-                width: 100%; padding: 15px 45px 15px 20px; background: rgba(255,255,255,0.05);
-                border: 1px solid var(--glass-border); border-radius: 15px; color: white; outline: none;
+            /* Dropdown Pop-out Styling */
+            .activity-dropdown {
+                display: none; position: absolute; top: 100%; right: 0; left: 0; 
+                background: #1e293b; border: 1px solid var(--glass-border); border-radius: 16px;
+                margin-top: 8px; z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+                flex-direction: column; overflow: hidden; animation: slideDown 0.25s cubic-bezier(0,0,0.2,1);
             }
-            .modal-search i { position: absolute; right: 40px; top: 33px; color: var(--text-muted); }
+            @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-            .activity-categories { padding: 10px 25px 25px; max-height: 400px; overflow-y: auto; }
-            .cat-group { margin-bottom: 25px; }
-            .cat-title { color: var(--primary); font-weight: 700; font-size: 0.9rem; margin-bottom: 12px; border-right: 3px solid var(--primary); padding-right: 10px; }
-            .activities-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-            .activity-item {
+            .dropdown-search { padding: 12px 15px; border-bottom: 1px solid var(--glass-border); position: relative; }
+            .dropdown-search input {
+                width: 100%; padding: 10px 35px 10px 15px; background: rgba(0,0,0,0.2);
+                border: 1px solid var(--glass-border); border-radius: 10px; color: white; font-size: 0.85rem; outline: none;
+            }
+            .dropdown-search i { position: absolute; right: 28px; top: 22px; color: #64748b; font-size: 0.8rem; }
+
+            .dropdown-scroll { max-height: 350px; overflow-y: auto; padding: 15px; }
+            
+            /* Category Table Style */
+            .cat-section { margin-bottom: 20px; }
+            .cat-header { 
+                font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;
+                margin-bottom: 10px; display: flex; align-items: center; gap: 8px; opacity: 0.9;
+            }
+            .cat-header::after { content: ''; flex: 1; height: 1px; background: rgba(168, 85, 247, 0.2); }
+            
+            .activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+            .activity-box {
                 background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
-                padding: 12px; border-radius: 12px; font-size: 0.85rem; text-align: center;
-                cursor: pointer; transition: 0.2s;
+                padding: 10px 8px; border-radius: 10px; font-size: 0.75rem; text-align: center;
+                cursor: pointer; transition: 0.2s; position: relative; color: #cbd5e1;
             }
-            .activity-item:hover { background: rgba(168, 85, 247, 0.15); border-color: var(--primary); transform: translateY(-2px); }
+            .activity-box:hover { background: rgba(255,255,255,0.06); transform: scale(1.02); }
+            
+            .activity-box.selected {
+                background: rgba(168, 85, 247, 0.1); border-color: var(--primary);
+                color: var(--primary); font-weight: 600; opacity: 0.6;
+            }
+            .activity-box.selected::after {
+                content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+                position: absolute; top: 4px; left: 4px; font-size: 0.65rem;
+            }
 
-            .modal-footer { padding: 20px 25px; border-top: 1px solid var(--glass-border); display: flex; justify-content: flex-end; }
-            .btn.secondary { background: rgba(255,255,255,0.1); }
+            /* Mobile Adjustments */
+            @media (max-width: 600px) {
+                .activity-grid { grid-template-columns: repeat(2, 1fr); }
+                .activity-box { padding: 8px 5px; font-size: 0.7rem; }
+                .tags-input-container { min-height: 50px; padding: 8px 12px; }
+                .tag-chip { font-size: 0.75rem; padding: 3px 10px; }
+            }
         </style>
 
-        <!-- Column Training Section -->
-        <div class="glass-panel" style="margin-top: 30px;">
-            <div class="section-title"><i class="fa-solid fa-table-columns"></i> تدريب الأعمدة</div>
-            <div class="section-desc">خصص تعليماتك لكل عمود بيانات، واتحكم في ما يفكر به النموذج وما يتجاهله.</div>
+        <script>
+            // === Extensive Activities Data ===
+            const activityData = {
+                "التجزئة والتسوق": ["سوبر ماركت", "متجر تموينات", "خضار وفواكه", "لحوم ودواجن", "ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "عبايات وطرح", "أحذية وحقائب", "ساعات وهدايا", "إكسسوارات ومجوهرات", "عطور وبخور", "مستحضرات تجميل", "مكياج", "بصريات ونظارات", "ألعاب أطفال", "قرطاسية وأدوات مكتبية", "كتب ومجلات", "زهور وتغليف"],
+                "المطاعم والضيافة": ["مطعم وجبات سريعة", "مطعم مشاوي", "مطعم شعبي", "مطعم بحري", "بيتزا وفطائر", "برجر", "شاورما", "بوفيه", "مقهى / كوفي شوب", "حلويات ومعجنات", "آيس كريم", "عصائر طبيعية", "محمصة وقهوة", "مخبز"],
+                "إلكترونيات وتقنية": ["هواتف ذكية", "صيانة جوالات", "كمبيوتر ولابتوب", "إلكترونيات منزلية", "سماعات وألعاب", "كاميرات مراقبة", "برمجيات وأنظمة"],
+                "المنزل والديكور": ["أثاث منزلي", "أثاث مكتبي", "إضاءة ونجف", "سجاد وموكيت", "ستائر ومفروشات", "أدوات مطبخ", "ديكورات وجبس", "دهانات وبويات", "سباكة وكهرباء", "بناء ومقاولات"],
+                "الخدمات والمهن": ["حلاقة رجالية", "مشغل نسائي", "مغسلة ملابس", "خياطة رجالية", "خياطة نسائية", "تنظيف سجاد", "تأجير سيارات", "مكتب عقار", "استشارات قانونية", "استشارات هندسية", "دعاية وإعلان", "تصميم وجرافيك"],
+                "الصحة والرياضة": ["صيدلية", "مكملات غذائية", "معدات طبية", "مركز رياضي / جيم", "أدوات رياضية", "ملاعب", "نادي صحي"],
+                "السيارات والمحركات": ["قطع غيار سيارات", "إطارات وبطاريات", "زيوت وفلاتر", "زينة سيارات", "معرض سيارات", "ورشة صيانة", "سمكرة ودهان"]
+            };
 
-            <div id="colsAlertBox" class="alert-cols"></div>
-            <div id="colsContainer">
-                <div class="col-empty"><i class="fa-solid fa-table"></i>جاري تحميل الأعمدة...</div>
-            </div>
-            <button class="btn-save-cols" id="saveColsBtn" onclick="saveCols()" style="display:none;">
-                <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة
-            </button>
-        </div>
-    </main>
+            let selectedActivities = [];
 
-    <script>
+            // Initialize selected activities from hidden input
+            window.addEventListener('DOMContentLoaded', () => {
+                const val = document.getElementById('store_activity').value;
+                if(val) selectedActivities = val.split('، ');
+                renderDropdown();
+                
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!document.getElementById('activityTrigger').contains(e.target) && 
+                        !document.getElementById('activityDropdown').contains(e.target)) {
+                        closeActivityDropdown();
+                    }
+                });
+            });
+
+            function toggleActivityDropdown(e) {
+                const dropdown = document.getElementById('activityDropdown');
+                if (dropdown.style.display === 'flex') {
+                    closeActivityDropdown();
+                } else {
+                    dropdown.style.display = 'flex';
+                    renderDropdown();
+                }
+            }
+
+            function closeActivityDropdown() {
+                document.getElementById('activityDropdown').style.display = 'none';
+            }
+
+            function renderDropdown(filter = "") {
+                const list = document.getElementById('activityList');
+                let html = "";
+                
+                for (const [category, items] of Object.entries(activityData)) {
+                    const filtered = items.filter(i => i.includes(filter));
+                    if (filtered.length > 0) {
+                        html += `
+                            <div class="cat-section">
+                                <div class="cat-header">${category}</div>
+                                <div class="activity-grid">
+                                    ${filtered.map(item => `
+                                        <div class="activity-box ${selectedActivities.includes(item) ? 'selected' : ''}" 
+                                             onclick="toggleActivity('${item}')">
+                                            ${item}
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+                
+                if(!html && filter) {
+                    html = `<div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 0.8rem;">
+                        لا توجد نتائج.. <span style="color:var(--primary); cursor:pointer;" onclick="toggleActivity('${filter}')">إضافة "${filter}" كنشاط مخصص</span>
+                    </div>`;
+                }
+                
+                list.innerHTML = html;
+            }
+
+            function filterActivities(e) {
+                renderDropdown(e.target.value);
+            }
+
+            function toggleActivity(val) {
+                if (selectedActivities.includes(val)) {
+                    selectedActivities = selectedActivities.filter(a => a !== val);
+                } else {
+                    selectedActivities.push(val);
+                }
+                updateUI();
+                renderDropdown(document.getElementById('activitySearch').value);
+            }
+
+            function removeTag(e, val) {
+                e.stopPropagation();
+                selectedActivities = selectedActivities.filter(a => a !== val);
+                updateUI();
+                renderDropdown(document.getElementById('activitySearch').value);
+            }
+
+            function updateUI() {
+                const container = document.getElementById('selectedTags');
+                const hiddenInput = document.getElementById('store_activity');
+                
+                if (selectedActivities.length === 0) {
+                    container.innerHTML = '<span class="placeholder">انقر لاختيار الأنشطة...</span>';
+                    hiddenInput.value = "";
+                } else {
+                    container.innerHTML = selectedActivities.map(tag => `
+                        <span class="tag-chip">${tag}<i class="fa-solid fa-xmark" onclick="removeTag(event, '${tag}')"></i></span>
+                    `).join('');
+                    hiddenInput.value = selectedActivities.join('، ');
+                }
+            }
+
         async function savePlanning(e) {
             e.preventDefault();
             const btn = document.getElementById('saveBtn');
@@ -409,63 +538,6 @@
             }
         }
 
-        // === Activity Selection Logic ===
-        const activityCategories = {
-            "عطور وتجميل": ["عطور شرقية", "عطور فرنسية", "بخور وعود", "مكياج", "العناية بالبشرة", "العناية بالشعر", "أدوات تجميل"],
-            "ملابس وأزياء": ["ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "أحذية", "حقائب", "إكسسوارات", "عبايات"],
-            "إلكترونيات": ["هواتف ذكية", "أجهزة كمبيوتر", "سماعات", "ساعات ذكية", "أجهزة منزلية", "كاميرات"],
-            "منزل وديكور": ["أثاث", "إضاءة", "سجاد", "مفروشات", "أدوات مطبخ", "ديكورات داخلية"],
-            "مطاعم ومقاهي": ["وجبات سريعة", "حلويات", "قهوة", "مخبوزات", "مطعم مشاوي", "مطعم شعبي"],
-            "خدمات": ["حلاقة رجالية", "صالون نسائي", "تنظيف سيارات", "صيانة منازل", "خياطة", "استشارات"],
-            "صحة ورياضة": ["مكملات غذائية", "معدات رياضية", "صيدلية", "ملابس رياضية"],
-            "أخرى": ["هدايا", "قرطاسية", "ألعاب أطفال", "حيوانات أليفة", "زهور", "سوبر ماركت"]
-        };
-
-        function openActivityModal() {
-            renderActivities();
-            document.getElementById('activityModal').style.display = 'flex';
-        }
-
-        function closeActivityModal() {
-            document.getElementById('activityModal').style.display = 'none';
-        }
-
-        function renderActivities(filter = "") {
-            const list = document.getElementById('activityList');
-            let html = "";
-            
-            for (const [cat, items] of Object.entries(activityCategories)) {
-                const filteredItems = items.filter(item => item.includes(filter));
-                if (filteredItems.length > 0) {
-                    html += `
-                        <div class="cat-group">
-                            <div class="cat-title">${cat}</div>
-                            <div class="activities-grid">
-                                ${filteredItems.map(item => `<div class="activity-item" onclick="selectActivity('${item}')">${item}</div>`).join('')}
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-            
-            if (html === "") {
-                html = `<div style="text-align:center; padding: 40px; color: var(--text-muted);">
-                    <p>لا توجد نتائج مطابقة لـ "${filter}"</p>
-                    <button class="btn" style="margin-top:15px; padding: 10px 20px; font-size:0.85rem;" onclick="selectActivity('${filter}')">استخدام "${filter}" كنشاط مخصص</button>
-                </div>`;
-            }
-            
-            list.innerHTML = html;
-        }
-
-        function filterActivities() {
-            const val = document.getElementById('activitySearch').value;
-            renderActivities(val);
-        }
-
-        function selectActivity(val) {
-            document.getElementById('store_activity').value = val;
-            closeActivityModal();
         }
 
         // === Column Training ===
