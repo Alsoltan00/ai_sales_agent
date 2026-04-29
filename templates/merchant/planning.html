@@ -62,6 +62,33 @@
             backdrop-filter: blur(20px);
         }
 
+        /* Mobile Adjustments for Sidebar */
+        .mobile-menu-btn {
+            display: none; width: 45px; height: 45px; background: rgba(255,255,255,0.05);
+            border: 1px solid var(--glass-border); border-radius: 12px; color: white;
+            align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer;
+            transition: 0.3s;
+        }
+        .mobile-menu-btn:hover { background: rgba(168, 85, 247, 0.1); border-color: var(--primary); }
+
+        .sidebar-backdrop {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px); z-index: 90;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar { transform: translateX(100%); right: 0; left: auto; transition: transform 0.3s ease; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-right: 0; padding: 25px 15px; }
+            .mobile-menu-btn { display: flex; }
+            .sidebar-backdrop.show { display: block; }
+            
+            .header { flex-direction: row-reverse; gap: 15px; }
+            .header h2 { font-size: 1.5rem; }
+            .header p { font-size: 0.8rem; }
+            .glass-panel { padding: 20px; }
+        }
+
         .form-group { margin-bottom: 25px; }
         .label { display: block; margin-bottom: 10px; font-size: 0.95rem; color: #e2e8f0; font-weight: 600; }
         
@@ -243,11 +270,16 @@
 
     <main class="main-content">
         <div class="header">
+            <div class="mobile-menu-btn" onclick="toggleSidebar()">
+                <i class="fa-solid fa-bars"></i>
+            </div>
             <div>
                 <h2>تخطيط الذكاء الاصطناعي</h2>
                 <p style="color: var(--text-muted); margin-top: 5px;">حدد ملامح وشخصية وكيل المبيعات الذي سيتحدث مع عملائك.</p>
             </div>
         </div>
+
+        <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="toggleSidebar()"></div>
 
         <div class="info-card">
             <i class="fa-solid fa-circle-info"></i>
@@ -631,6 +663,11 @@
         }
 
         loadColumns();
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+            document.getElementById('sidebarBackdrop').classList.toggle('show');
+        }
     </script>
 </body>
 </html>
