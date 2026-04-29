@@ -221,13 +221,31 @@
             <i class="fa-solid fa-shield-halved"></i>
             <span>الإدارة المركزية</span>
         </div>
-        <div class="nav-links">
-            <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
-            <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
-            <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
-            <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
-            <a href="/admin/models-pool" class="nav-item"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
-            <a href="/admin/users" class="nav-item active"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+                <div class="nav-links">
+            <a href="/admin/dashboard" class="nav-item {% if 'dashboard' in request.url.path %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
+            
+            {% set perms = user.permissions if user.permissions is mapping else {} %}
+            {% set is_admin = perms.get('is_admin') %}
+            
+            {% if is_admin or perms.get('can_manage_new_clients') %}
+            <a href="/admin/requests" class="nav-item {% if 'requests' in request.url.path %}active{% endif %}"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_clients') %}
+            <a href="/admin/clients" class="nav-item {% if 'clients' in request.url.path %}active{% endif %}"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_subscriptions') %}
+            <a href="/admin/subscriptions" class="nav-item {% if 'subscriptions' in request.url.path %}active{% endif %}"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_models') %}
+            <a href="/admin/models-pool" class="nav-item {% if 'models-pool' in request.url.path %}active{% endif %}"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_users') %}
+            <a href="/admin/users" class="nav-item {% if 'users' in request.url.path %}active{% endif %}"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+            {% endif %}
         </div>
         <div class="user-info">
             <div class="user-avatar">{{ user.name[0] if user and user.name else 'A' }}</div>
@@ -244,7 +262,14 @@
                 <h2>إدارة المستخدمين (الأدمن)</h2>
                 <p style="color: var(--text-muted); margin-top: 5px;">إدارة حسابات الموظفين والمديرين المتحكمين في النظام</p>
             </div>
-            <a href="/auth/logout" class="logout-btn">
+            <div style="display: flex; gap: 15px;">
+                <button onclick="openUserModal()" style="background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-plus"></i> إضافة مستخدم
+                </button>
+                <a href="/auth/logout" class="logout-btn">
+                    تسجيل الخروج <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </a>
+            </div>
                 تسجيل الخروج <i class="fa-solid fa-arrow-right-from-bracket"></i>
             </a>
         </div>
@@ -257,6 +282,7 @@
                         <th>البريد الإلكتروني</th>
                         <th>الصلاحيات</th>
                         <th>تاريخ الإضافة</th>
+                        <th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -273,17 +299,170 @@
                             {% endif %}
                         </td>
                         <td>{{ admin.created_at.strftime('%Y-%m-%d') if admin.created_at and admin.created_at.strftime else (admin.created_at[:10] if admin.created_at else '---') }}</td>
+                        <td>
+                            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                <button onclick='openUserModal({{ admin | tojson }})' style="background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="deleteUser('{{ admin.id }}')" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer;"><i class="fa-solid fa-trash"></i></button>
+                            </div>
+                        </td>
                     </tr>
+                    {% else %}
+                    <tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">لا يوجد مستخدمين آخرين</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </main>
 
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content" style="background: var(--bg-dark); border: 1px solid var(--glass-border); padding: 30px; border-radius: 25px; width: 100%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+            <h2 id="modalTitle" style="margin-bottom: 25px;">إضافة مستخدم جديد</h2>
+            <input type="hidden" id="userId">
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-muted);">الاسم</label>
+                <input type="text" id="userName" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; outline: none;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-muted);">البريد الإلكتروني</label>
+                <input type="email" id="userEmail" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; outline: none;">
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; color: var(--text-muted);">كلمة المرور <span id="pwdHint" style="font-size:0.8rem; font-weight: normal;"></span></label>
+                <input type="password" id="userPassword" autocomplete="new-password" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; color: white; outline: none;">
+            </div>
+            
+            <div style="margin-bottom: 20px; background: rgba(255,255,255,0.02); padding: 15px; border-radius: 12px; border: 1px solid var(--glass-border);">
+                <label style="display: block; margin-bottom: 15px; font-weight: 600; color: var(--primary);">صلاحيات المستخدم</label>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" id="permAdmin" onchange="toggleAllPerms()">
+                        <span style="color: #ef4444; font-weight: 600;">مدير عام (وصول كامل)</span>
+                    </label>
+                    <hr style="border: 0; border-top: 1px solid var(--glass-border); margin: 5px 0;">
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" class="sub-perm" id="permNewClients">
+                        <span>إدارة طلبات العملاء الجدد</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" class="sub-perm" id="permClients">
+                        <span>إدارة العملاء والمتاجر</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" class="sub-perm" id="permSubscriptions">
+                        <span>إدارة الاشتراكات والباقات</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" class="sub-perm" id="permModels">
+                        <span>إدارة مكتبة النماذج (AI)</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <input type="checkbox" class="sub-perm" id="permUsers">
+                        <span>إدارة الموظفين (المستخدمين)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                <button onclick="closeUserModal()" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); border: none; border-radius: 12px; color: white; cursor: pointer;">إلغاء</button>
+                <button onclick="saveUser()" style="flex: 2; padding: 12px; background: var(--success); border: none; border-radius: 12px; color: white; cursor: pointer; font-weight: 700;">حفظ المستخدم</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('active');
             document.getElementById('sidebarOverlay').classList.toggle('active');
+        }
+
+        function toggleAllPerms() {
+            const isAdmin = document.getElementById('permAdmin').checked;
+            document.querySelectorAll('.sub-perm').forEach(cb => {
+                cb.checked = isAdmin;
+                cb.disabled = isAdmin;
+            });
+        }
+
+        function openUserModal(user = null) {
+            document.getElementById('userId').value = user ? user.id : '';
+            document.getElementById('modalTitle').innerText = user ? 'تعديل بيانات المستخدم' : 'إضافة مستخدم جديد';
+            
+            document.getElementById('userName').value = user ? user.name : '';
+            document.getElementById('userEmail').value = user ? user.email : '';
+            document.getElementById('userEmail').disabled = !!user; // Prevent changing email
+            
+            document.getElementById('userPassword').value = '';
+            document.getElementById('pwdHint').innerText = user ? '(اتركه فارغاً لعدم التغيير)' : '(مطلوب)';
+            
+            const perms = user && user.permissions ? user.permissions : {};
+            document.getElementById('permAdmin').checked = !!perms.is_admin;
+            document.getElementById('permNewClients').checked = !!perms.can_manage_new_clients;
+            document.getElementById('permClients').checked = !!perms.can_manage_clients;
+            document.getElementById('permSubscriptions').checked = !!perms.can_manage_subscriptions;
+            document.getElementById('permModels').checked = !!perms.can_manage_models;
+            document.getElementById('permUsers').checked = !!perms.can_manage_users;
+            
+            toggleAllPerms();
+            document.getElementById('userModal').style.display = 'flex';
+        }
+
+        function closeUserModal() { document.getElementById('userModal').style.display = 'none'; }
+
+        async function saveUser() {
+            const id = document.getElementById('userId').value;
+            const payload = {
+                name: document.getElementById('userName').value,
+                email: document.getElementById('userEmail').value,
+                password: document.getElementById('userPassword').value,
+                permissions: {
+                    is_admin: document.getElementById('permAdmin').checked,
+                    can_manage_new_clients: document.getElementById('permNewClients').checked,
+                    can_manage_clients: document.getElementById('permClients').checked,
+                    can_manage_subscriptions: document.getElementById('permSubscriptions').checked,
+                    can_manage_models: document.getElementById('permModels').checked,
+                    can_manage_users: document.getElementById('permUsers').checked
+                }
+            };
+
+            if(!id && (!payload.email || !payload.password)) {
+                alert('البريد الإلكتروني وكلمة المرور مطلوبان للمستخدم الجديد');
+                return;
+            }
+
+            const method = id ? 'PUT' : 'POST';
+            const url = id ? `/admin/api/users/${id}` : '/admin/api/users';
+
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert(data.message);
+                }
+            } catch(e) { alert('خطأ في الاتصال'); }
+        }
+
+        async function deleteUser(id) {
+            if(!confirm('هل أنت متأكد من حذف هذا المستخدم نهائياً؟')) return;
+            try {
+                const res = await fetch(`/admin/api/users/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if(data.status === 'success') {
+                    window.location.reload();
+                } else {
+                    alert(data.message);
+                }
+            } catch(e) { alert('خطأ في الاتصال'); }
         }
     </script>
 </body>

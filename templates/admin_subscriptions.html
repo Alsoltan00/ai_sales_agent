@@ -194,13 +194,31 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="logo"><i class="fa-solid fa-shield-halved"></i> <span>الإدارة المركزية</span></div>
-        <div class="nav-links">
-            <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
-            <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
-            <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
-            <a href="/admin/subscriptions" class="nav-item active"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
-            <a href="/admin/models-pool" class="nav-item"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
-            <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+                <div class="nav-links">
+            <a href="/admin/dashboard" class="nav-item {% if 'dashboard' in request.url.path %}active{% endif %}"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
+            
+            {% set perms = user.permissions if user.permissions is mapping else {} %}
+            {% set is_admin = perms.get('is_admin') %}
+            
+            {% if is_admin or perms.get('can_manage_new_clients') %}
+            <a href="/admin/requests" class="nav-item {% if 'requests' in request.url.path %}active{% endif %}"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_clients') %}
+            <a href="/admin/clients" class="nav-item {% if 'clients' in request.url.path %}active{% endif %}"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_subscriptions') %}
+            <a href="/admin/subscriptions" class="nav-item {% if 'subscriptions' in request.url.path %}active{% endif %}"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_models') %}
+            <a href="/admin/models-pool" class="nav-item {% if 'models-pool' in request.url.path %}active{% endif %}"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_users') %}
+            <a href="/admin/users" class="nav-item {% if 'users' in request.url.path %}active{% endif %}"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+            {% endif %}
         </div>
         <div class="user-info">
             <div class="user-avatar">{{ user.name[0] if user and user.name else 'A' }}</div>

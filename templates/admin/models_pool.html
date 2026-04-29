@@ -125,11 +125,28 @@
         <div class="logo"><i class="fa-solid fa-shield-halved"></i> الإدارة المركزية</div>
         <div class="nav-links">
             <a href="/admin/dashboard" class="nav-item"><i class="fa-solid fa-chart-pie"></i> نظرة عامة</a>
+            {% set perms = user.permissions if user.permissions is mapping else {} %}
+            {% set is_admin = perms.get('is_admin') %}
+            
+            {% if is_admin or perms.get('can_manage_new_clients') %}
             <a href="/admin/requests" class="nav-item"><i class="fa-solid fa-user-plus"></i> العملاء الجدد</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_clients') %}
             <a href="/admin/clients" class="nav-item"><i class="fa-solid fa-users"></i> إدارة العملاء</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_subscriptions') %}
             <a href="/admin/subscriptions" class="nav-item"><i class="fa-solid fa-id-card"></i> إدارة الاشتراكات</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_models') %}
             <a href="/admin/models-pool" class="nav-item active"><i class="fa-solid fa-cubes"></i> مكتبة النماذج</a>
+            {% endif %}
+            
+            {% if is_admin or perms.get('can_manage_users') %}
             <a href="/admin/users" class="nav-item"><i class="fa-solid fa-users-gear"></i> إدارة المستخدمين</a>
+            {% endif %}
         </div>
     </aside>
 
