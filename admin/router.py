@@ -14,6 +14,16 @@ def verify_admin(request: Request):
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى هذه الصفحة")
     return user
 
+def sanitize_data(data):
+    """وظيفة لتنظيف البيانات وجعلها قابلة للتحويل إلى JSON"""
+    if isinstance(data, list):
+        return [sanitize_data(item) for item in data]
+    if isinstance(data, dict):
+        return {k: sanitize_data(v) for k, v in data.items()}
+    if data is None: return None
+    if isinstance(data, (str, int, float, bool)): return data
+    return str(data)
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
     """لوحة تحكم الإدارة الرئيسية"""
@@ -39,7 +49,8 @@ async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
 @router.get("/api/requests/pending")
 async def get_pending_requests(user: dict = Depends(verify_admin)):
     """جلب جميع طلبات الحسابات المعلقة"""
-    if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة طلبات العملاء")
         
     supabase = get_supabase_client()
@@ -49,7 +60,8 @@ async def get_pending_requests(user: dict = Depends(verify_admin)):
 @router.post("/api/requests/{request_id}/accept")
 async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
     """الموافقة على طلب عميل وإنشاء حساب له"""
-    if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
@@ -112,7 +124,8 @@ async def admin_requests(request: Request, user: dict = Depends(verify_admin)):
 @router.post("/api/requests/{request_id}/reject")
 async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
     """رفض طلب العميل"""
-    if not user.get("permissions", {}).get("can_manage_new_clients") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
@@ -125,32 +138,24 @@ async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
 @router.get("/clients", response_class=HTMLResponse)
 async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     """قائمة جميع العملاء النشطين"""
-    if not user.get("permissions", {}).get("can_manage_clients") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_clients") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة المتاجر والعملاء")
         
     supabase = get_supabase_client()
     res = supabase.table("clients").select("*").execute()
-    return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": res.data})
+    safe_clients = sanitize_data(res.data or [])
+    return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": safe_clients})
 
 @router.get("/subscriptions", response_class=HTMLResponse)
 async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
     """إدارة اشتراكات العملاء والخطط مع تنظيف كامل للبيانات"""
-    if not user.get("permissions", {}).get("can_manage_subscriptions") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_subscriptions") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة الاشتراكات والباقات")
         
     supabase = get_supabase_client()
     
-    def sanitize_data(data):
-        """وظيفة لتنظيف البيانات وجعلها قابلة للتحويل إلى JSON"""
-        if isinstance(data, list):
-            return [sanitize_data(item) for item in data]
-        if isinstance(data, dict):
-            return {k: sanitize_data(v) for k, v in data.items()}
-        # تحويل أي شيء آخر غير السلاسل والأرقام والمنطقيات إلى نصوص
-        if data is None: return None
-        if isinstance(data, (str, int, float, bool)): return data
-        return str(data)
-
     safe_clients = []
     safe_plans = []
     global_models = []
@@ -278,17 +283,20 @@ async def renew_subscription(client_id: str, payload: dict, user: dict = Depends
 @router.get("/users", response_class=HTMLResponse)
 async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     """إدارة موظفي النظام (الأدمن)"""
-    if not user.get("permissions", {}).get("can_manage_users") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_users") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة المستخدمين")
         
     supabase = get_supabase_client()
     res = supabase.table("sales_admin_users").select("*").execute()
-    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": res.data})
+    safe_users = sanitize_data(res.data or [])
+    return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": safe_users})
 
 @router.post("/api/users")
 async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
     """إنشاء مستخدم إداري جديد"""
-    if not user.get("permissions", {}).get("can_manage_users") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_users") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
@@ -317,7 +325,8 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
 @router.put("/api/users/{user_id}")
 async def api_update_user(user_id: str, payload: dict, current_user: dict = Depends(verify_admin)):
     """تحديث بيانات/صلاحيات مستخدم إداري"""
-    if not current_user.get("permissions", {}).get("can_manage_users") and not current_user.get("permissions", {}).get("is_admin"):
+    perms = current_user.get("permissions") or {}
+    if not perms.get("can_manage_users") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
@@ -340,7 +349,8 @@ async def api_update_user(user_id: str, payload: dict, current_user: dict = Depe
 @router.delete("/api/users/{user_id}")
 async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
     """حذف مستخدم إداري"""
-    if not current_user.get("permissions", {}).get("can_manage_users") and not current_user.get("permissions", {}).get("is_admin"):
+    perms = current_user.get("permissions") or {}
+    if not perms.get("can_manage_users") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     if current_user.get("id") == user_id:
@@ -394,27 +404,22 @@ async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict 
 @router.get("/models-pool", response_class=HTMLResponse)
 async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
     """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
-    if not user.get("permissions", {}).get("can_manage_models") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_models") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة النماذج")
         
     supabase = get_supabase_client()
     # جلب النماذج من الجدول العالمي الجديد
     res = supabase.table("global_ai_models").select("*").execute()
     
-    def sanitize_data(data):
-        if isinstance(data, list): return [sanitize_data(item) for item in data]
-        if isinstance(data, dict): return {k: sanitize_data(v) for k, v in data.items()}
-        if data is None: return None
-        if isinstance(data, (str, int, float, bool)): return data
-        return str(data)
-
     safe_models = sanitize_data(res.data or [])
     return templates.TemplateResponse("admin/models_pool.html", {"request": request, "user": user, "models": safe_models})
 
 @router.post("/api/models-pool")
 async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
     """إضافة نموذج جديد للمكتبة العالمية"""
-    if not user.get("permissions", {}).get("can_manage_models") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_models") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()
@@ -427,7 +432,8 @@ async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_
 @router.delete("/api/models-pool/{model_id}")
 async def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
     """حذف نموذج من المكتبة"""
-    if not user.get("permissions", {}).get("can_manage_models") and not user.get("permissions", {}).get("is_admin"):
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_models") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
         
     supabase = get_supabase_client()

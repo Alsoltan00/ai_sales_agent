@@ -15,11 +15,15 @@ def create_session(request: Request, user_data: dict):
 def get_current_user(request: Request) -> dict:
     """يسترجع المستخدم الحالي من الجلسة"""
     user = request.session.get("user")
-    if user and isinstance(user.get("permissions"), str):
-        import json
-        try:
-            user["permissions"] = json.loads(user["permissions"])
-        except:
+    if user:
+        perms = user.get("permissions")
+        if isinstance(perms, str):
+            import json
+            try:
+                user["permissions"] = json.loads(perms)
+            except:
+                user["permissions"] = {}
+        elif perms is None:
             user["permissions"] = {}
     return user
 
