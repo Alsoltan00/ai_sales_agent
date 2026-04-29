@@ -40,102 +40,72 @@ app.include_router(official_router, prefix="/webhook")
 
 @app.on_event("startup")
 async def startup_event():
-    print("[STARTUP] AI Sales Agent started successfully on port 8000.")
-    # إصلاح تلقائي لقاعدة البيانات في حال وجود أعمدة مفقودة
+    print("[STARTUP] AI Sales Agent starting...")
+    # إصلاح تلقائي لقاعدة البيانات في مهمة خلفية لعدم تعطيل بدء الخادم
+    asyncio.create_task(run_db_migrations())
+
+async def run_db_migrations():
+    """تحديث قاعدة البيانات في الخلفية لضمان سرعة استجابة الخادم عند بدء التشغيل"""
+    print("[DB] Starting database schema verification...")
     try:
         from database.db_client import get_db_engine
-        from sqlalchemy import text
+        from sqlalchemy import text, inspect
         engine = get_db_engine()
-        with engine.connect() as conn:
-            # التحقق من الأعمدة الموجودة وإضافتها إذا نقصت
-            from sqlalchemy import inspect
-            inspector = inspect(engine)
-            columns = [c['name'] for c in inspector.get_columns('clients')]
-            
-            if 'ignore_groups' not in columns:
-                try: conn.execute(text("ALTER TABLE clients ADD COLUMN ignore_groups BOOLEAN DEFAULT TRUE;"))
-                except: pass
-            if 'subscription_plan' not in columns:
-                try: conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_plan TEXT DEFAULT 'free';"))
-                except: pass
-            if 'subscription_ends_at' not in columns:
-                try: conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
-                except: pass
+        if not engine:
+            print("[DB] No engine found, skipping migrations.")
+            return
 
-            # تحديث جدول الاشتراكات لإضافة عداد الرسائل
+        with engine.connect() as conn:
+            inspector = inspect(engine)
+            
+            # 1. تحديث جدول العملاء
+            columns = [c['name'] for c in inspector.get_columns('clients')]
+            if 'ignore_groups' not in columns:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN ignore_groups BOOLEAN DEFAULT TRUE;"))
+            if 'subscription_plan' not in columns:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_plan TEXT DEFAULT 'free';"))
+            if 'subscription_ends_at' not in columns:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
+
+            # 2. تحديث جدول الاشتراكات
             try:
                 sub_columns = [c['name'] for c in inspector.get_columns('subscriptions')]
                 if 'messages_used' not in sub_columns:
                     conn.execute(text("ALTER TABLE subscriptions ADD COLUMN messages_used INTEGER DEFAULT 0;"))
-            except Exception as e:
-                print(f"Error updating subscriptions table: {e}")
+            except: pass
                 
-            # إنشاء جدول قواعد العمل إذا لم يكن موجوداً
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS business_rules (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    client_id UUID,
-                    rules_data JSONB,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """))
-            # إنشاء جدول خطط الاشتراك
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS subscription_plans (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    name TEXT NOT NULL,
-                    label_ar TEXT,
-                    price DECIMAL(10, 2) DEFAULT 0,
-                    duration_days INTEGER DEFAULT 30,
-                    permissions JSONB DEFAULT '{}',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """))
-            # إضافة خطط افتراضية إذا كان الجدول فارغاً
+            # 3. إنشاء الجداول المساعدة
+            conn.execute(text("CREATE TABLE IF NOT EXISTS business_rules (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id UUID, rules_data JSONB, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS subscription_plans (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, label_ar TEXT, price DECIMAL(10, 2) DEFAULT 0, duration_days INTEGER DEFAULT 30, permissions JSONB DEFAULT '{}', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS global_ai_models (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), model_name TEXT NOT NULL, provider TEXT NOT NULL, api_key TEXT NOT NULL, model_id TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
+
+            # 4. إضافة خطط افتراضية إذا كان الجدول فارغاً
             try:
                 count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
                 if count == 0:
-                    # نستخدم قيم نصية للمعرفات أو نتركها فارغة ليتم توليدها تلقائياً
                     conn.execute(text("""
                         INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
                         ('basic', 'الأساسية', 0, 30, '{"max_models": 1, "voice_notes": false}'),
                         ('pro', 'الاحترافية', 100, 30, '{"max_models": 3, "voice_notes": true}'),
                         ('enterprise', 'الشركات', 500, 30, '{"max_models": 10, "voice_notes": true, "custom_support": true}')
                     """))
-            except:
-                pass
-            # التحقق من الأعمدة في جدول طلبات الانضمام
+            except: pass
+
+            # 5. تحديث جدول طلبات الانضمام
             try:
-                inspector = inspect(engine)
                 req_columns = [c['name'] for c in inspector.get_columns('new_client_requests')]
                 if 'email' not in req_columns:
-                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN email TEXT;"))
-                    except: pass
+                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN email TEXT;"))
                 if 'password_hash' not in req_columns:
-                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN password_hash TEXT;"))
-                    except: pass
+                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN password_hash TEXT;"))
                 if 'store_link' not in req_columns:
-                    try: conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
-                    except: pass
-            except:
-                pass
-
-            # إنشاء جدول مكتبة النماذج العالمية
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS global_ai_models (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    model_name TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    api_key TEXT NOT NULL,
-                    model_id TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                );
-            """))
-                
+                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
+            except: pass
+            
             conn.commit()
-            print("[DB] Database schema verified and updated.")
+            print("[DB] Database schema verified successfully.")
     except Exception as e:
-        print(f"[DB ERROR] Startup schema update failed: {e}")
+        print(f"[DB ERROR] Background migration failed: {e}")
 
 @app.get("/", response_class=RedirectResponse)
 async def root_redirect():
