@@ -449,7 +449,13 @@ async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_
         
     supabase = get_supabase_client()
     try:
-        supabase.table("global_ai_models").insert(payload).execute()
+        clean_payload = {
+            "model_name": payload.get("model_name", "").strip(),
+            "provider": payload.get("provider", "").strip().lower(),
+            "model_id": payload.get("model_id", "").strip(),
+            "api_key": payload.get("api_key", "").strip()
+        }
+        supabase.table("global_ai_models").insert(clean_payload).execute()
         return {"status": "success", "message": "تم إضافة النموذج للمكتبة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -462,8 +468,8 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
 
     provider = payload.get("provider", "").lower()
-    api_key = payload.get("api_key", "")
-    model_id = payload.get("model_id", "")
+    api_key = payload.get("api_key", "").strip()
+    model_id = payload.get("model_id", "").strip()
 
     if not all([provider, api_key, model_id]):
         return {"status": "error", "message": "جميع الحقول مطلوبة"}
