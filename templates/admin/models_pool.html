@@ -237,7 +237,7 @@
                 const testData = await testRes.json();
                 
                 if(testData.status !== 'success') {
-                    alert('❌ لا يمكن إضافة النموذج لأنه لا يعمل أو المفتاح غير صالح:\n' + testData.message);
+                    showToast('❌ عذراً، لا يمكن إضافة النموذج لأنه لا يعمل أو المفتاح غير صالح: ' + testData.message, 'error');
                     btn.innerHTML = originalText;
                     btn.disabled = false;
                     return;
@@ -250,10 +250,15 @@
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                alert('✅ ' + data.message);
-                if(data.status === 'success') window.location.reload();
+                
+                if(data.status === 'success') {
+                    showToast('✅ ' + data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast('❌ خطأ: ' + data.message, 'error');
+                }
             } catch(e) { 
-                alert('خطأ في الاتصال'); 
+                showToast('❌ خطأ في الاتصال بالخادم', 'error'); 
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -265,9 +270,57 @@
             try {
                 const res = await fetch(`/admin/api/models-pool/${id}`, { method: 'DELETE' });
                 const data = await res.json();
-                alert(data.message);
-                if(data.status === 'success') window.location.reload();
-            } catch(e) { alert('خطأ في الحذف'); }
+                if(data.status === 'success') {
+                    showToast('✅ ' + data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    showToast('❌ خطأ: ' + data.message, 'error');
+                }
+            } catch(e) { showToast('❌ خطأ في الحذف', 'error'); }
+        }
+
+        // --- نظام التنبيهات المنبثقة (Toast) ---
+        function showToast(message, type='success') {
+            let container = document.getElementById('toast-container');
+            if(!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.style.cssText = 'position: fixed; bottom: 20px; left: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 400px;';
+                document.body.appendChild(container);
+            }
+            
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                background: ${type === 'success' ? 'var(--success)' : 'var(--secondary)'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                font-weight: 600;
+                font-size: 14px;
+                opacity: 0;
+                transform: translateY(20px);
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: flex-start;
+                line-height: 1.5;
+            `;
+            toast.innerText = message;
+            
+            container.appendChild(toast);
+            
+            // Animation in
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            }, 10);
+            
+            // Animation out
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000); // 5 seconds display
         }
     </script>
 </body>
