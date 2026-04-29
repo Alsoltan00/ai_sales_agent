@@ -149,44 +149,7 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
-from merchant.ai_training.ai_config import get_ai_config, update_ai_config, get_all_ai_configs, activate_ai_model
 
-# --- AI Training ---
-
-class AIConfigRequest(BaseModel):
-    model_config = {'protected_namespaces': ()}
-    model_name: str
-    provider: str
-    api_key: str
-    model_id: str
-
-@router.get("/ai-training", response_class=HTMLResponse)
-async def ai_training_page(request: Request, user: dict = Depends(verify_merchant)):
-    """صفحة إعدادات الذكاء الاصطناعي"""
-    ai_config = get_ai_config(user["id"])
-    all_models = get_all_ai_configs(user["id"])
-    return templates.TemplateResponse("merchant/ai_training.html", {
-        "request": request, 
-        "user": user, 
-        "ai_config": ai_config,
-        "all_models": all_models
-    })
-
-@router.post("/api/ai-training")
-async def api_update_ai_training(payload: AIConfigRequest, user: dict = Depends(verify_merchant)):
-    """تحديث إعدادات النموذج (إضافة نموذج جديد)"""
-    success = update_ai_config(user["id"], payload.model_dump())
-    if success:
-        return {"status": "success", "message": "تم حفظ وإضافة النموذج بنجاح وهو الآن النشط"}
-    return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
-
-@router.post("/api/ai-training/activate/{model_id_pk}")
-async def api_activate_ai_model(model_id_pk: str, user: dict = Depends(verify_merchant)):
-    """تفعيل نموذج محفوظ سابقاً"""
-    success = activate_ai_model(user["id"], model_id_pk)
-    if success:
-        return {"status": "success", "message": "تم تفعيل النموذج بنجاح"}
-    return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}
 
 # --- Business Rules ---
 
@@ -227,101 +190,7 @@ async def api_update_business_rules(payload: dict, user: dict = Depends(verify_m
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
-class AITestRequest(BaseModel):
-    model_config = {'protected_namespaces': ()}
-    provider: str
-    model_id: str
-    api_key: str
 
-@router.post("/api/ai-training/test")
-async def api_test_ai_model(payload: AITestRequest, user: dict = Depends(verify_merchant)):
-    """اختبار نموذج الذكاء الاصطناعي قبل الحفظ"""
-    import httpx
-    test_prompt = "قل مرحباً بجملة واحدة فقط."
-    try:
-        if payload.provider == "openai":
-            url = "https://api.openai.com/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {payload.api_key}", "Content-Type": "application/json"}
-            body = {"model": payload.model_id, "messages": [{"role": "user", "content": test_prompt}], "max_tokens": 50}
-            async with httpx.AsyncClient(timeout=15) as client:
-                res = await client.post(url, headers=headers, json=body)
-            data = res.json()
-            if "error" in data:
-                return {"status": "error", "message": data["error"].get("message", "خطأ غير معروف")}
-            reply = data["choices"][0]["message"]["content"]
-            return {"status": "success", "response": reply}
-
-        elif payload.provider == "anthropic":
-            url = "https://api.anthropic.com/v1/messages"
-            headers = {"x-api-key": payload.api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
-            body = {"model": payload.model_id, "max_tokens": 50, "messages": [{"role": "user", "content": test_prompt}]}
-            async with httpx.AsyncClient(timeout=15) as client:
-                res = await client.post(url, headers=headers, json=body)
-            data = res.json()
-            if "error" in data:
-                return {"status": "error", "message": data["error"].get("message", "خطأ")}
-            reply = data["content"][0]["text"]
-            return {"status": "success", "response": reply}
-
-        elif payload.provider == "groq":
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {payload.api_key}", "Content-Type": "application/json"}
-            body = {"model": payload.model_id, "messages": [{"role": "user", "content": test_prompt}], "max_tokens": 50}
-            async with httpx.AsyncClient(timeout=15) as client:
-                res = await client.post(url, headers=headers, json=body)
-            data = res.json()
-            if "error" in data:
-                return {"status": "error", "message": str(data["error"])}
-            reply = data["choices"][0]["message"]["content"]
-            return {"status": "success", "response": reply}
-
-        elif payload.provider == "google":
-            # Ensure model_id is clean and handle v1beta
-            clean_model_id = payload.model_id.strip().lower()
-            api_key = payload.api_key.strip()
-            
-            if not clean_model_id.startswith("models/"):
-                full_model_name = f"models/{clean_model_id}"
-            else:
-                full_model_name = clean_model_id
-            
-            async with httpx.AsyncClient(timeout=15) as client:
-                # 1. Try the user's requested model
-                url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={api_key}"
-                body = {
-                    "contents": [{"parts": [{"text": test_prompt}]}],
-                    "generationConfig": {"maxOutputTokens": 50}
-                }
-                res = await client.post(url, headers={"Content-Type": "application/json"}, json=body)
-                
-                if res.status_code == 200:
-                    data = res.json()
-                    try:
-                        reply = data["candidates"][0]["content"]["parts"][0]["text"]
-                        return {"status": "success", "response": reply}
-                    except:
-                        return {"status": "error", "message": "تنسيق غير متوقع من جوجل رغم نجاح الاتصال"}
-                
-                # 2. If 404, let's find out what models ARE available
-                if res.status_code == 404:
-                    list_url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-                    list_res = await client.get(list_url)
-                    if list_res.status_code == 200:
-                        models_data = list_res.json()
-                        available = [m["name"].replace("models/", "") for m in models_data.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
-                        return {"status": "error", "message": f"النموذج غير موجود. النماذج المتاحة لحسابك هي: {', '.join(available[:5])}"}
-                    else:
-                        return {"status": "error", "message": f"النموذج {clean_model_id} غير موجود، وفشلنا في جلب القائمة البديلة."}
-                
-                # 3. Handle other errors
-                data = res.json()
-                error_msg = data.get("error", {}).get("message", "خطأ غير معروف")
-                return {"status": "error", "message": f"جوجل (خطأ {res.status_code}): {error_msg}"}
-
-        else:
-            return {"status": "error", "message": "مزود الخدمة غير معروف"}
-    except Exception as e:
-        return {"status": "error", "message": f"فشل الاتصال بالنموذج: {str(e)}"}
 
 # --- Data Sync ---
 
