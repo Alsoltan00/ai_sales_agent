@@ -454,6 +454,58 @@ async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@router.post("/api/models-pool/test")
+async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify_admin)):
+    """تجربة النموذج والتأكد من صلاحيته قبل الحفظ"""
+    perms = user.get("permissions") or {}
+    if not perms.get("can_manage_models") and not perms.get("is_admin"):
+        raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
+
+    provider = payload.get("provider", "").lower()
+    api_key = payload.get("api_key", "")
+    model_id = payload.get("model_id", "")
+
+    if not all([provider, api_key, model_id]):
+        return {"status": "error", "message": "جميع الحقول مطلوبة"}
+
+    try:
+        import httpx
+        timeout = httpx.Timeout(10.0)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            if provider == "openai":
+                res = await client.post(
+                    "https://api.openai.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+            elif provider == "groq":
+                res = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+            elif provider == "anthropic":
+                res = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+            elif provider == "gemini":
+                res = await client.post(
+                    f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
+                    json={"contents": [{"parts": [{"text": "Hi"}]}]}
+                )
+            else:
+                return {"status": "error", "message": "مزود الخدمة غير مدعوم للتجربة"}
+
+            if res.status_code == 200:
+                return {"status": "success", "message": "تم الاتصال بالنموذج بنجاح!"}
+            else:
+                error_msg = res.json() if res.text else res.status_code
+                return {"status": "error", "message": f"فشل الاتصال ({res.status_code}): {error_msg}"}
+    except Exception as e:
+        return {"status": "error", "message": f"خطأ تقني أثناء التجربة: {str(e)}"}
+
 @router.delete("/api/models-pool/{model_id}")
 async def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
     """حذف نموذج من المكتبة"""
