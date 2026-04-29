@@ -33,14 +33,31 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 
     # 2. جلب إعدادات النموذج النشط من خلال باقة العميل والتحقق من رصيد الرسائل
     try:
-        # 1. جلب الاشتراك النشط للعميل
-        sub_res = supabase.table("subscriptions").select("plan, messages_used, status").eq("client_id", client_id).eq("status", "active").execute()
-        if not sub_res.data:
-            return "عذراً، المتجر ليس لديه اشتراك نشط. يرجى التواصل مع الإدارة."
+        # 1. جلب بيانات الاشتراك من جدول العملاء (العميل)
+        client_sub_res = supabase.table("clients").select("subscription_plan, subscription_ends_at, status, messages_used").eq("id", client_id).single().execute()
         
-        active_sub = sub_res.data[0]
-        client_plan = active_sub["plan"]
-        messages_used = active_sub.get("messages_used", 0)
+        if not client_sub_res.data:
+            return "عذراً، المتجر ليس لديه حساب نشط."
+            
+        sub_data = client_sub_res.data
+        if sub_data.get("status") != "active":
+            return "عذراً، المتجر غير نشط. يرجى التواصل مع الإدارة."
+            
+        from datetime import datetime
+        ends_at_str = sub_data.get("subscription_ends_at")
+        if not ends_at_str:
+            return "عذراً، المتجر ليس لديه اشتراك نشط. يرجى التواصل مع الإدارة."
+            
+        try:
+            ends_at = datetime.fromisoformat(ends_at_str.replace('Z', '+00:00'))
+            if ends_at < datetime.now(ends_at.tzinfo):
+                return "عذراً، لقد انتهى اشتراك المتجر. يرجى التواصل مع الإدارة لتجديده."
+        except Exception as e:
+            print(f"Error parsing date: {e}")
+            pass
+            
+        client_plan = sub_data.get("subscription_plan", "free")
+        messages_used = sub_data.get("messages_used", 0)
 
         # 2. جلب إعدادات الباقة (الخطة)
         plan_res = supabase.table("subscription_plans").select("permissions").eq("name", client_plan).execute()
@@ -163,7 +180,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         # 6. تسجيل السجل وتحديث العداد
         _log_message(supabase, client_id, user_message, response, phone_number, channel)
         try:
-            supabase.table("subscriptions").update({"messages_used": messages_used + 1}).eq("client_id", client_id).eq("status", "active").execute()
+            supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         except Exception as update_err:
             print(f"Error updating messages count: {update_err}")
             
