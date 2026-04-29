@@ -314,21 +314,22 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
     if existing.data:
         return {"status": "error", "message": "البريد الإلكتروني مسجل مسبقاً"}
         
-    from passlib.context import CryptContext
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    
-    new_user = {
-        "name": payload.get("name"),
-        "email": payload.get("email"),
-        "password_hash": pwd_context.hash(payload.get("password")),
-        "permissions": payload.get("permissions", {})
-    }
-    
     try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        new_user = {
+            "name": payload.get("name"),
+            "email": payload.get("email"),
+            "password_hash": pwd_context.hash(payload.get("password")),
+            "permissions": payload.get("permissions", {})
+        }
+        
         supabase.table("sales_admin_users").insert(new_user).execute()
         return {"status": "success", "message": "تم إضافة المستخدم بنجاح"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error creating user: {e}")
+        return {"status": "error", "message": f"فشل الإضافة: {str(e)}"}
 
 @router.put("/api/users/{user_id}")
 async def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
@@ -343,12 +344,13 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
         "permissions": payload.get("permissions", {})
     }
     
-    if payload.get("password"):
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        update_data["password_hash"] = pwd_context.hash(payload.get("password"))
-        
     try:
+        if payload.get("password"):
+            from passlib.context import CryptContext
+            # استخدام bcrypt للتشفير الآمن
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            update_data["password_hash"] = pwd_context.hash(payload.get("password"))
+            
         supabase.table("sales_admin_users").update(update_data).eq("id", user_id).execute()
         
         # إذا كان المستخدم يعدل بيانات نفسه، نحدث الجلسة لكي يظهر الاسم الجديد فوراً
@@ -360,7 +362,8 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
             
         return {"status": "success", "message": "تم تحديث بيانات المستخدم بنجاح"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        print(f"Error updating user: {e}")
+        return {"status": "error", "message": f"فشل التحديث: {str(e)}"}
 
 @router.delete("/api/users/{user_id}")
 async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
