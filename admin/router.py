@@ -290,6 +290,14 @@ async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     supabase = get_supabase_client()
     res = supabase.table("sales_admin_users").select("*").execute()
     safe_users = sanitize_data(res.data or [])
+    
+    # تحديث بيانات المستخدم الحالي في الجلسة لضمان مزامنة الاسم والصلاحيات فوراً
+    current_db_user = next((u for u in safe_users if str(u.get('id')) == str(user.get('id'))), None)
+    if current_db_user:
+        user['name'] = current_db_user.get('name')
+        user['permissions'] = current_db_user.get('permissions')
+        request.session['user'] = user
+
     return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": safe_users})
 
 @router.post("/api/users")
