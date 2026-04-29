@@ -323,7 +323,7 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": str(e)}
 
 @router.put("/api/users/{user_id}")
-async def api_update_user(user_id: str, payload: dict, current_user: dict = Depends(verify_admin)):
+async def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
     """تحديث بيانات/صلاحيات مستخدم إداري"""
     perms = current_user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -342,6 +342,14 @@ async def api_update_user(user_id: str, payload: dict, current_user: dict = Depe
         
     try:
         supabase.table("sales_admin_users").update(update_data).eq("id", user_id).execute()
+        
+        # إذا كان المستخدم يعدل بيانات نفسه، نحدث الجلسة لكي يظهر الاسم الجديد فوراً
+        if str(user_id) == str(current_user.get("id")):
+            user_session = request.session.get("user", {})
+            user_session["name"] = update_data["name"]
+            user_session["permissions"] = update_data["permissions"]
+            request.session["user"] = user_session
+            
         return {"status": "success", "message": "تم تحديث بيانات المستخدم بنجاح"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
