@@ -403,9 +403,9 @@
             <h3 style="margin-bottom: 20px;">تجديد اشتراك: <span id="modalClientName" style="color: var(--primary);"></span></h3>
             <div class="form-group">
                 <label>اختر الباقة</label>
-                <select id="renewPlan">
+                <select id="renewPlan" onchange="updateRenewDays()">
                     {% for plan in plans %}
-                    <option value="{{ plan.name }}">{{ plan.label_ar }} ({{ plan.name }})</option>
+                    <option value="{{ plan.name }}" data-duration="{{ plan.duration_days }}">{{ plan.label_ar }} ({{ plan.name }})</option>
                     {% endfor %}
                 </select>
             </div>
@@ -497,7 +497,17 @@
         function openRenewModal(id, name) {
             activeRenewClientId = id;
             document.getElementById('modalClientName').innerText = name;
+            updateRenewDays(); // ضبط المدة تلقائياً بناءً على أول باقة مختارة
             document.getElementById('renewModal').style.display = 'flex';
+        }
+
+        function updateRenewDays() {
+            const select = document.getElementById('renewPlan');
+            const selectedOption = select.options[select.selectedIndex];
+            const duration = selectedOption.getAttribute('data-duration');
+            if (duration) {
+                document.getElementById('renewDays').value = duration;
+            }
         }
 
         function closeRenewModal() { document.getElementById('renewModal').style.display = 'none'; }
