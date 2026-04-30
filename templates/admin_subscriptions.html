@@ -85,7 +85,6 @@
                             <th class="text-secondary">اسم الباقة</th>
                             <th class="text-secondary">السعر</th>
                             <th class="text-secondary text-center">المدة (يوم)</th>
-                            <th class="text-secondary">الصلاحيات</th>
                             <th class="text-secondary text-end">الإجراءات</th>
                         </tr>
                     </thead>
@@ -95,13 +94,6 @@
                             <td class="fw-bold text-primary">{{ plan.label_ar }} <small class="text-secondary">({{ plan.name }})</small></td>
                             <td class="text-body fw-600">{{ plan.price }} ريال</td>
                             <td class="text-center text-body">{{ plan.duration_days }} يوم</td>
-                            <td>
-                                <div class="d-flex flex-wrap gap-1">
-                                    {% for k, v in plan.permissions.items() %}
-                                    <span class="badge bg-secondary-subtle text-secondary rounded-pill small">{{ k }}: {{ v }}</span>
-                                    {% endfor %}
-                                </div>
-                            </td>
                             <td class="text-end">
                                 <button class="btn btn-icon btn-ghost-secondary btn-sm" onclick='openPlanModal({{ plan | tojson }})'>
                                     <i class="ti ti-edit"></i>
