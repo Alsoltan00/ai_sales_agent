@@ -28,7 +28,8 @@ def verify_merchant(request: Request):
 @router.get("/home", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     """لوحة التاجر الرئيسية (Home)"""
-    return templates.TemplateResponse("merchant_home.html", {"request": request, "user": user})
+    settings = get_store_settings(user["id"])
+    return templates.TemplateResponse("merchant_home.html", {"request": request, "user": user, "settings": settings})
 
 # --- Store Management ---
 
@@ -45,10 +46,13 @@ async def store_settings_page(request: Request, user: dict = Depends(verify_merc
     return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
 
 @router.post("/api/store")
-async def api_update_store(payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
+async def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
     """تحديث بيانات المتجر"""
     success = update_store_settings(user["id"], payload.model_dump())
     if success:
+        # تحديث الاسم في الجلسة ليظهر التغيير فوراً في الواجهات
+        if "user" in request.session:
+            request.session["user"]["name"] = payload.company_name
         return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
