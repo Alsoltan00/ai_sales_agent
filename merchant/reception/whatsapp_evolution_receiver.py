@@ -130,6 +130,7 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # 2. معالجة الرسائل الصوتية والصور
         image_base64 = None
+        audio_base64 = None
         if msg_type in ("audio", "image"):
             print(f"[DEBUG] {msg_type.capitalize()} message detected from {phone}. Downloading...")
             cfg = _find_client_by_instance(instance_name)
@@ -137,13 +138,7 @@ async def evolution_webhook(instance_name: str, request: Request):
                 try:
                     fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/getBase64FromMediaMessage/{instance_name}"
                     msg_id = key.get("id")
-                    media_payload = {
-                        "message": {
-                            "key": {
-                                "id": msg_id
-                            }
-                        }
-                    }
+                    media_payload = {"message": {"key": {"id": msg_id}}}
                     headers = {"apikey": cfg["evolution_api_key"]}
                     
                     async with httpx.AsyncClient() as client:
@@ -158,15 +153,12 @@ async def evolution_webhook(instance_name: str, request: Request):
                                     b64_data = str(b64_data).split(",")[1]
                                 
                                 if msg_type == "audio":
+                                    audio_base64 = b64_data
                                     from utils.transcriber import transcribe_audio
-                                    from merchant.ai_training.ai_config import get_ai_config # Assuming this exists or I'll check
-                                    
-                                    # We need an API key for transcription. Usually Groq or OpenAI.
-                                    # For now, let's use the merchant's active model API key if it's Groq/OpenAI
-                                    # But to be safe, I'll try to fetch the client's AI config
                                     from database.db_client import get_supabase_client
                                     supabase = get_supabase_client()
-                                    # Fetch active model for this client
+                                    
+                                    # محاولة جلب المفتاح للتحويل الصوتي
                                     model_res = supabase.table("clients").select("subscription_plan").eq("id", cfg["client_id"]).single().execute()
                                     if model_res.data:
                                         plan = model_res.data.get("subscription_plan")
@@ -180,25 +172,20 @@ async def evolution_webhook(instance_name: str, request: Request):
                                                 ai_m = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
                                                 if ai_m.data:
                                                     api_key = ai_m.data.get("api_key")
-                                                    provider = ai_m.data.get("provider")
-                                                    
                                                     import base64
                                                     audio_bytes = base64.b64decode(b64_data)
-                                                    # If provider is Groq, use it. Otherwise, might need another way.
-                                                    # Let's assume we use Groq for whisper for now if it's available.
-                                                    if provider == "groq" or True: # fallback to any key for now
-                                                        text = await transcribe_audio(audio_bytes, api_key)
+                                                    # محاولة التحويل الصوتي (فقط لـ Groq/OpenAI)
+                                                    text = await transcribe_audio(audio_bytes, api_key)
+                                                    if text:
                                                         print(f"[VOICE] Transcribed Text: {text}")
                                 
                                 elif msg_type == "image":
                                     image_base64 = b64_data
-                                    print(f"[IMAGE] Image downloaded and ready for AI.")
-                                    if not text:
-                                        text = "تحليل الصورة" # Default text if no caption
+                                    if not text: text = "تحليل الصورة"
                         else:
                             print(f"[DEBUG] Media fetch failed: {media_res.status_code}")
                 except Exception as ve:
-                    print(f"[MEDIA ERROR] Exception during media processing: {ve}")
+                    print(f"[MEDIA ERROR] Exception: {ve}")
         
         print(f"[DEBUG] Final Message text from {phone}: {text}")
 
@@ -222,7 +209,7 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # توليد الرد
         print(f"[AI] Calling AI for client {client_id}...")
-        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution", image_base64=image_base64)
+        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution", image_base64=image_base64, audio_base64=audio_base64)
         print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد

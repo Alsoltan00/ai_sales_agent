@@ -3,9 +3,9 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
-async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None) -> str:
+async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None, audio_base64: str = None) -> str:
     """
-    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور)
+    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور والصوت)
     """
     supabase = get_supabase_client()
 
@@ -50,11 +50,14 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             return "عذراً، المتجر ليس لديه اشتراك نشط. يرجى التواصل مع الإدارة."
             
         try:
-            ends_at = datetime.fromisoformat(ends_at_str.replace('Z', '+00:00'))
-            if ends_at < datetime.now(ends_at.tzinfo):
-                return "عذراً، لقد انتهى اشتراك المتجر. يرجى التواصل مع الإدارة لتجديده."
+            if isinstance(ends_at_str, str):
+                # تنظيف الصيغة إذا كانت تحتوي على أجزاء ثانية زائدة
+                clean_date = ends_at_str.split('.')[0].replace('Z', '').replace(' ', 'T')
+                ends_at = datetime.fromisoformat(clean_date)
+                if ends_at < datetime.now():
+                    return "عذراً، لقد انتهى اشتراك المتجر. يرجى التواصل مع الإدارة لتجديده."
         except Exception as e:
-            print(f"Error parsing date: {e}")
+            print(f"Error parsing date '{ends_at_str}': {e}")
             pass
             
         client_plan = sub_data.get("subscription_plan", "free")
@@ -148,7 +151,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             .select("message_text, ai_response, created_at") \
             .eq("client_id", client_id) \
             .eq("phone_number", phone_number) \
-            .order("created_at", descending=True) \
+            .order("created_at", desc=True) \
             .limit(5) \
             .execute()
         
@@ -223,7 +226,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         elif provider == "groq":
             response = await _call_groq(api_key, model_id, messages)
         elif provider == "google":
-            response = await _call_google(api_key, model_id, user_message, system_prompt, image_base64)
+            response = await _call_google(api_key, model_id, user_message, system_prompt, image_base64, audio_base64)
         elif provider == "openrouter":
             response = await _call_openrouter(api_key, model_id, messages)
         else:
@@ -285,7 +288,7 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _call_google(api_key: str, model_id: str, user_message: str, system: str, image_base64: str = None) -> str:
+async def _call_google(api_key: str, model_id: str, user_message: str, system: str, image_base64: str = None, audio_base64: str = None) -> str:
     clean_model_id = model_id.strip().lower()
     clean_api_key = api_key.strip()
     
@@ -297,12 +300,27 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
     url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={clean_api_key}"
     headers = {"Content-Type": "application/json"}
     
-    parts = [{"text": user_message if user_message else "ماذا ترى في هذه الصورة؟"}]
+    parts = []
+    if user_message:
+        parts.append({"text": user_message})
+    elif image_base64:
+        parts.append({"text": "ماذا ترى في هذه الصورة؟"})
+    elif audio_base64:
+        parts.append({"text": "استمع لهذا المقطع الصوتي ونفذ المطلوب منه في سياق المتجر."})
+
     if image_base64:
         parts.append({
             "inline_data": {
                 "mime_type": "image/jpeg",
                 "data": image_base64
+            }
+        })
+    
+    if audio_base64:
+        parts.append({
+            "inline_data": {
+                "mime_type": "audio/ogg",
+                "data": audio_base64
             }
         })
 
