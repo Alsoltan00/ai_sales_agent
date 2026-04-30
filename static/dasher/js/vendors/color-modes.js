@@ -24,11 +24,13 @@
    };
 
    const updateDropdownIcon = (theme) => {
-      const themeIconActive = document.querySelector(".theme-icon-active");
+      const themeIconsActive = document.querySelectorAll(".theme-icon-active");
       const iconElement = document.querySelector(`[data-bs-theme-value="${theme}"] .theme-icon`);
 
-      if (themeIconActive && iconElement) {
-         themeIconActive.innerHTML = iconElement.outerHTML;
+      if (themeIconsActive.length > 0 && iconElement) {
+         themeIconsActive.forEach(el => {
+            el.innerHTML = iconElement.outerHTML;
+         });
       }
    };
 
