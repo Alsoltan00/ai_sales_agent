@@ -52,11 +52,8 @@
       position: sticky;
       top: 0;
       z-index: 1030;
-      padding: 8px 10px;
       background: var(--bs-body-bg);
       border-bottom: 1px solid var(--bs-border-color);
-      align-items: center;
-      justify-content: space-between;
     }
     @media (max-width: 991.98px) {
       #miniSidebar { display: none !important; }
@@ -173,14 +170,16 @@
 </div>
 
 <!-- ═══════════════════════ MOBILE TOPBAR ═══════════════════════ -->
-<div class="mobile-topbar">
-  <button class="btn btn-icon btn-ghost-secondary" type="button"
-          data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
-    <i class="ti ti-menu-2 fs-5"></i>
-  </button>
-  <span class="fw-bold" style="color:var(--bs-primary);">🤖 الوكيل الذكي</span>
+<div class="mobile-topbar d-flex justify-content-between align-items-center px-2 py-1">
+  <div class="d-flex align-items-center gap-1">
+    <button class="btn btn-icon btn-ghost-secondary" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
+      <i class="ti ti-menu-2 fs-5"></i>
+    </button>
+    <span class="fw-bold small" style="color:var(--bs-primary);">🤖 الوكيل الذكي</span>
+  </div>
   
-  <div class="d-flex align-items-center gap-2 ms-auto">
+  <div class="d-flex align-items-center gap-2">
       <!-- Theme Switcher -->
       <div class="dropdown">
           <button class="btn btn-icon btn-ghost-secondary rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bd-theme-mobile">
@@ -207,7 +206,7 @@
 
       <div class="dropdown">
         <a href="#" class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center text-decoration-none"
-             style="width:32px;height:32px;font-weight:700;font-size:0.8rem;color:white;"
+             style="width:30px;height:30px;font-weight:700;font-size:0.75rem;color:white;"
              data-bs-toggle="dropdown">
           {{ user.name[0] if user and user.name else 'T' }}
         </a>
