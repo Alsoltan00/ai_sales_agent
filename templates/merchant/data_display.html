@@ -1,431 +1,286 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>عرض البيانات | نظام وكيل المبيعات الذكي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #06b6d4;
-            --primary-hover: #0891b2;
-            --secondary: #10b981;
-            --bg-dark: #0f172a;
-            --bg-sidebar: rgba(15, 23, 42, 0.85);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 280px;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(at top left, rgba(6,182,212,0.12) 0%, transparent 40%);
-        }
-        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
-        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
-        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
-        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
-        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(6,182,212,0.1); border-right-color: var(--primary); }
-        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
-        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+{% extends "merchant_base.html" %}
 
-        .main-content { flex: 1; margin-right: var(--sidebar-width); padding: 40px; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; flex-wrap: wrap; gap: 15px; }
-        .header h2 { font-size: 2rem; font-weight: 700; }
+{% block title %}عرض البيانات{% endblock %}
 
-        /* Stats Bar */
-        .stats-bar {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        .stat-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 20px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            backdrop-filter: blur(10px);
-        }
-        .stat-icon {
-            width: 48px; height: 48px; border-radius: 12px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.3rem; flex-shrink: 0;
-        }
-        .stat-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
-        .stat-value { font-size: 1.4rem; font-weight: 700; }
+{% block extra_css %}
+/* Custom Scrollbar for table */
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(var(--bs-primary-rgb), 0.05);
+    border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(var(--bs-primary-rgb), 0.2);
+    border-radius: 4px;
+}
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: rgba(var(--bs-primary-rgb), 0.4);
+}
 
-        /* Search & Filter */
-        .toolbar {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 16px;
-            padding: 20px 25px;
-            margin-bottom: 20px;
-            backdrop-filter: blur(10px);
-            display: flex;
-            gap: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .search-box {
-            flex: 1;
-            min-width: 200px;
-            position: relative;
-        }
-        .search-box i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
-        .search-input {
-            width: 100%;
-            padding: 11px 40px 11px 14px;
-            background: rgba(15,23,42,0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            color: white;
-            font-family: inherit;
-            font-size: 0.95rem;
-            outline: none;
-            transition: 0.3s;
-        }
-        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(6,182,212,0.15); }
-        .search-input::placeholder { color: var(--text-muted); }
+.table > :not(caption) > * > * {
+    padding: 1rem 1.25rem;
+    white-space: nowrap;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.table th {
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.85rem;
+    color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.1);
+}
+.table th:hover { background-color: rgba(var(--bs-primary-rgb), 0.1); }
+.sort-icon { margin-right: 6px; opacity: 0.3; font-size: 0.75rem; }
+.th.sorted .sort-icon { opacity: 1; color: var(--bs-primary); }
 
-        .btn-refresh {
-            padding: 11px 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white; border: none; border-radius: 10px;
-            font-family: inherit; font-size: 0.9rem; font-weight: 600;
-            cursor: pointer; transition: 0.3s; display: flex; align-items: center; gap: 8px;
-            white-space: nowrap;
-        }
-        .btn-refresh:hover { transform: translateY(-1px); box-shadow: 0 6px 15px -5px var(--primary); }
+.source-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+}
+.badge-excel { background: rgba(var(--bs-success-rgb), 0.15); color: var(--bs-success); border: 1px solid rgba(var(--bs-success-rgb), 0.3); }
+.badge-sheets { background: rgba(var(--bs-info-rgb), 0.15); color: var(--bs-info); border: 1px solid rgba(var(--bs-info-rgb), 0.3); }
+.badge-aiven { background: rgba(var(--bs-purple-rgb), 0.15); color: var(--bs-purple); border: 1px solid rgba(var(--bs-purple-rgb), 0.3); }
+.badge-none { background: rgba(var(--bs-secondary-rgb), 0.15); color: var(--bs-secondary); border: 1px solid rgba(var(--bs-secondary-rgb), 0.3); }
 
-        /* Table */
-        .table-container {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-        }
-        .table-wrapper { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; min-width: 600px; }
-        thead { background: rgba(6,182,212,0.08); }
-        thead th {
-            padding: 16px 20px;
-            text-align: right;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--primary);
-            border-bottom: 1px solid var(--glass-border);
-            white-space: nowrap;
-            cursor: pointer;
-            user-select: none;
-        }
-        thead th:hover { background: rgba(6,182,212,0.12); }
-        thead th .sort-icon { margin-right: 5px; opacity: 0.4; font-size: 0.75rem; }
-        thead th.sorted .sort-icon { opacity: 1; color: var(--secondary); }
+/* Empty state */
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state i { font-size: 4rem; color: var(--bs-primary); opacity: 0.2; margin-bottom: 20px; display: block; }
+{% endblock %}
 
-        tbody tr {
-            border-bottom: 1px solid rgba(255,255,255,0.04);
-            transition: 0.2s;
-        }
-        tbody tr:last-child { border-bottom: none; }
-        tbody tr:hover { background: rgba(6,182,212,0.05); }
-        tbody td {
-            padding: 14px 20px;
-            font-size: 0.9rem;
-            color: #cbd5e1;
-            max-width: 220px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        tbody td:first-child { color: white; font-weight: 600; }
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1>عرض البيانات</h1>
+    <p class="text-secondary mb-0 mt-1">استعرض وابحث في بيانات المخزون التي يقرأها وكيلك الذكي للرد على العملاء.</p>
+</div>
 
-        /* Empty state */
-        .empty-state {
-            text-align: center;
-            padding: 80px 40px;
-        }
-        .empty-state i { font-size: 4rem; color: var(--primary); opacity: 0.4; margin-bottom: 20px; display: block; }
-        .empty-state h3 { font-size: 1.3rem; margin-bottom: 10px; }
-        .empty-state p { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 25px; }
-        .btn-go { display: inline-flex; align-items: center; gap: 8px; padding: 12px 25px; background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; text-decoration: none; border-radius: 12px; font-weight: 600; transition: 0.3s; }
-        .btn-go:hover { transform: translateY(-2px); }
-
-        /* Pagination */
-        .pagination {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 18px 25px;
-            border-top: 1px solid var(--glass-border);
-            font-size: 0.88rem;
-            color: var(--text-muted);
-        }
-        .page-btns { display: flex; gap: 8px; }
-        .page-btn {
-            padding: 7px 14px; border-radius: 8px; border: 1px solid var(--glass-border);
-            background: transparent; color: var(--text-muted); cursor: pointer; transition: 0.2s;
-            font-family: inherit; font-size: 0.88rem;
-        }
-        .page-btn:hover, .page-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
-        .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-        /* Loading */
-        .loading-row td { text-align: center; padding: 60px; }
-        .spinner { display: inline-block; width: 36px; height: 36px; border: 3px solid rgba(6,182,212,0.2); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.7s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-
-        .source-badge {
-            display: inline-flex; align-items: center; gap: 6px;
-            padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
-        }
-        .badge-excel { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-        .badge-sheets { background: rgba(6,182,212,0.15); color: #22d3ee; border: 1px solid rgba(6,182,212,0.3); }
-        .badge-aiven { background: rgba(139,92,246,0.15); color: #a78bfa; border: 1px solid rgba(139,92,246,0.3); }
-        .badge-none { background: rgba(100,116,139,0.15); color: #94a3b8; border: 1px solid rgba(100,116,139,0.3); }
-    </style>
-</head>
-<body>
-    <aside class="sidebar">
-        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
-        <div class="nav-links">
-            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
-            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
-            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
-            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
-            <a href="/merchant/business-rules" class="nav-item"><i class="fa-solid fa-gavel"></i> قواعد العمل</a>
-            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
-            <a href="/merchant/data-view" class="nav-item active"><i class="fa-solid fa-table"></i> عرض البيانات</a>
-            <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
-        </div>
-        <div class="user-info">
-            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
+<!-- Stats -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card card-body d-flex flex-row align-items-center gap-3">
+            <div class="avatar avatar-md bg-primary-subtle text-primary rounded">
+                <i class="ti ti-database fs-4"></i>
+            </div>
             <div>
-                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+                <p class="text-secondary mb-0 small">إجمالي السجلات</p>
+                <h3 class="mb-0 fw-bold" id="totalRecords">—</h3>
             </div>
         </div>
-    </aside>
-
-    <main class="main-content">
-        <div class="header">
+    </div>
+    <div class="col-md-4">
+        <div class="card card-body d-flex flex-row align-items-center gap-3">
+            <div class="avatar avatar-md bg-info-subtle text-info rounded">
+                <i class="ti ti-table-column fs-4"></i>
+            </div>
             <div>
-                <h2>عرض البيانات</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">استعرض وابحث في بيانات المخزون التي يقرأها وكيلك الذكي للرد على العملاء.</p>
+                <p class="text-secondary mb-0 small">عدد الأعمدة</p>
+                <h3 class="mb-0 fw-bold" id="totalCols">—</h3>
             </div>
         </div>
-
-        <!-- Stats -->
-        <div class="stats-bar">
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fa-solid fa-database"></i></div>
-                <div>
-                    <div class="stat-label">إجمالي السجلات</div>
-                    <div class="stat-value" id="totalRecords">—</div>
-                </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card card-body d-flex flex-row align-items-center gap-3">
+            <div class="avatar avatar-md bg-success-subtle text-success rounded">
+                <i class="ti ti-plug-connected fs-4"></i>
             </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fa-solid fa-table-columns"></i></div>
-                <div>
-                    <div class="stat-label">عدد الأعمدة</div>
-                    <div class="stat-value" id="totalCols">—</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon"><i class="fa-solid fa-plug"></i></div>
-                <div>
-                    <div class="stat-label">مصدر البيانات</div>
-                    <div class="stat-value" id="sourceType">—</div>
-                </div>
+            <div>
+                <p class="text-secondary mb-0 small">مصدر البيانات</p>
+                <div class="mt-1" id="sourceType">—</div>
             </div>
         </div>
+    </div>
+</div>
 
-        <!-- Toolbar -->
-        <div class="toolbar">
-            <div class="search-box">
-                <i class="fa-solid fa-search"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="ابحث في البيانات..." oninput="filterTable()">
-            </div>
-            <button class="btn-refresh" onclick="loadData()">
-                <i class="fa-solid fa-arrows-rotate"></i> تحديث
+<!-- Main Table Card -->
+<div class="card card-lg">
+    <div class="card-header border-bottom d-flex align-items-center justify-content-between flex-wrap gap-3 pb-3">
+        <div class="input-group" style="max-width: 300px;">
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" id="searchInput" class="form-control" placeholder="ابحث في البيانات..." oninput="filterTable()">
+        </div>
+        <button class="btn btn-primary" onclick="loadData()">
+            <i class="ti ti-refresh me-1"></i> تحديث البيانات
+        </button>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-hover table-vcenter mb-0" id="dataTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody">
+                <tr>
+                    <td colspan="10" class="text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="card-footer d-flex align-items-center justify-content-between" id="pagination" style="display:none !important;">
+        <span class="text-secondary small" id="pageInfo">عرض 1-50 من 0 سجل</span>
+        <div class="btn-group">
+            <button class="btn btn-outline-secondary btn-sm btn-icon" id="nextBtn" onclick="changePage(1)">
+                <i class="ti ti-chevron-right"></i>
+            </button>
+            <span class="btn btn-outline-secondary btn-sm disabled text-body" id="pageNum">1</span>
+            <button class="btn btn-outline-secondary btn-sm btn-icon" id="prevBtn" onclick="changePage(-1)" disabled>
+                <i class="ti ti-chevron-left"></i>
             </button>
         </div>
+    </div>
+</div>
+{% endblock %}
 
-        <!-- Table -->
-        <div class="table-container">
-            <div class="table-wrapper">
-                <table id="dataTable">
-                    <thead id="tableHead"></thead>
-                    <tbody id="tableBody">
-                        <tr class="loading-row">
-                            <td colspan="10"><div class="spinner"></div></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="pagination" id="pagination" style="display:none;">
-                <span id="pageInfo">عرض 1-50 من 0 سجل</span>
-                <div class="page-btns">
-                    <button class="page-btn" id="prevBtn" onclick="changePage(-1)" disabled><i class="fa-solid fa-chevron-right"></i></button>
-                    <span id="pageNum" style="padding: 7px 14px; color: var(--text-main);">1</span>
-                    <button class="page-btn" id="nextBtn" onclick="changePage(1)"><i class="fa-solid fa-chevron-left"></i></button>
-                </div>
-            </div>
-        </div>
-    </main>
+{% block extra_scripts %}
+<script>
+    let allData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const PAGE_SIZE = 50;
+    let sortCol = null;
+    let sortAsc = true;
 
-    <script>
-        let allData = [];
-        let filteredData = [];
-        let currentPage = 1;
-        const PAGE_SIZE = 50;
-        let sortCol = null;
-        let sortAsc = true;
+    async function loadData() {
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>`;
+        try {
+            const res = await fetch('/merchant/api/data-view');
+            const json = await res.json();
 
-        async function loadData() {
-            document.getElementById('tableBody').innerHTML = `<tr class="loading-row"><td colspan="10"><div class="spinner"></div></td></tr>`;
-            try {
-                const res = await fetch('/merchant/api/data-view');
-                const json = await res.json();
-
-                if (json.status === 'no_data') {
-                    showEmpty();
-                    document.getElementById('totalRecords').textContent = '0';
-                    document.getElementById('totalCols').textContent = '0';
-                    document.getElementById('sourceType').textContent = 'لا يوجد';
-                    return;
-                }
-
-                allData = json.data || [];
-                filteredData = [...allData];
-
-                // Update stats
-                document.getElementById('totalRecords').textContent = allData.length.toLocaleString('ar');
-                const cols = allData.length > 0 ? Object.keys(allData[0]).length : 0;
-                document.getElementById('totalCols').textContent = cols;
-
-                const srcMap = { excel: 'Excel/CSV', google_sheets: 'Google Sheets', aiven: 'Aiven MySQL' };
-                const srcBadge = { excel: 'badge-excel', google_sheets: 'badge-sheets', aiven: 'badge-aiven' };
-                const src = json.source_type || 'none';
-                document.getElementById('sourceType').innerHTML = `<span class="source-badge ${srcBadge[src] || 'badge-none'}">${srcMap[src] || 'غير معروف'}</span>`;
-
-                renderHeader();
-                renderPage(1);
-            } catch(err) {
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" style="text-align:center;color:#f87171;padding:60px">حدث خطأ في جلب البيانات</td></tr>`;
-            }
-        }
-
-        function showEmpty() {
-            document.getElementById('tableHead').innerHTML = '';
-            document.getElementById('tableBody').innerHTML = `
-                <tr><td colspan="10">
-                    <div class="empty-state">
-                        <i class="fa-solid fa-table"></i>
-                        <h3>لا توجد بيانات مزامنة بعد</h3>
-                        <p>قم بربط مصدر بياناتك أو رفع ملف Excel لتظهر هنا</p>
-                        <a href="/merchant/data-sync" class="btn-go"><i class="fa-solid fa-rotate"></i> الذهاب إلى مزامنة البيانات</a>
-                    </div>
-                </td></tr>`;
-            document.getElementById('pagination').style.display = 'none';
-        }
-
-        function renderHeader() {
-            if (!allData.length) return;
-            const keys = Object.keys(allData[0]);
-            const ths = keys.map(k => `
-                <th onclick="sortBy('${k}')" id="th_${k.replace(/[^a-zA-Z0-9]/g,'_')}">
-                    <i class="fa-solid fa-sort sort-icon"></i>${k}
-                </th>`).join('');
-            document.getElementById('tableHead').innerHTML = `<tr>${ths}</tr>`;
-        }
-
-        function renderPage(page) {
-            currentPage = page;
-            const start = (page - 1) * PAGE_SIZE;
-            const end = start + PAGE_SIZE;
-            const pageData = filteredData.slice(start, end);
-
-            if (!pageData.length) {
-                document.getElementById('tableBody').innerHTML = `<tr><td colspan="20" style="text-align:center;padding:40px;color:var(--text-muted)">لا توجد نتائج للبحث</td></tr>`;
-                document.getElementById('pagination').style.display = 'none';
+            if (json.status === 'no_data') {
+                showEmpty();
+                document.getElementById('totalRecords').textContent = '0';
+                document.getElementById('totalCols').textContent = '0';
+                document.getElementById('sourceType').textContent = 'لا يوجد';
                 return;
             }
 
-            const keys = Object.keys(allData[0]);
-            const rows = pageData.map(row => {
-                const cells = keys.map(k => `<td title="${String(row[k] ?? '')}">${row[k] ?? '—'}</td>`).join('');
-                return `<tr>${cells}</tr>`;
-            }).join('');
+            allData = json.data || [];
+            filteredData = [...allData];
 
-            document.getElementById('tableBody').innerHTML = rows;
+            // Update stats
+            document.getElementById('totalRecords').textContent = allData.length.toLocaleString('ar');
+            const cols = allData.length > 0 ? Object.keys(allData[0]).length : 0;
+            document.getElementById('totalCols').textContent = cols;
 
-            // Pagination
-            const total = filteredData.length;
-            const totalPages = Math.ceil(total / PAGE_SIZE);
-            document.getElementById('pageInfo').textContent = `عرض ${start + 1}–${Math.min(end, total)} من ${total.toLocaleString('ar')} سجل`;
-            document.getElementById('pageNum').textContent = `${page} / ${totalPages}`;
-            document.getElementById('prevBtn').disabled = page === 1;
-            document.getElementById('nextBtn').disabled = page >= totalPages;
-            document.getElementById('pagination').style.display = 'flex';
-        }
+            const srcMap = { excel: 'Excel/CSV', google_sheets: 'Google Sheets', aiven: 'Aiven MySQL' };
+            const srcBadge = { excel: 'badge-excel', google_sheets: 'badge-sheets', aiven: 'badge-aiven' };
+            const src = json.source_type || 'none';
+            document.getElementById('sourceType').innerHTML = `<span class="source-badge ${srcBadge[src] || 'badge-none'}">${srcMap[src] || 'غير معروف'}</span>`;
 
-        function changePage(dir) {
-            const total = Math.ceil(filteredData.length / PAGE_SIZE);
-            const newPage = currentPage + dir;
-            if (newPage >= 1 && newPage <= total) renderPage(newPage);
-        }
-
-        function filterTable() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            if (!q) {
-                filteredData = [...allData];
-            } else {
-                filteredData = allData.filter(row =>
-                    Object.values(row).some(v => String(v).toLowerCase().includes(q))
-                );
-            }
+            renderHeader();
             renderPage(1);
+        } catch(err) {
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="10" class="text-center text-danger py-5"><i class="ti ti-alert-triangle fs-2 d-block mb-2"></i>حدث خطأ في جلب البيانات</td></tr>`;
+        }
+    }
+
+    function showEmpty() {
+        document.getElementById('tableHead').innerHTML = '';
+        document.getElementById('tableBody').innerHTML = `
+            <tr><td colspan="10">
+                <div class="empty-state">
+                    <i class="ti ti-table"></i>
+                    <h4>لا توجد بيانات مزامنة بعد</h4>
+                    <p class="text-secondary mb-4">قم بربط مصدر بياناتك أو رفع ملف Excel لتظهر هنا</p>
+                    <a href="/merchant/data-sync" class="btn btn-primary"><i class="ti ti-refresh me-1"></i> الذهاب إلى مزامنة البيانات</a>
+                </div>
+            </td></tr>`;
+        document.getElementById('pagination').style.setProperty('display', 'none', 'important');
+    }
+
+    function renderHeader() {
+        if (!allData.length) return;
+        const keys = Object.keys(allData[0]);
+        const ths = keys.map(k => `
+            <th onclick="sortBy('${k}')" id="th_${k.replace(/[^a-zA-Z0-9]/g,'_')}">
+                <i class="ti ti-arrows-sort sort-icon"></i>${k}
+            </th>`).join('');
+        document.getElementById('tableHead').innerHTML = `<tr>${ths}</tr>`;
+    }
+
+    function renderPage(page) {
+        currentPage = page;
+        const start = (page - 1) * PAGE_SIZE;
+        const end = start + PAGE_SIZE;
+        const pageData = filteredData.slice(start, end);
+
+        if (!pageData.length) {
+            document.getElementById('tableBody').innerHTML = `<tr><td colspan="20" class="text-center py-5 text-secondary">لا توجد نتائج للبحث</td></tr>`;
+            document.getElementById('pagination').style.setProperty('display', 'none', 'important');
+            return;
         }
 
-        function sortBy(col) {
-            if (sortCol === col) sortAsc = !sortAsc;
-            else { sortCol = col; sortAsc = true; }
+        const keys = Object.keys(allData[0]);
+        const rows = pageData.map(row => {
+            const cells = keys.map((k, i) => `<td title="${String(row[k] ?? '')}" ${i===0 ? 'class="fw-bold text-body"' : 'class="text-secondary"'}>${row[k] ?? '—'}</td>`).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
 
-            filteredData.sort((a, b) => {
-                const av = a[col] ?? '';
-                const bv = b[col] ?? '';
-                return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
-            });
+        document.getElementById('tableBody').innerHTML = rows;
 
-            // Update icon
-            document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
-            const thId = 'th_' + col.replace(/[^a-zA-Z0-9]/g,'_');
-            const th = document.getElementById(thId);
-            if (th) {
-                th.classList.add('sorted');
-                th.querySelector('.sort-icon').className = `fa-solid fa-sort-${sortAsc ? 'up' : 'down'} sort-icon`;
-            }
-            renderPage(1);
+        // Pagination
+        const total = filteredData.length;
+        const totalPages = Math.ceil(total / PAGE_SIZE);
+        document.getElementById('pageInfo').textContent = `عرض ${start + 1}–${Math.min(end, total)} من ${total.toLocaleString('ar')} سجل`;
+        document.getElementById('pageNum').textContent = `${page} / ${totalPages}`;
+        
+        // Note: next/prev buttons logic is inverted due to RTL
+        document.getElementById('prevBtn').disabled = page === 1;
+        document.getElementById('nextBtn').disabled = page >= totalPages;
+        
+        document.getElementById('pagination').style.setProperty('display', 'flex', 'important');
+    }
+
+    function changePage(dir) {
+        const total = Math.ceil(filteredData.length / PAGE_SIZE);
+        const newPage = currentPage + dir;
+        if (newPage >= 1 && newPage <= total) renderPage(newPage);
+    }
+
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase();
+        if (!q) {
+            filteredData = [...allData];
+        } else {
+            filteredData = allData.filter(row =>
+                Object.values(row).some(v => String(v).toLowerCase().includes(q))
+            );
         }
+        renderPage(1);
+    }
 
-        loadData();
-    </script>
-</body>
-</html>
+    function sortBy(col) {
+        if (sortCol === col) sortAsc = !sortAsc;
+        else { sortCol = col; sortAsc = true; }
+
+        filteredData.sort((a, b) => {
+            const av = a[col] ?? '';
+            const bv = b[col] ?? '';
+            return sortAsc ? (av > bv ? 1 : -1) : (av < bv ? 1 : -1);
+        });
+
+        // Update icon
+        document.querySelectorAll('thead th').forEach(th => th.classList.remove('sorted'));
+        document.querySelectorAll('.sort-icon').forEach(icon => icon.className = 'ti ti-arrows-sort sort-icon');
+        
+        const thId = 'th_' + col.replace(/[^a-zA-Z0-9]/g,'_');
+        const th = document.getElementById(thId);
+        if (th) {
+            th.classList.add('sorted');
+            th.querySelector('.sort-icon').className = `ti ti-sort-${sortAsc ? 'ascending' : 'descending'} sort-icon text-primary`;
+        }
+        renderPage(1);
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', loadData);
+</script>
+{% endblock %}

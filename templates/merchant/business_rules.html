@@ -1,445 +1,365 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>قواعد العمل | نظام وكيل المبيعات الذكي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #4f46e5;
-            --primary-hover: #4338ca;
-            --secondary: #6366f1;
-            --success: #10b981;
-            --bg-dark: #0f172a;
-            --bg-sidebar: rgba(15, 23, 42, 0.85);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 280px;
-        }
+{% extends "merchant_base.html" %}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+{% block title %}قواعد العمل{% endblock %}
 
-        body {
-            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(at top left, rgba(79, 70, 229, 0.1) 0%, transparent 40%);
-        }
+{% block extra_css %}
+.step-card {
+    display: none;
+    animation: fadeIn 0.4s ease-out;
+}
+.step-card.active { display: block; }
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.option-group {
+    border-right: 4px solid var(--bs-primary);
+    padding-right: 20px;
+    margin-bottom: 24px;
+}
+.radio-label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    cursor: pointer;
+    padding: 12px 16px;
+    border-radius: 12px;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    transition: 0.2s;
+}
+.radio-label:hover {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.05);
+}
+.radio-label input[type="radio"], .radio-label input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-left: 12px;
+    cursor: pointer;
+}
+.progress-container {
+    height: 8px;
+    background: var(--bs-secondary-bg);
+    border-radius: 10px;
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    background: var(--bs-primary);
+    width: 20%;
+    transition: width 0.4s ease;
+}
+{% endblock %}
 
-        /* Sidebar Styles */
-        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
-        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
-        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
-        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
-        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(79, 70, 229, 0.1); border-right-color: var(--primary); }
-        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
-        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1>دستور عمل الموظف الآلي</h1>
+    <p class="text-secondary mb-0 mt-1">صياغة القواعد والسياسات التي سيلتزم بها الذكاء الاصطناعي.</p>
+</div>
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-            max-width: 1000px;
-        }
+<!-- Progress Bar -->
+<div class="progress-container">
+    <div class="progress-fill" id="progressBar"></div>
+</div>
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .header h2 { font-size: 2rem; font-weight: 700; }
-
-        .glass-card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 40px;
-            backdrop-filter: blur(20px);
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
-            transition: transform 0.3s ease;
-            margin-bottom: 30px;
-        }
-
-        .step-card {
-            display: none;
-            animation: fadeIn 0.5s ease-out;
-        }
-
-        .step-card.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .option-group {
-            border-right: 4px solid var(--primary);
-            padding-right: 20px;
-            margin-bottom: 30px;
-        }
-
-        .custom-input {
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 10px 15px;
-            color: white;
-            transition: all 0.3s;
-            width: 100%;
-            outline: none;
-        }
-
-        .custom-input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
-        }
-
-        .radio-label {
-            display: flex;
-            align-items: center;
-            margin-bottom: 15px;
-            cursor: pointer;
-            padding: 15px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            transition: 0.2s;
-        }
-
-        .radio-label:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-
-        .radio-label input[type="radio"], .radio-label input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin-left: 15px;
-            cursor: pointer;
-        }
-
-        .nav-btn {
-            padding: 12px 30px;
-            border-radius: 14px;
-            font-weight: 700;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-family: inherit;
-        }
-
-        .btn-next { background: var(--primary); color: white; }
-        .btn-next:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -5px var(--primary); }
-        
-        .btn-prev { background: rgba(255, 255, 255, 0.1); color: white; }
-        .btn-prev:hover { background: rgba(255, 255, 255, 0.2); }
-
-        .progress-bar {
-            height: 8px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            margin-bottom: 40px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(90deg, var(--primary), var(--secondary));
-            width: 20%;
-            transition: width 0.4s ease;
-        }
-
-        h2.step-title {
-            background: linear-gradient(90deg, #fff, #94a3b8);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
-            margin-bottom: 15px;
-        }
-
-        textarea.custom-input { min-height: 80px; resize: vertical; }
-
-    </style>
-</head>
-<body>
-
-    <aside class="sidebar">
-        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
-        <div class="nav-links">
-            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
-            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
-            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
-            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
-            <a href="/merchant/business-rules" class="nav-item active"><i class="fa-solid fa-gavel"></i> قواعد العمل</a>
-            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
-            <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
-            <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
+<form id="businessRulesForm">
+    <!-- Step 1: Financial Logic -->
+    <div class="card card-lg step-card active" id="step1">
+        <div class="card-header border-bottom-0 pb-0">
+            <h4 class="mb-1 fw-bold text-primary">أولاً: العمليات والسياسات المالية</h4>
+            <p class="text-secondary small mb-0">الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
         </div>
-        <div class="user-info">
-            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
-            <div>
-                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
-            </div>
-        </div>
-    </aside>
-
-    <main class="main-content">
-        <div class="header">
-            <div>
-                <h2 style="font-size: 1.8rem;">دستور عمل الموظف الآلي</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">صياغة القواعد والسياسات التي سيلتزم بها الذكاء الاصطناعي.</p>
-            </div>
-        </div>
-
-        <!-- Progress Bar -->
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressBar"></div>
-        </div>
-
-        <form id="businessRulesForm">
-            <!-- Step 1: Financial Logic -->
-            <div class="glass-card step-card active" id="step1">
-                <h2 class="step-title"> أولاً: العمليات والسياسات المالية</h2>
-                <p class="text-muted mb-4" style="font-size: 0.9rem;">الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
-
-                <div class="option-group">
-                    <h5 class="mb-3">سياسة الخصومات: "كيف يتم تطبيق الخصم في متجرك؟"</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="discount_type" value="fixed" checked>
-                        <span>خصم ثابت بنسبة <input type="number" name="discount_percent" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % عند تجاوز مبلغ <input type="number" name="discount_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="discount_type" value="code">
-                        <span>خصم باستخدام كود معين وهو <input type="text" name="discount_code" class="custom-input d-inline-block mx-2" style="width: 130px;" value="{{ rules.discount_code or '' }}" placeholder="COUPON20">.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="discount_type" value="custom">
-                        <span>إجابة مخصصة: <input type="text" name="discount_custom" class="custom-input d-inline-block mx-2" style="width: 250px;" value="{{ rules.discount_custom or '' }}"></span>
-                    </label>
-                </div>
-
-                <div class="form-group mb-4">
-                    <label class="label mb-2 d-block">تخصيص الرسالة: "ماذا يقول الموظف عند تطبيق الخصم؟"</label>
-                    <textarea name="discount_msg" class="custom-input" rows="2" placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!">{{ rules.discount_msg or '' }}</textarea>
-                </div>
-
-                <div class="option-group">
-                    <h5 class="mb-3">سياسة الشحن: "متى يستحق العميل الشحن المجاني؟"</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="shipping_type" value="city" checked>
-                        <span>لجميع الطلبات داخل مدينة <input type="text" name="shipping_city" class="custom-input d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or '' }}">.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="shipping_type" value="amount">
-                        <span>عند وصول السلة لمبلغ <input type="number" name="shipping_threshold" class="custom-input d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال.</span>
-                    </label>
-                </div>
-
-                <div class="form-group mb-4">
-                    <label class="label mb-2 d-block">تخصيص الرسالة: "ماذا يقول الموظف عن تكلفة الشحن؟"</label>
-                    <textarea name="shipping_msg" class="custom-input" rows="2">{{ rules.shipping_msg or '' }}</textarea>
-                </div>
-
-                <div class="d-flex justify-content-end mt-4">
-                    <button type="button" class="nav-btn btn-next" onclick="nextStep(1)">التالي: إدارة المخزون <i class="fa-solid fa-arrow-left ms-2"></i></button>
-                </div>
+        <div class="card-body">
+            <div class="option-group mt-3">
+                <h6 class="mb-3 fw-bold">سياسة الخصومات: "كيف يتم تطبيق الخصم في متجرك؟"</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="discount_type" value="fixed" checked>
+                    <span>خصم ثابت بنسبة 
+                        <input type="number" name="discount_percent" class="form-control form-control-sm d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % 
+                        عند تجاوز مبلغ 
+                        <input type="number" name="discount_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.
+                    </span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="discount_type" value="code">
+                    <span>خصم باستخدام كود معين وهو 
+                        <input type="text" name="discount_code" class="form-control form-control-sm d-inline-block mx-2" style="width: 130px;" value="{{ rules.discount_code or '' }}" placeholder="COUPON20">.
+                    </span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="discount_type" value="custom">
+                    <span>إجابة مخصصة: 
+                        <input type="text" name="discount_custom" class="form-control form-control-sm d-inline-block mx-2" style="width: 250px;" value="{{ rules.discount_custom or '' }}">
+                    </span>
+                </label>
             </div>
 
-            <!-- Step 2: Inventory Behavior -->
-            <div class="glass-card step-card" id="step2">
-                <h2 class="step-title"> ثانياً: إدارة المخزون والمنتجات</h2>
-                <p class="text-muted mb-4" style="font-size: 0.9rem;">الهدف: ضمان عدم "التأليف" عند غياب المعلومة.</p>
-
-                <div class="option-group">
-                    <h5 class="mb-3">عند نفاذ المخزون: "كيف يتصرف الموظف؟"</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="stock_out_type" value="alternative" checked>
-                        <span>الاعتذار وعرض منتج بديل من نفس الفئة.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="stock_out_type" value="collect_info">
-                        <span>طلب رقم العميل لإبلاغه عند توفر المنتج.</span>
-                    </label>
-                </div>
-
-                <div class="form-group mb-4">
-                    <label class="label mb-2 d-block">تخصيص الرسالة: "اكتب نص الاعتذار المعتمد لنفاذ الكمية"</label>
-                    <textarea name="stock_out_msg" class="custom-input" rows="2" placeholder="للأسف هالمقاس مخلص حالياً، تحب أرشح لك موديل مشابه متوفر؟">{{ rules.stock_out_msg or '' }}</textarea>
-                </div>
-
-                <div class="option-group">
-                    <h5 class="mb-3">تفاصيل المنتجات: "إذا سأل العميل عن تفاصيل غير موجودة؟"</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="details_missing_type" value="static" checked>
-                        <span>استخدم هذه المعلومات العامة: <input type="text" name="details_static_info" class="custom-input d-inline-block mx-2" style="width: 250px;" value="{{ rules.details_static_info or '' }}" placeholder="قطن بارد، صناعة وطنية..."></span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="details_missing_type" value="human">
-                        <span>الاعتذار وإحالة السؤال لموظف بشري.</span>
-                    </label>
-                </div>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <button type="button" class="nav-btn btn-prev" onclick="prevStep(2)"><i class="fa-solid fa-arrow-right me-2"></i> السابق</button>
-                    <button type="button" class="nav-btn btn-next" onclick="nextStep(2)">التالي: خدمة العملاء <i class="fa-solid fa-arrow-left ms-2"></i></button>
-                </div>
+            <div class="mb-4 ps-4">
+                <label class="form-label fw-600">تخصيص الرسالة: "ماذا يقول الموظف عند تطبيق الخصم؟"</label>
+                <textarea name="discount_msg" class="form-control" rows="2" placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!">{{ rules.discount_msg or '' }}</textarea>
             </div>
 
-            <!-- Step 3: Customer Service Tone -->
-            <div class="glass-card step-card" id="step3">
-                <h2 class="step-title"> ثالثاً: خدمة العملاء والسلوك</h2>
-                
-                <div class="option-group">
-                    <h5 class="mb-3">أسلوب الرد (Tone):</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="tone_type" value="formal" checked>
-                        <span>رسمي جداً (أهلاً بك سيدتي).</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="tone_type" value="friendly">
-                        <span>ودي وعامي (يا هلا فيكِ، نورتي).</span>
-                    </label>
-                </div>
-
-                <div class="option-group">
-                    <h5 class="mb-3">التعامل مع الشكاوى:</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="complaint_type" value="discount" checked>
-                        <span>امتصاص الغضب وتقديم كود خصم: <input type="text" name="complaint_code" class="custom-input d-inline-block mx-2" style="width: 100px;" value="{{ rules.complaint_code or '' }}"></span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="complaint_type" value="human">
-                        <span>تحويل المحادثة للمدير فوراً.</span>
-                    </label>
-                </div>
-
-                <div class="form-group mb-4">
-                    <label class="label mb-2 d-block">رسالة التهدئة للعميل الغاضب:</label>
-                    <textarea name="complaint_msg" class="custom-input" rows="2">{{ rules.complaint_msg or '' }}</textarea>
-                </div>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <button type="button" class="nav-btn btn-prev" onclick="prevStep(3)"><i class="fa-solid fa-arrow-right me-2"></i> السابق</button>
-                    <button type="button" class="nav-btn btn-next" onclick="nextStep(3)">التالي: إتمام البيع <i class="fa-solid fa-arrow-left ms-2"></i></button>
-                </div>
+            <div class="option-group">
+                <h6 class="mb-3 fw-bold">سياسة الشحن: "متى يستحق العميل الشحن المجاني؟"</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="shipping_type" value="city" checked>
+                    <span>لجميع الطلبات داخل مدينة 
+                        <input type="text" name="shipping_city" class="form-control form-control-sm d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or '' }}">.
+                    </span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="shipping_type" value="amount">
+                    <span>عند وصول السلة لمبلغ 
+                        <input type="number" name="shipping_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال.
+                    </span>
+                </label>
             </div>
 
-            <!-- Step 4: Closing the Sale -->
-            <div class="glass-card step-card" id="step4">
-                <h2 class="step-title"> رابعاً: إتمام البيع (Closing)</h2>
-
-                <div class="option-group">
-                    <h5 class="mb-3">رابط الدفع:</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="checkout_type" value="link" checked>
-                        <span>أرسل رابط المنتج المباشر.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="checkout_type" value="manual">
-                        <span>طلب البيانات (الاسم، العنوان) للفاتورة اليدوية.</span>
-                    </label>
-                </div>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <button type="button" class="nav-btn btn-prev" onclick="prevStep(4)"><i class="fa-solid fa-arrow-right me-2"></i> السابق</button>
-                    <button type="button" class="nav-btn btn-next" onclick="nextStep(4)">التالي: الحماية <i class="fa-solid fa-arrow-left ms-2"></i></button>
-                </div>
+            <div class="mb-4 ps-4">
+                <label class="form-label fw-600">تخصيص الرسالة: "ماذا يقول الموظف عن تكلفة الشحن؟"</label>
+                <textarea name="shipping_msg" class="form-control" rows="2">{{ rules.shipping_msg or '' }}</textarea>
             </div>
-
-            <!-- Step 5: Guardrails -->
-            <div class="glass-card step-card" id="step5">
-                <h2 class="step-title"> خامساً: حواجز الحماية (Guardrails)</h2>
-
-                <div class="option-group">
-                    <h5 class="mb-3">المواضيع المحظورة قطعيًا:</h5>
-                    <label class="radio-label">
-                        <input type="checkbox" name="ban_prices" checked>
-                        <span>مقارنة الأسعار مع المنافسين.</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="checkbox" name="ban_eta" checked>
-                        <span>إعطاء وعود بمواعيد وصول دقيقة.</span>
-                    </label>
-                    <label class="radio-label">
-                        <span>إضافات مخصصة: <input type="text" name="ban_custom" class="custom-input d-inline-block mx-2" style="width: 300px;" value="{{ rules.ban_custom or '' }}" placeholder="السياسة، الدين..."></span>
-                    </label>
-                </div>
-
-                <div class="option-group">
-                    <h5 class="mb-3">صلاحية "المكاسرة":</h5>
-                    <label class="radio-label">
-                        <input type="radio" name="bargain_type" value="refuse" checked>
-                        <span>الرفض التام (أسعارنا ثابتة).</span>
-                    </label>
-                    <label class="radio-label">
-                        <input type="radio" name="bargain_type" value="qty">
-                        <span>الموافقة إذا تجاوز القطع: <input type="number" name="bargain_qty" class="custom-input d-inline-block mx-2" style="width: 70px;" value="{{ rules.bargain_qty or '' }}"></span>
-                    </label>
-                </div>
-
-                <div class="d-flex justify-content-between mt-4">
-                    <button type="button" class="nav-btn btn-prev" onclick="prevStep(5)"><i class="fa-solid fa-arrow-right me-2"></i> السابق</button>
-                    <button type="submit" class="nav-btn btn-next" style="background: var(--success);" id="saveBtn">حفظ واعتماد الدستور <i class="fa-solid fa-check ms-2"></i></button>
-                </div>
-            </div>
-        </form>
-    </main>
-
-    <script>
-        function nextStep(current) {
-            document.getElementById(`step${current}`).classList.remove('active');
-            document.getElementById(`step${current + 1}`).classList.add('active');
-            document.getElementById('progressBar').style.width = ((current + 1) * 20) + '%';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        function prevStep(current) {
-            document.getElementById(`step${current}`).classList.remove('active');
-            document.getElementById(`step${current - 1}`).classList.add('active');
-            document.getElementById('progressBar').style.width = ((current - 1) * 20) + '%';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-
-        document.getElementById('businessRulesForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('saveBtn');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
-
-            const formData = new FormData(e.target);
-            const data = Object.fromEntries(formData.entries());
             
-            // Correct boolean values
-            data.ban_prices = formData.has('ban_prices');
-            data.ban_eta = formData.has('ban_eta');
+            <hr>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(1)">
+                    التالي: إدارة المخزون <i class="ti ti-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
-            try {
-                const response = await fetch('/merchant/api/business-rules', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                const result = await response.json();
-                if (result.status === 'success') {
-                    alert('تم حفظ دستور العمل بنجاح! سيتم تطبيقه على جميع المحادثات.');
-                    window.location.href = '/merchant/home';
-                } else {
-                    alert('حدث خطأ: ' + result.message);
-                }
-            } catch (error) {
-                alert('فشل الاتصال بالسيرفر');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'حفظ واعتماد الدستور <i class="fa-solid fa-check ms-2"></i>';
+    <!-- Step 2: Inventory Behavior -->
+    <div class="card card-lg step-card" id="step2">
+        <div class="card-header border-bottom-0 pb-0">
+            <h4 class="mb-1 fw-bold text-primary">ثانياً: إدارة المخزون والمنتجات</h4>
+            <p class="text-secondary small mb-0">الهدف: ضمان عدم "التأليف" عند غياب المعلومة.</p>
+        </div>
+        <div class="card-body">
+            <div class="option-group mt-3">
+                <h6 class="mb-3 fw-bold">عند نفاذ المخزون: "كيف يتصرف الموظف؟"</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="stock_out_type" value="alternative" checked>
+                    <span>الاعتذار وعرض منتج بديل من نفس الفئة.</span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="stock_out_type" value="collect_info">
+                    <span>طلب رقم العميل لإبلاغه عند توفر المنتج.</span>
+                </label>
+            </div>
+
+            <div class="mb-4 ps-4">
+                <label class="form-label fw-600">تخصيص الرسالة: "اكتب نص الاعتذار المعتمد لنفاذ الكمية"</label>
+                <textarea name="stock_out_msg" class="form-control" rows="2" placeholder="للأسف هالمقاس مخلص حالياً، تحب أرشح لك موديل مشابه متوفر؟">{{ rules.stock_out_msg or '' }}</textarea>
+            </div>
+
+            <div class="option-group">
+                <h6 class="mb-3 fw-bold">تفاصيل المنتجات: "إذا سأل العميل عن تفاصيل غير موجودة؟"</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="details_missing_type" value="static" checked>
+                    <span>استخدم هذه المعلومات العامة: 
+                        <input type="text" name="details_static_info" class="form-control form-control-sm d-inline-block mx-2" style="width: 250px;" value="{{ rules.details_static_info or '' }}" placeholder="قطن بارد، صناعة وطنية...">
+                    </span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="details_missing_type" value="human">
+                    <span>الاعتذار وإحالة السؤال لموظف بشري.</span>
+                </label>
+            </div>
+            
+            <hr>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                    <i class="ti ti-arrow-right me-2"></i> السابق
+                </button>
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(2)">
+                    التالي: خدمة العملاء <i class="ti ti-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Customer Service Tone -->
+    <div class="card card-lg step-card" id="step3">
+        <div class="card-header border-bottom-0 pb-0">
+            <h4 class="mb-1 fw-bold text-primary">ثالثاً: خدمة العملاء والسلوك</h4>
+        </div>
+        <div class="card-body">
+            <div class="option-group mt-3">
+                <h6 class="mb-3 fw-bold">أسلوب الرد (Tone):</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="tone_type" value="formal" checked>
+                    <span>رسمي جداً (أهلاً بك سيدتي).</span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="tone_type" value="friendly">
+                    <span>ودي وعامي (يا هلا فيكِ، نورتي).</span>
+                </label>
+            </div>
+
+            <div class="option-group">
+                <h6 class="mb-3 fw-bold">التعامل مع الشكاوى:</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="complaint_type" value="discount" checked>
+                    <span>امتصاص الغضب وتقديم كود خصم: 
+                        <input type="text" name="complaint_code" class="form-control form-control-sm d-inline-block mx-2" style="width: 100px;" value="{{ rules.complaint_code or '' }}">
+                    </span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="complaint_type" value="human">
+                    <span>تحويل المحادثة للمدير فوراً.</span>
+                </label>
+            </div>
+
+            <div class="mb-4 ps-4">
+                <label class="form-label fw-600">رسالة التهدئة للعميل الغاضب:</label>
+                <textarea name="complaint_msg" class="form-control" rows="2">{{ rules.complaint_msg or '' }}</textarea>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
+                    <i class="ti ti-arrow-right me-2"></i> السابق
+                </button>
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(3)">
+                    التالي: إتمام البيع <i class="ti ti-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Closing the Sale -->
+    <div class="card card-lg step-card" id="step4">
+        <div class="card-header border-bottom-0 pb-0">
+            <h4 class="mb-1 fw-bold text-primary">رابعاً: إتمام البيع (Closing)</h4>
+        </div>
+        <div class="card-body">
+            <div class="option-group mt-3">
+                <h6 class="mb-3 fw-bold">رابط الدفع:</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="checkout_type" value="link" checked>
+                    <span>أرسل رابط المنتج المباشر.</span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="checkout_type" value="manual">
+                    <span>طلب البيانات (الاسم، العنوان) للفاتورة اليدوية.</span>
+                </label>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(4)">
+                    <i class="ti ti-arrow-right me-2"></i> السابق
+                </button>
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(4)">
+                    التالي: الحماية <i class="ti ti-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 5: Guardrails -->
+    <div class="card card-lg step-card" id="step5">
+        <div class="card-header border-bottom-0 pb-0">
+            <h4 class="mb-1 fw-bold text-primary">خامساً: حواجز الحماية (Guardrails)</h4>
+        </div>
+        <div class="card-body">
+            <div class="option-group mt-3">
+                <h6 class="mb-3 fw-bold">المواضيع المحظورة قطعيًا:</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="checkbox" name="ban_prices" checked>
+                    <span>مقارنة الأسعار مع المنافسين.</span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="checkbox" name="ban_eta" checked>
+                    <span>إعطاء وعود بمواعيد وصول دقيقة.</span>
+                </label>
+                <label class="radio-label">
+                    <span>إضافات مخصصة: 
+                        <input type="text" name="ban_custom" class="form-control form-control-sm d-inline-block mx-2" style="width: 300px;" value="{{ rules.ban_custom or '' }}" placeholder="السياسة، الدين...">
+                    </span>
+                </label>
+            </div>
+
+            <div class="option-group">
+                <h6 class="mb-3 fw-bold">صلاحية "المكاسرة":</h6>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="bargain_type" value="refuse" checked>
+                    <span>الرفض التام (أسعارنا ثابتة).</span>
+                </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="bargain_type" value="qty">
+                    <span>الموافقة إذا تجاوز القطع: 
+                        <input type="number" name="bargain_qty" class="form-control form-control-sm d-inline-block mx-2" style="width: 70px;" value="{{ rules.bargain_qty or '' }}">
+                    </span>
+                </label>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(5)">
+                    <i class="ti ti-arrow-right me-2"></i> السابق
+                </button>
+                <button type="submit" class="btn btn-success px-4" id="saveBtn">
+                    حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function nextStep(current) {
+        document.getElementById(`step${current}`).classList.remove('active');
+        document.getElementById(`step${current + 1}`).classList.add('active');
+        document.getElementById('progressBar').style.width = ((current + 1) * 20) + '%';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function prevStep(current) {
+        document.getElementById(`step${current}`).classList.remove('active');
+        document.getElementById(`step${current - 1}`).classList.add('active');
+        document.getElementById('progressBar').style.width = ((current - 1) * 20) + '%';
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.getElementById('businessRulesForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('saveBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin ms-2"></i> جاري الحفظ...';
+
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData.entries());
+        
+        // Correct boolean values
+        data.ban_prices = formData.has('ban_prices');
+        data.ban_eta = formData.has('ban_eta');
+
+        try {
+            const response = await fetch('/merchant/api/business-rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            const result = await response.json();
+            if (result.status === 'success') {
+                alert('تم حفظ دستور العمل بنجاح! سيتم تطبيقه على جميع المحادثات.');
+                window.location.href = '/merchant/home';
+            } else {
+                alert('حدث خطأ: ' + result.message);
             }
-        });
-    </script>
-</body>
-</html>
+        } catch (error) {
+            alert('فشل الاتصال بالسيرفر');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>';
+        }
+    });
+</script>
+{% endblock %}

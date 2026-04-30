@@ -1,308 +1,220 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>إدارة المتجر | نظام وكيل المبيعات الذكي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --secondary: #ec4899;
-            --bg-dark: #0f172a;
-            --bg-sidebar: rgba(15, 23, 42, 0.85);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 280px;
-        }
+{% extends "merchant_base.html" %}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+{% block title %}إدارة المتجر{% endblock %}
 
-        body {
-            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(at top left, rgba(99, 102, 241, 0.1) 0%, transparent 40%);
-        }
+{% block extra_css %}
+.store-icon {
+    font-size: 2.5rem;
+    color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+.password-icon {
+    font-size: 2.5rem;
+    color: var(--bs-danger);
+    background: rgba(var(--bs-danger-rgb), 0.1);
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+}
+{% endblock %}
 
-        /* Sidebar Styles (Same as home) */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-sidebar);
-            backdrop-filter: blur(20px);
-            border-left: 1px solid var(--glass-border);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            right: 0;
-            top: 0;
-            z-index: 100;
-        }
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1>إدارة المتجر</h1>
+    <p class="text-secondary mb-0 mt-1">قم بتحديث بيانات المتجر الأساسية لضمان تواصل صحيح مع العملاء.</p>
+</div>
 
-        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
-        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
-        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
-        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(99, 102, 241, 0.1); border-right-color: var(--primary); }
-        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
-        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+<div class="row g-4">
+    <!-- General Settings -->
+    <div class="col-lg-8">
+        <div class="card card-lg h-100">
+            <div class="card-header border-bottom-0 d-flex align-items-center gap-3 pb-0">
+                <div class="store-icon"><i class="ti ti-building-store"></i></div>
+                <div>
+                    <h5 class="mb-1">البيانات الأساسية</h5>
+                    <p class="text-secondary small mb-0">المعلومات التي ستظهر للعملاء ويستخدمها الوكيل في إجاباته.</p>
+                </div>
+            </div>
+            <div class="card-body mt-2">
+                <div id="alertBox" class="alert" style="display:none;"></div>
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-            max-width: 1000px;
-        }
+                <form id="storeForm" onsubmit="saveSettings(event)">
+                    <!-- Company Name -->
+                    <div class="mb-4">
+                        <label class="form-label fw-600">اسم الشركة أو المتجر</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-building"></i></span>
+                            <input type="text" id="company_name" class="form-control" 
+                                value="{{ settings.company_name or '' }}" required>
+                        </div>
+                    </div>
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .header h2 { font-size: 2rem; font-weight: 700; }
-        
-        .glass-panel {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 40px;
-            backdrop-filter: blur(20px);
-        }
+                    <!-- Contact Number -->
+                    <div class="mb-4">
+                        <label class="form-label fw-600">رقم التواصل (واتساب الأساسي)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
+                            <input type="text" id="contact_number" class="form-control" 
+                                value="{{ settings.contact_number or '' }}" required dir="ltr" style="text-align: right;">
+                        </div>
+                    </div>
 
-        .form-group { margin-bottom: 25px; }
-        .label { display: block; margin-bottom: 10px; font-size: 0.95rem; color: #e2e8f0; font-weight: 600; }
-        
-        .input-wrapper { position: relative; }
-        .input-wrapper i { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); color: #64748b; }
-        
-        .input {
-            width: 100%;
-            padding: 15px 45px 15px 16px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            color: white;
-            font-size: 1rem;
-            font-family: inherit;
-            outline: none;
-            transition: all 0.3s ease;
-        }
+                    <!-- Email -->
+                    <div class="mb-4">
+                        <label class="form-label fw-600">البريد الإلكتروني (اختياري)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-mail"></i></span>
+                            <input type="email" id="email" class="form-control" 
+                                value="{{ settings.email or '' }}">
+                        </div>
+                    </div>
 
-        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); }
-        .input:focus + i { color: var(--primary); }
+                    <!-- Store URL -->
+                    <div class="mb-4">
+                        <label class="form-label fw-600">رابط المتجر الإلكتروني (إن وُجد)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-link"></i></span>
+                            <input type="url" id="store_url" class="form-control" 
+                                value="{{ settings.store_url or '' }}" dir="ltr" style="text-align: right;" placeholder="https://...">
+                        </div>
+                    </div>
 
-        .btn {
-            padding: 15px 30px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: white;
-            border: none;
-            border-radius: 14px;
-            font-size: 1rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
-        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
-
-        .alert {
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: none;
-            font-size: 0.95rem;
-        }
-        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
-        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
-
-    </style>
-</head>
-<body>
-
-    <aside class="sidebar">
-        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
-        <div class="nav-links">
-            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
-            <a href="/merchant/store" class="nav-item active"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
-            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
-            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
-            <a href="/merchant/business-rules" class="nav-item"><i class="fa-solid fa-gavel"></i> قواعد العمل</a>
-            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
-                        <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
-            <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
-        </div>
-        <div class="user-info">
-            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
-            <div>
-                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">
+                        <i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات
+                    </button>
+                </form>
             </div>
         </div>
-    </aside>
+    </div>
 
-    <main class="main-content">
-        <div class="header">
-            <div>
-                <h2>إدارة المتجر</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">قم بتحديث بيانات المتجر الأساسية لضمان تواصل صحيح مع العملاء.</p>
+    <!-- Security Settings -->
+    <div class="col-lg-4">
+        <div class="card card-lg border-danger-subtle h-100">
+            <div class="card-header border-bottom-0 d-flex align-items-center gap-3 pb-0">
+                <div class="password-icon"><i class="ti ti-lock"></i></div>
+                <div>
+                    <h5 class="mb-1 text-danger">الأمان</h5>
+                    <p class="text-secondary small mb-0">تغيير كلمة المرور الخاصة بحسابك.</p>
+                </div>
+            </div>
+            <div class="card-body mt-2">
+                <div id="passAlertBox" class="alert" style="display:none;"></div>
+                
+                <form id="passForm" onsubmit="changePassword(event)">
+                    <div class="mb-4">
+                        <label class="form-label fw-600">كلمة المرور الجديدة</label>
+                        <div class="input-group">
+                            <span class="input-group-text text-danger"><i class="ti ti-key"></i></span>
+                            <input type="password" id="new_password" class="form-control" 
+                                placeholder="أدخل كلمة مرور قوية" minlength="6" required dir="ltr">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-600">تأكيد كلمة المرور</label>
+                        <div class="input-group">
+                            <span class="input-group-text text-danger"><i class="ti ti-lock-check"></i></span>
+                            <input type="password" id="confirm_password" class="form-control" 
+                                placeholder="أعد إدخال كلمة المرور" minlength="6" required dir="ltr">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-danger w-100" id="passBtn">
+                        <i class="ti ti-shield-lock me-1"></i> تحديث كلمة المرور
+                    </button>
+                </form>
             </div>
         </div>
+    </div>
+</div>
+{% endblock %}
 
-        <div class="glass-panel">
-            <div id="alertBox" class="alert"></div>
-
-            <form id="storeForm" onsubmit="saveSettings(event)">
-                <div class="form-group">
-                    <label class="label">اسم الشركة أو المتجر</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="company_name" class="input" value="{{ settings.company_name or '' }}" required>
-                        <i class="fa-solid fa-building"></i>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="label">رقم التواصل (واتساب الأساسي)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="contact_number" class="input" value="{{ settings.contact_number or '' }}" required dir="ltr" style="text-align: right;">
-                        <i class="fa-solid fa-phone"></i>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="label">البريد الإلكتروني (اختياري)</label>
-                    <div class="input-wrapper">
-                        <input type="email" id="email" class="input" value="{{ settings.email or '' }}">
-                        <i class="fa-solid fa-envelope"></i>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="label">رابط المتجر الإلكتروني (إن وُجد)</label>
-                    <div class="input-wrapper">
-                        <input type="url" id="store_url" class="input" value="{{ settings.store_url or '' }}" dir="ltr" style="text-align: right;" placeholder="https://...">
-                        <i class="fa-solid fa-link"></i>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn" id="saveBtn">
-                    <i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات
-                </button>
-            </form>
-        </div>
-
-        <!-- Password Change Section -->
-        <div class="glass-panel" style="margin-top: 30px; border-color: rgba(239,68,68,0.2);">
-            <div id="passAlertBox" class="alert"></div>
-            <h3 style="margin-bottom: 5px; display:flex; align-items:center; gap:10px;">
-                <i class="fa-solid fa-lock" style="color:#f87171;"></i> تغيير كلمة المرور
-            </h3>
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 25px;">لحماية حسابك، تأكد من استخدام كلمة مرور قوية.</p>
-
-            <form id="passForm" onsubmit="changePassword(event)">
-                <div class="form-group">
-                    <label class="label">كلمة المرور الجديدة</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="new_password" class="input" placeholder="أدخل كلمة مرور قوية" minlength="6" required dir="ltr">
-                        <i class="fa-solid fa-key"></i>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="label">تأكيد كلمة المرور</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="confirm_password" class="input" placeholder="أعد إدخال كلمة المرور" minlength="6" required dir="ltr">
-                        <i class="fa-solid fa-check-double"></i>
-                    </div>
-                </div>
-                <button type="submit" class="btn" id="passBtn" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
-                    <i class="fa-solid fa-lock"></i> تحديث كلمة المرور
-                </button>
-            </form>
-        </div>
-    </main>
-
-    <script>
-        async function saveSettings(e) {
-            e.preventDefault();
-            const btn = document.getElementById('saveBtn');
-            const alertBox = document.getElementById('alertBox');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
-            alertBox.style.display = 'none';
-            const payload = {
-                company_name: document.getElementById('company_name').value,
-                contact_number: document.getElementById('contact_number').value,
-                email: document.getElementById('email').value,
-                store_url: document.getElementById('store_url').value
-            };
-            try {
-                const res = await fetch('/merchant/api/store', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
-                alertBox.innerText = data.message;
-                alertBox.style.display = 'block';
-            } catch(err) {
-                alertBox.className = 'alert alert-error';
-                alertBox.innerText = 'حدث خطأ في الاتصال';
-                alertBox.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ الإعدادات';
-            }
+{% block extra_scripts %}
+<script>
+    async function saveSettings(e) {
+        e.preventDefault();
+        const btn = document.getElementById('saveBtn');
+        const alertBox = document.getElementById('alertBox');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
+        alertBox.style.display = 'none';
+        
+        const payload = {
+            company_name: document.getElementById('company_name').value,
+            contact_number: document.getElementById('contact_number').value,
+            email: document.getElementById('email').value,
+            store_url: document.getElementById('store_url').value
+        };
+        
+        try {
+            const res = await fetch('/merchant/api/store', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
+            alertBox.innerText = data.message;
+            alertBox.style.display = 'block';
+        } catch(err) {
+            alertBox.className = 'alert alert-danger';
+            alertBox.innerText = 'حدث خطأ في الاتصال';
+            alertBox.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات';
         }
+    }
 
-        async function changePassword(e) {
-            e.preventDefault();
-            const btn = document.getElementById('passBtn');
-            const alertBox = document.getElementById('passAlertBox');
-            const newPass = document.getElementById('new_password').value;
-            const confirmPass = document.getElementById('confirm_password').value;
+    async function changePassword(e) {
+        e.preventDefault();
+        const btn = document.getElementById('passBtn');
+        const alertBox = document.getElementById('passAlertBox');
+        const newPass = document.getElementById('new_password').value;
+        const confirmPass = document.getElementById('confirm_password').value;
 
-            if (newPass !== confirmPass) {
-                alertBox.className = 'alert alert-error';
-                alertBox.innerText = 'كلمتا المرور غير متطابقتين!';
-                alertBox.style.display = 'block';
-                return;
-            }
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحديث...';
-            alertBox.style.display = 'none';
-            try {
-                const res = await fetch('/merchant/api/store/password', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ new_password: newPass })
-                });
-                const data = await res.json();
-                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
-                alertBox.innerText = data.message;
-                alertBox.style.display = 'block';
-                if (data.status === 'success') {
-                    document.getElementById('passForm').reset();
-                }
-            } catch(err) {
-                alertBox.className = 'alert alert-error';
-                alertBox.innerText = 'حدث خطأ في الاتصال';
-                alertBox.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-lock"></i> تحديث كلمة المرور';
-            }
+        if (newPass !== confirmPass) {
+            alertBox.className = 'alert alert-danger';
+            alertBox.innerText = 'كلمتا المرور غير متطابقتين!';
+            alertBox.style.display = 'block';
+            return;
         }
-    </script>
-</body>
-</html>
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري التحديث...';
+        alertBox.style.display = 'none';
+        
+        try {
+            const res = await fetch('/merchant/api/store/password', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ new_password: newPass })
+            });
+            const data = await res.json();
+            alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
+            alertBox.innerText = data.message;
+            alertBox.style.display = 'block';
+            if (data.status === 'success') {
+                document.getElementById('passForm').reset();
+            }
+        } catch(err) {
+            alertBox.className = 'alert alert-danger';
+            alertBox.innerText = 'حدث خطأ في الاتصال';
+            alertBox.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-shield-lock me-1"></i> تحديث كلمة المرور';
+        }
+    }
+</script>
+{% endblock %}
