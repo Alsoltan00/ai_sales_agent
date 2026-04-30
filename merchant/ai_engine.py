@@ -3,9 +3,9 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
-async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown") -> str:
+async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None) -> str:
     """
-    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً
+    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور)
     """
     supabase = get_supabase_client()
 
@@ -193,10 +193,26 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 - الردود تكون مختصرة وواضحة (حد أقصى 3 فقرات قصيرة).
 """
 
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user",   "content": user_message}
-    ]
+    # 4. بناء الرسائل (دعم الرؤية Vision إذا وجدت صورة)
+    if image_base64:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_message if user_message else "ماذا ترى في هذه الصورة؟"},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+                    }
+                ]
+            }
+        ]
+    else:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user",   "content": user_message}
+        ]
 
     # 5. استدعاء API حسب المزود
     try:
@@ -207,7 +223,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         elif provider == "groq":
             response = await _call_groq(api_key, model_id, messages)
         elif provider == "google":
-            response = await _call_google(api_key, model_id, user_message, system_prompt)
+            response = await _call_google(api_key, model_id, user_message, system_prompt, image_base64)
         elif provider == "openrouter":
             response = await _call_openrouter(api_key, model_id, messages)
         else:
@@ -269,7 +285,7 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _call_google(api_key: str, model_id: str, user_message: str, system: str) -> str:
+async def _call_google(api_key: str, model_id: str, user_message: str, system: str, image_base64: str = None) -> str:
     clean_model_id = model_id.strip().lower()
     clean_api_key = api_key.strip()
     
@@ -280,6 +296,16 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
         
     url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={clean_api_key}"
     headers = {"Content-Type": "application/json"}
+    
+    parts = [{"text": user_message if user_message else "ماذا ترى في هذه الصورة؟"}]
+    if image_base64:
+        parts.append({
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": image_base64
+            }
+        })
+
     body = {
         "systemInstruction": {
             "parts": [{"text": system}]
@@ -287,7 +313,7 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
         "contents": [
             {
                 "role": "user",
-                "parts": [{"text": user_message}]
+                "parts": parts
             }
         ],
         "generationConfig": {"maxOutputTokens": 500}
