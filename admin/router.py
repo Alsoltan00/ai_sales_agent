@@ -467,6 +467,13 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
 
+    provider = payload.get("provider", "").lower()
+    api_key = payload.get("api_key", "").strip()
+    model_id = payload.get("model_id", "").strip()
+
+    if not all([provider, api_key, model_id]):
+        return {"status": "error", "message": "جميع الحقول مطلوبة"}
+
     results = {"text": False, "vision": False, "audio": False}
     messages_with_image = [
         {"role": "user", "content": [
