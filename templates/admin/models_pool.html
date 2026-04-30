@@ -30,6 +30,21 @@
                 <h3 class="h4 mb-2 text-body fw-bold">{{ model.model_name }}</h3>
                 <code class="d-block bg-secondary-bg-subtle p-2 rounded text-secondary mb-3 small">{{ model.model_id }}</code>
                 
+                <div class="d-flex gap-2 mb-3">
+                    {% set pid = model.provider | lower %}
+                    {% set mid = model.model_id | lower %}
+                    
+                    {% if pid == 'google' or 'gemini' in mid %}
+                        <span class="badge bg-success-subtle text-success small" title="يدعم الصوت المباشر"><i class="ti ti-microphone me-1"></i>صوت</span>
+                        <span class="badge bg-info-subtle text-info small" title="يدعم رؤية الصور"><i class="ti ti-photo me-1"></i>صور</span>
+                    {% elif pid == 'openai' or 'gpt-4' in mid %}
+                        <span class="badge bg-secondary-subtle text-secondary small opacity-50" title="يحتاج خدمة Whisper"><i class="ti ti-microphone me-1"></i>صوت (W)</span>
+                        <span class="badge bg-info-subtle text-info small" title="يدعم رؤية الصور"><i class="ti ti-photo me-1"></i>صور</span>
+                    {% elif 'claude-3-5' in mid or 'claude-3-sonnet' in mid %}
+                        <span class="badge bg-info-subtle text-info small" title="يدعم رؤية الصور"><i class="ti ti-photo me-1"></i>صور</span>
+                    {% endif %}
+                </div>
+
                 <div class="d-flex align-items-center gap-2 mt-auto">
                     <i class="ti ti-key text-secondary opacity-50"></i>
                     <span class="text-secondary small text-truncate">API Key: ****************</span>

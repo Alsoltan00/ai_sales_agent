@@ -196,25 +196,38 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 - الردود تكون مختصرة وواضحة (حد أقصى 3 فقرات قصيرة).
 """
 
-    # 4. بناء الرسائل (دعم الرؤية Vision إذا وجدت صورة)
-    if image_base64:
+    # 4. بناء الرسائل (دعم الرؤية Vision أو الصوت Native)
+    # ملاحظة: حالياً فقط Google Gemini يدعم إرسال ملفات الصوت مباشرة عبر الـ API
+    can_handle_audio = (provider == "google")
+    
+    if image_base64 or (audio_base64 and can_handle_audio):
+        content_parts = []
+        if user_message:
+            content_parts.append({"type": "text", "text": user_message})
+        elif image_base64:
+            content_parts.append({"type": "text", "text": "وصلتني صورة، يرجى تحليلها والرد."})
+        elif audio_base64:
+            content_parts.append({"type": "text", "text": "استمع للمقطع الصوتي ونفذ المطلوب."})
+
+        if image_base64:
+            content_parts.append({
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
+            })
+            
         messages = [
             {"role": "system", "content": system_prompt},
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": user_message if user_message else ("وصلتني صورة، يرجى تحليلها." if image_base64 else "وصلتني رسالة صوتية، ولكن تعذر تحويلها لنص حالياً. يرجى الاعتذار للعميل بلطف وطلب منه كتابة استفساره نصياً.")},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
-                    }
-                ]
-            }
+            {"role": "user", "content": content_parts}
         ]
     else:
+        # إذا كان هناك صوت والنموذج لا يدعمه، ولم ننجح في التحويل لنص سابقاً
+        final_msg = user_message
+        if not final_msg and audio_base64:
+            final_msg = "وصلتني رسالة صوتية تعذر تحويلها لنص. يرجى الاعتذار للعميل بلطف وطلب الكتابة نصياً."
+            
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": user_message}
+            {"role": "user",   "content": final_msg}
         ]
 
     # 5. استدعاء API حسب المزود
