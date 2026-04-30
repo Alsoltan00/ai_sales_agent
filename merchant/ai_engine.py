@@ -140,8 +140,31 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     except Exception as e:
         print(f"Warning: Could not fetch business rules: {e}")
 
+    # 3.7 جلب ذاكرة العميل (تاريخ المحادثات السابقة)
+    chat_history_prompt = ""
+    try:
+        # جلب آخر 5 رسائل متبادلة مع هذا الرقم
+        history_res = supabase.table("message_logs") \
+            .select("message_text, ai_response, created_at") \
+            .eq("client_id", client_id) \
+            .eq("phone_number", phone_number) \
+            .order("created_at", descending=True) \
+            .limit(5) \
+            .execute()
+        
+        if history_res.data:
+            history = history_res.data[::-1]
+            chat_history_prompt = "\nسياق المحادثة السابقة مع هذا العميل (للتذكر والمتابعة):\n"
+            for h in history:
+                chat_history_prompt += f"- العميل: {h['message_text']}\n"
+                chat_history_prompt += f"- أنت: {h['ai_response']}\n"
+            chat_history_prompt += "\nملاحظة: استخدم هذا التاريخ لتعرف إذا كان العميل قد سأل عن شيء سابقاً أو طلب طلباً معيناً لتقديم تجربة شخصية مميزة.\n"
+    except Exception as e:
+        print(f"Warning: Could not fetch chat history: {e}")
+
     # 4. بناء System Prompt
     system_prompt = f"""أنت {agent_name}، مندوب مبيعات ذكي يعمل لدى {company_name}.
+{chat_history_prompt}
 
 لهجة الرد: {tone}
 
