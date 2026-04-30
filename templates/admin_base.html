@@ -240,7 +240,7 @@
       <!-- Theme Switcher -->
       <div class="dropdown">
           <button class="btn btn-icon btn-ghost-secondary rounded-circle" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="bd-theme">
-              <i class="ti ti-moon theme-icon-active fs-4"></i>
+              <span class="theme-icon-active fs-4"><i class="ti ti-moon"></i></span>
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="bd-theme-text">
               <li>
@@ -298,68 +298,7 @@
     document.documentElement.classList.add('expanded');
   }
 
-  // Theme Switcher Logic
-  const getStoredTheme = () => localStorage.getItem('theme')
-  const setStoredTheme = theme => localStorage.setItem('theme', theme)
-  
-  const getPreferredTheme = () => {
-    const storedTheme = getStoredTheme()
-    if (storedTheme) {
-      return storedTheme
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
 
-  const setTheme = theme => {
-    if (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-bs-theme', 'dark')
-    } else {
-      document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? 'light' : theme)
-    }
-  }
-
-  setTheme(getPreferredTheme())
-
-  const showActiveTheme = (theme) => {
-    const themeSwitcher = document.querySelector('#bd-theme')
-    if (!themeSwitcher) return
-
-    const themeSwitcherIcon = document.querySelector('.theme-icon-active')
-    const activeThemeIcon = document.querySelector(`[data-bs-theme-value="${theme}"] .theme-icon`)
-    
-    document.querySelectorAll('[data-bs-theme-value]').forEach(element => {
-      element.classList.remove('active')
-    })
-
-    const btnToActive = document.querySelector(`[data-bs-theme-value="${theme}"]`)
-    if(btnToActive) {
-      btnToActive.classList.add('active')
-      if (activeThemeIcon) {
-        themeSwitcherIcon.className = activeThemeIcon.className.replace('me-2 opacity-50 theme-icon', 'theme-icon-active fs-4')
-      }
-    }
-  }
-
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    const storedTheme = getStoredTheme()
-    if (storedTheme !== 'light' && storedTheme !== 'dark') {
-      setTheme(getPreferredTheme())
-    }
-  })
-
-  window.addEventListener('DOMContentLoaded', () => {
-    showActiveTheme(getStoredTheme() || 'auto')
-
-    document.querySelectorAll('[data-bs-theme-value]')
-      .forEach(toggle => {
-        toggle.addEventListener('click', () => {
-          const theme = toggle.getAttribute('data-bs-theme-value')
-          setStoredTheme(theme)
-          setTheme(theme)
-          showActiveTheme(theme)
-        })
-      })
-  })
 </script>
 
 {% block extra_scripts %}{% endblock %}
