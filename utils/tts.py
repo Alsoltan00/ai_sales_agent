@@ -3,7 +3,7 @@ import base64
 import os
 import uuid
 
-async def text_to_speech_b64(text: str, voice: str = "ar-SA-ZariyahNeural") -> str:
+async def text_to_speech_b64(text: str, voice: str = "ar-SA-HamedNeural") -> str:
     """تحويل النص إلى صوت (Base64) باستخدام edge-tts"""
     try:
         # إنشاء ملف مؤقت

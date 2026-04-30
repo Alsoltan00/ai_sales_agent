@@ -149,9 +149,9 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         # جلب آخر 5 رسائل متبادلة مع هذا الرقم
         history_res = supabase.table("message_logs") \
             .select("message_text, ai_response, created_at") \
+            .order("created_at", desc=True) \
             .eq("client_id", client_id) \
             .eq("phone_number", phone_number) \
-            .order("created_at", desc=True) \
             .limit(5) \
             .execute()
         
@@ -203,7 +203,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": user_message if user_message else "ماذا ترى في هذه الصورة؟"},
+                    {"type": "text", "text": user_message if user_message else ("وصلتني صورة، يرجى تحليلها." if image_base64 else "وصلتني رسالة صوتية، ولكن تعذر تحويلها لنص حالياً. يرجى الاعتذار للعميل بلطف وطلب منه كتابة استفساره نصياً.")},
                     {
                         "type": "image_url",
                         "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
