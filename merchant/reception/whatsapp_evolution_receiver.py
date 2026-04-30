@@ -189,7 +189,11 @@ async def evolution_webhook(instance_name: str, request: Request):
         
         print(f"[DEBUG] Final Message text from {phone}: {text}")
 
-        if not text or not phone:
+        if not text and not audio_base64 and not image_base64:
+            print("[DEBUG] Skipping message because text, audio, and image are all empty.")
+            return Response(status_code=200)
+        
+        if not phone:
             return Response(status_code=200)
 
         # البحث عن التاجر (إذا لم يتم البحث عنه سابقاً)
