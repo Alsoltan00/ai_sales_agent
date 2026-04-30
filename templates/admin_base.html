@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}لوحة التحكم{% endblock %} | الوكيل الذكي</title>
+  <title>{% block title %}لوحة الإدارة{% endblock %} | الوكيل الذكي</title>
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -81,76 +81,67 @@
 <div id="miniSidebar">
   <!-- Logo -->
   <div class="brand-logo">
-    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
-      <span style="font-size:1.6rem;">🤖</span>
-      <span class="fw-bold fs-5 site-logo-text">الوكيل الذكي</span>
+    <a href="/admin/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
+      <span style="font-size:1.6rem;"><i class="ti ti-shield-half text-primary"></i></span>
+      <span class="fw-bold fs-5 site-logo-text">الإدارة المركزية</span>
     </a>
   </div>
 
   <ul class="navbar-nav flex-column">
-    <!-- Dashboard -->
     <li class="nav-item">
-      <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
-        <span class="nav-icon"><i class="ti ti-home"></i></span>
-        <span class="text">الرئيسية</span>
+      <a class="nav-link {% if 'dashboard' in request.url.path %}active{% endif %}" href="/admin/dashboard">
+        <span class="nav-icon"><i class="ti ti-chart-pie"></i></span>
+        <span class="text">نظرة عامة</span>
       </a>
     </li>
 
-    <!-- Store Management -->
-    <li class="nav-item">
-      <a class="nav-link {% if '/merchant/store' in request.url.path %}active{% endif %}" href="/merchant/store">
-        <span class="nav-icon"><i class="ti ti-building-store"></i></span>
-        <span class="text">إدارة المتجر</span>
-      </a>
-    </li>
+    {% set perms = user.permissions if user.permissions is mapping else {} %}
+    {% set is_admin = perms.get('is_admin') %}
 
-    <!-- Channels -->
+    {% if is_admin or perms.get('can_manage_new_clients') %}
     <li class="nav-item">
-      <a class="nav-link {% if '/merchant/channels' in request.url.path %}active{% endif %}" href="/merchant/channels">
-        <span class="nav-icon"><i class="ti ti-antenna"></i></span>
-        <span class="text">الاستقبال والإرسال</span>
+      <a class="nav-link {% if 'requests' in request.url.path %}active{% endif %}" href="/admin/requests">
+        <span class="nav-icon"><i class="ti ti-user-plus"></i></span>
+        <span class="text">العملاء الجدد</span>
       </a>
     </li>
+    {% endif %}
 
-    <!-- Planning -->
+    {% if is_admin or perms.get('can_manage_clients') %}
     <li class="nav-item">
-      <a class="nav-link {% if '/merchant/planning' in request.url.path %}active{% endif %}" href="/merchant/planning">
-        <span class="nav-icon"><i class="ti ti-map"></i></span>
-        <span class="text">التخطيط</span>
+      <a class="nav-link {% if 'clients' in request.url.path %}active{% endif %}" href="/admin/clients">
+        <span class="nav-icon"><i class="ti ti-users"></i></span>
+        <span class="text">إدارة العملاء</span>
       </a>
     </li>
+    {% endif %}
 
-    <!-- Business Rules -->
+    {% if is_admin or perms.get('can_manage_subscriptions') %}
     <li class="nav-item">
-      <a class="nav-link {% if '/merchant/business-rules' in request.url.path %}active{% endif %}" href="/merchant/business-rules">
-        <span class="nav-icon"><i class="ti ti-gavel"></i></span>
-        <span class="text">قواعد العمل</span>
+      <a class="nav-link {% if 'subscriptions' in request.url.path %}active{% endif %}" href="/admin/subscriptions">
+        <span class="nav-icon"><i class="ti ti-id"></i></span>
+        <span class="text">إدارة الاشتراكات</span>
       </a>
     </li>
+    {% endif %}
 
-    <!-- Data Sync -->
+    {% if is_admin or perms.get('can_manage_models') %}
     <li class="nav-item">
-      <a class="nav-link {% if '/merchant/data-sync' in request.url.path %}active{% endif %}" href="/merchant/data-sync">
-        <span class="nav-icon"><i class="ti ti-refresh"></i></span>
-        <span class="text">مزامنة البيانات</span>
+      <a class="nav-link {% if 'models-pool' in request.url.path %}active{% endif %}" href="/admin/models-pool">
+        <span class="nav-icon"><i class="ti ti-box"></i></span>
+        <span class="text">مكتبة النماذج</span>
       </a>
     </li>
+    {% endif %}
 
-    <!-- Data View -->
+    {% if is_admin or perms.get('can_manage_users') %}
     <li class="nav-item">
-      <a class="nav-link {% if '/merchant/data-view' in request.url.path %}active{% endif %}" href="/merchant/data-view">
-        <span class="nav-icon"><i class="ti ti-table"></i></span>
-        <span class="text">عرض البيانات</span>
+      <a class="nav-link {% if 'users' in request.url.path %}active{% endif %}" href="/admin/users">
+        <span class="nav-icon"><i class="ti ti-users-group"></i></span>
+        <span class="text">إدارة المستخدمين</span>
       </a>
     </li>
-
-    <!-- Authorized Numbers -->
-    <li class="nav-item">
-      <a class="nav-link {% if '/merchant/authorized-numbers' in request.url.path %}active{% endif %}" href="/merchant/authorized-numbers">
-        <span class="nav-icon"><i class="ti ti-shield-check"></i></span>
-        <span class="text">الأرقام المصرّحة</span>
-      </a>
-    </li>
+    {% endif %}
 
     <!-- Divider -->
     <li class="nav-item">
@@ -163,10 +154,10 @@
       <div class="text-center py-4 upgrade-ui">
         <div class="avatar avatar-md rounded-circle bg-primary d-flex align-items-center justify-content-center mx-auto mb-2"
              style="width:48px;height:48px;font-size:1.3rem;font-weight:700;">
-          {{ user.name[0] if user and user.name else 'T' }}
+          {{ user.name[0] if user and user.name else 'A' }}
         </div>
-        <div class="fw-600 mb-1">{{ user.name if user else 'التاجر' }}</div>
-        <span class="text-secondary small">تاجر نشط</span>
+        <div class="fw-600 mb-1">{{ user.name if user else 'المدير' }}</div>
+        <span class="text-secondary small">مدير النظام</span>
       </div>
     </li>
   </ul>
@@ -178,64 +169,64 @@
           data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
     <i class="ti ti-menu-2 fs-5"></i>
   </button>
-  <span class="fw-bold" style="color:var(--bs-primary);">🤖 الوكيل الذكي</span>
+  <span class="fw-bold" style="color:var(--bs-primary);"><i class="ti ti-shield-half me-1"></i> الإدارة المركزية</span>
   <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
        style="width:36px;height:36px;font-weight:700;">
-    {{ user.name[0] if user and user.name else 'T' }}
+    {{ user.name[0] if user and user.name else 'A' }}
   </div>
 </div>
 
 <!-- ═══════════════════════ MOBILE OFFCANVAS SIDEBAR ═══════════════════════ -->
 <div class="offcanvas offcanvasNav offcanvas-end" tabindex="-1" id="mobileSidebar">
   <div class="offcanvas-header border-bottom">
-    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
-      <span style="font-size:1.4rem;">🤖</span>
-      <span class="fw-bold fs-5">الوكيل الذكي</span>
+    <a href="/admin/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
+      <span style="font-size:1.4rem;"><i class="ti ti-shield-half text-primary"></i></span>
+      <span class="fw-bold fs-5">الإدارة المركزية</span>
     </a>
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
   </div>
   <div class="offcanvas-body p-0">
     <ul class="navbar-nav flex-column">
       <li class="nav-item">
-        <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
-          <span class="nav-icon"><i class="ti ti-home"></i></span> <span class="text">الرئيسية</span>
+        <a class="nav-link {% if 'dashboard' in request.url.path %}active{% endif %}" href="/admin/dashboard">
+          <span class="nav-icon"><i class="ti ti-chart-pie"></i></span> <span class="text">نظرة عامة</span>
         </a>
       </li>
+      {% if is_admin or perms.get('can_manage_new_clients') %}
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/store' in request.url.path %}active{% endif %}" href="/merchant/store">
-          <span class="nav-icon"><i class="ti ti-building-store"></i></span> <span class="text">إدارة المتجر</span>
+        <a class="nav-link {% if 'requests' in request.url.path %}active{% endif %}" href="/admin/requests">
+          <span class="nav-icon"><i class="ti ti-user-plus"></i></span> <span class="text">العملاء الجدد</span>
         </a>
       </li>
+      {% endif %}
+      {% if is_admin or perms.get('can_manage_clients') %}
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/channels' in request.url.path %}active{% endif %}" href="/merchant/channels">
-          <span class="nav-icon"><i class="ti ti-antenna"></i></span> <span class="text">الاستقبال والإرسال</span>
+        <a class="nav-link {% if 'clients' in request.url.path %}active{% endif %}" href="/admin/clients">
+          <span class="nav-icon"><i class="ti ti-users"></i></span> <span class="text">إدارة العملاء</span>
         </a>
       </li>
+      {% endif %}
+      {% if is_admin or perms.get('can_manage_subscriptions') %}
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/planning' in request.url.path %}active{% endif %}" href="/merchant/planning">
-          <span class="nav-icon"><i class="ti ti-map"></i></span> <span class="text">التخطيط</span>
+        <a class="nav-link {% if 'subscriptions' in request.url.path %}active{% endif %}" href="/admin/subscriptions">
+          <span class="nav-icon"><i class="ti ti-id"></i></span> <span class="text">إدارة الاشتراكات</span>
         </a>
       </li>
+      {% endif %}
+      {% if is_admin or perms.get('can_manage_models') %}
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/business-rules' in request.url.path %}active{% endif %}" href="/merchant/business-rules">
-          <span class="nav-icon"><i class="ti ti-gavel"></i></span> <span class="text">قواعد العمل</span>
+        <a class="nav-link {% if 'models-pool' in request.url.path %}active{% endif %}" href="/admin/models-pool">
+          <span class="nav-icon"><i class="ti ti-box"></i></span> <span class="text">مكتبة النماذج</span>
         </a>
       </li>
+      {% endif %}
+      {% if is_admin or perms.get('can_manage_users') %}
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/data-sync' in request.url.path %}active{% endif %}" href="/merchant/data-sync">
-          <span class="nav-icon"><i class="ti ti-refresh"></i></span> <span class="text">مزامنة البيانات</span>
+        <a class="nav-link {% if 'users' in request.url.path %}active{% endif %}" href="/admin/users">
+          <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">إدارة المستخدمين</span>
         </a>
       </li>
-      <li class="nav-item">
-        <a class="nav-link {% if '/merchant/data-view' in request.url.path %}active{% endif %}" href="/merchant/data-view">
-          <span class="nav-icon"><i class="ti ti-table"></i></span> <span class="text">عرض البيانات</span>
-        </a>
-      </li>
-      <li class="nav-item">
-        <a class="nav-link {% if '/merchant/authorized-numbers' in request.url.path %}active{% endif %}" href="/merchant/authorized-numbers">
-          <span class="nav-icon"><i class="ti ti-shield-check"></i></span> <span class="text">الأرقام المصرّحة</span>
-        </a>
-      </li>
+      {% endif %}
     </ul>
   </div>
 </div>
@@ -273,13 +264,16 @@
       <div class="d-flex align-items-center gap-2 ms-2">
         <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
              style="width:34px;height:34px;font-weight:700;font-size:0.9rem;">
-          {{ user.name[0] if user and user.name else 'T' }}
+          {{ user.name[0] if user and user.name else 'A' }}
         </div>
         <div>
-          <div class="fw-600 small">{{ user.name if user else 'التاجر' }}</div>
-          <div class="text-secondary" style="font-size:0.7rem;">تاجر نشط</div>
+          <div class="fw-600 small">{{ user.name if user else 'المدير' }}</div>
+          <div class="text-secondary" style="font-size:0.7rem;">مدير النظام</div>
         </div>
       </div>
+      <a href="/auth/logout" class="btn btn-outline-danger btn-sm ms-2">
+        تسجيل الخروج <i class="ti ti-logout ms-1"></i>
+      </a>
     </div>
   </nav>
 
@@ -298,7 +292,6 @@
 
 <!-- Sidebar collapse state -->
 <script>
-  // Restore sidebar expand/collapse state
   if (localStorage.getItem('sidebarExpanded') === 'false') {
     document.documentElement.classList.add('collapsed');
   } else {
