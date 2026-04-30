@@ -196,9 +196,15 @@
           </ul>
       </div>
 
-      <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
-           style="width:32px;height:32px;font-weight:700;font-size:0.8rem;">
-        {{ user.name[0] if user and user.name else 'A' }}
+      <div class="dropdown">
+        <a href="#" class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center text-decoration-none"
+             style="width:32px;height:32px;font-weight:700;font-size:0.8rem;color:white;"
+             data-bs-toggle="dropdown">
+          {{ user.name[0] if user and user.name else 'A' }}
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+          <li><a class="dropdown-item text-danger" href="/auth/logout"><i class="ti ti-logout me-2"></i> تسجيل الخروج</a></li>
+        </ul>
       </div>
   </div>
 </div>
@@ -288,19 +294,25 @@
           </ul>
       </div>
 
-      <div class="d-flex align-items-center gap-2 ms-2">
-        <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
-             style="width:34px;height:34px;font-weight:700;font-size:0.9rem;">
-          {{ user.name[0] if user and user.name else 'A' }}
-        </div>
-        <div>
-          <div class="fw-600 small">{{ user.name if user else 'المدير' }}</div>
-          <div class="text-secondary" style="font-size:0.7rem;">مدير النظام</div>
-        </div>
+      <!-- User Profile Dropdown -->
+      <div class="dropdown">
+        <a href="#" class="d-flex align-items-center gap-2 ms-2 text-decoration-none dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+          <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
+               style="width:34px;height:34px;font-weight:700;font-size:0.9rem;">
+            {{ user.name[0] if user and user.name else 'A' }}
+          </div>
+          <div class="d-none d-md-block text-body">
+            <div class="fw-600 small">{{ user.name if user else 'المدير' }}</div>
+            <div class="text-secondary" style="font-size:0.7rem;">مدير النظام</div>
+          </div>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end shadow border-0">
+          <li><h6 class="dropdown-header">إدارة الحساب</h6></li>
+          <li><a class="dropdown-item" href="/admin/users"><i class="ti ti-users-group me-2"></i> إدارة المستخدمين</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="/auth/logout"><i class="ti ti-logout me-2"></i> تسجيل الخروج</a></li>
+        </ul>
       </div>
-      <a href="/auth/logout" class="btn btn-outline-danger btn-sm ms-2">
-        تسجيل الخروج <i class="ti ti-logout ms-1"></i>
-      </a>
     </div>
   </nav>
 
