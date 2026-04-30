@@ -156,9 +156,18 @@
             const testData = await testRes.json();
             
             if(testData.status !== 'success') {
-                alert('عذراً، لا يمكن إضافة النموذج لأنه لا يعمل أو المفتاح غير صالح: ' + testData.message);
+                alert('عذراً، فشل التحقق من النموذج: ' + testData.message);
                 return;
             }
+            
+            const caps = testData.capabilities;
+            let capMsg = `تم التحقق بنجاح!\n\nالقدرات المكتشفة:\n`;
+            capMsg += `- النصوص: ${caps.text ? '✅' : '❌'}\n`;
+            capMsg += `- الصور (Vision): ${caps.vision ? '✅' : '❌'}\n`;
+            capMsg += `- الصوت (Native Audio): ${caps.audio ? '✅' : '❌'}\n\n`;
+            capMsg += `هل تريد حفظ هذا النموذج الآن؟`;
+            
+            if(!confirm(capMsg)) return;
 
             const res = await fetch('/admin/api/models-pool', {
                 method: 'POST',

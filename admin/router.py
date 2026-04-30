@@ -467,72 +467,73 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
 
-    provider = payload.get("provider", "").lower()
-    api_key = payload.get("api_key", "").strip()
-    model_id = payload.get("model_id", "").strip()
-
-    if not all([provider, api_key, model_id]):
-        return {"status": "error", "message": "جميع الحقول مطلوبة"}
-
+    results = {"text": False, "vision": False, "audio": False}
+    messages_with_image = [
+        {"role": "user", "content": [
+            {"type": "text", "text": "What is in this image?"},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}}
+        ]}
+    ]
+    
     try:
         import httpx
-        timeout = httpx.Timeout(15.0)
+        timeout = httpx.Timeout(20.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
+            # 1. اختبار النص (Text Test) - أساسي
             if provider == "openai":
-                res = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
+                res = await client.post("https://api.openai.com/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )
+                if res.status_code == 200: 
+                    results["text"] = True
+                    # اختبار الرؤية
+                    res_v = await client.post("https://api.openai.com/v1/chat/completions",
+                        headers={"Authorization": f"Bearer {api_key}"},
+                        json={"model": model_id, "messages": messages_with_image, "max_tokens": 5}
+                    )
+                    if res_v.status_code == 200: results["vision"] = True
+            
+            elif provider == "google" or provider == "gemini":
+                # اختبار النص
+                res = await client.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
+                    json={"contents": [{"parts": [{"text": "Hi"}]}]}
+                )
+                if res.status_code == 200: 
+                    results["text"] = True
+                    results["vision"] = True # أغلب نماذج Gemini تدعم الصور
+                    # اختبار الصوت (Native Audio)
+                    res_a = await client.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
+                        json={"contents": [{"parts": [{"text": "listen"}, {"inline_data": {"mime_type": "audio/ogg", "data": "T2dnUwACAAAAAAAAAAA="}}]}]}
+                    )
+                    if res_a.status_code == 200: results["audio"] = True
+
             elif provider == "groq":
-                res = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
+                res = await client.post("https://api.groq.com/openai/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )
-                # إذا فشل الاختبار، نحاول جلب قائمة النماذج المتاحة
-                if res.status_code != 200:
-                    try:
-                        models_res = await client.get(
-                            "https://api.groq.com/openai/v1/models",
-                            headers={"Authorization": f"Bearer {api_key}"}
-                        )
-                        if models_res.status_code == 200:
-                            models_data = models_res.json()
-                            available = [m["id"] for m in models_data.get("data", [])]
-                            available_str = ", ".join(sorted(available)[:10])
-                            return {"status": "error", "message": f"النموذج '{model_id}' غير متاح. النماذج المتاحة لحسابك هي: {available_str}"}
-                    except:
-                        pass
-                    error_msg = res.text[:300] if res.text else str(res.status_code)
-                    return {"status": "error", "message": f"فشل الاتصال ({res.status_code}): {error_msg}"}
-                return {"status": "success", "message": "تم الاتصال بالنموذج بنجاح!"}
-                
+                if res.status_code == 200: results["text"] = True
+
             elif provider == "anthropic":
-                res = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                res = await client.post("https://api.anthropic.com/v1/messages",
                     headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )
-            elif provider == "gemini":
-                res = await client.post(
-                    f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
-                    json={"contents": [{"parts": [{"text": "Hi"}]}]}
-                )
+                if res.status_code == 200: results["text"] = True
+
             elif provider == "openrouter":
-                res = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                res = await client.post("https://openrouter.ai/api/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )
-            else:
-                return {"status": "error", "message": "مزود الخدمة غير مدعوم للتجربة"}
+                if res.status_code == 200: results["text"] = True
 
-            if res.status_code == 200:
-                return {"status": "success", "message": "تم الاتصال بالنموذج بنجاح!"}
+            if results["text"]:
+                return {"status": "success", "message": "تم اختبار النموذج بنجاح", "capabilities": results}
             else:
-                error_msg = res.text[:300] if res.text else str(res.status_code)
-                return {"status": "error", "message": f"فشل الاتصال ({res.status_code}): {error_msg}"}
+                err = res.text[:200] if 'res' in locals() else "Unknown Error"
+                return {"status": "error", "message": f"فشل اختبار النص: {err}"}
     except Exception as e:
         return {"status": "error", "message": f"خطأ تقني أثناء التجربة: {str(e)}"}
 
