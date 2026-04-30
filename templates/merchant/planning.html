@@ -1,673 +1,463 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>التخطيط | نظام وكيل المبيعات الذكي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #a855f7;
-            --primary-hover: #9333ea;
-            --secondary: #ec4899;
-            --bg-dark: #0f172a;
-            --bg-sidebar: rgba(15, 23, 42, 0.85);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 280px;
-        }
+{% extends "merchant_base.html" %}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+{% block title %}التخطيط{% endblock %}
 
-        body {
-            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(at top right, rgba(168, 85, 247, 0.1) 0%, transparent 40%);
-        }
+{% block extra_css %}
+/* ─── Planning Page Custom Styles ─── */
+.info-banner {
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-radius: 14px;
+    padding: 18px 24px;
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    margin-bottom: 28px;
+}
+.info-banner i { color: var(--bs-primary); font-size: 1.3rem; margin-top: 2px; }
 
-        /* Sidebar Styles */
-        .sidebar { width: var(--sidebar-width); background: var(--bg-sidebar); backdrop-filter: blur(20px); border-left: 1px solid var(--glass-border); display: flex; flex-direction: column; position: fixed; height: 100vh; right: 0; top: 0; z-index: 100; }
-        .logo { padding: 30px 20px; font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid var(--glass-border); }
-        .logo i { font-size: 2rem; background: linear-gradient(135deg, var(--primary), var(--secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .nav-links { flex: 1; padding: 20px 0; overflow-y: auto; }
-        .nav-item { padding: 15px 25px; display: flex; align-items: center; gap: 15px; color: var(--text-muted); text-decoration: none; transition: 0.3s; font-size: 0.95rem; border-right: 3px solid transparent; }
-        .nav-item:hover, .nav-item.active { color: var(--primary); background: rgba(168, 85, 247, 0.1); border-right-color: var(--primary); }
-        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
-        .user-info { padding: 20px; border-top: 1px solid var(--glass-border); display: flex; align-items: center; gap: 15px; }
-        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); display: flex; align-items: center; justify-content: center; font-weight: bold; }
+/* Tags input */
+.tags-input-container {
+    min-height: 52px;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 10px 15px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; transition: 0.3s; position: relative;
+}
+.tags-input-container:hover { border-color: var(--bs-primary); }
+.tags-list { display: flex; flex-wrap: wrap; gap: 7px; flex: 1; }
+.tag-chip {
+    background: var(--bs-primary); color: white; padding: 4px 12px;
+    border-radius: 8px; font-size: 0.82rem; display: flex; align-items: center;
+    gap: 8px; animation: tagPop 0.2s ease;
+}
+.tag-chip i { cursor: pointer; font-size: 0.65rem; opacity: 0.8; }
+.tag-chip i:hover { opacity: 1; }
+.placeholder-text { color: var(--bs-secondary-color); font-size: 0.9rem; }
+.toggle-icon { color: var(--bs-secondary-color); font-size: 0.85rem; margin-right: 10px; }
+@keyframes tagPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-            max-width: 1000px;
-        }
+/* Dropdown */
+.activity-dropdown {
+    display: none; position: absolute; top: calc(100% + 6px); right: 0; left: 0;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color); border-radius: 14px;
+    z-index: 1050; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    flex-direction: column; overflow: hidden;
+    animation: slideDown 0.2s cubic-bezier(0,0,0.2,1);
+}
+@keyframes slideDown { from { transform: translateY(-8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.dropdown-search { padding: 12px 14px; border-bottom: 1px solid var(--bs-border-color); position: relative; }
+.dropdown-search input {
+    width: 100%; padding: 9px 36px 9px 14px;
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color); border-radius: 10px;
+    color: var(--bs-body-color); font-size: 0.85rem; outline: none;
+    font-family: inherit;
+}
+.dropdown-search i { position: absolute; right: 26px; top: 21px; color: var(--bs-secondary-color); font-size: 0.8rem; }
+.dropdown-scroll { max-height: 340px; overflow-y: auto; padding: 14px; }
 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .header h2 { font-size: 2rem; font-weight: 700; }
-        
-        .glass-panel {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 40px;
-            backdrop-filter: blur(20px);
-        }
+/* Activity grid */
+.cat-section { margin-bottom: 18px; }
+.cat-header {
+    font-size: 0.7rem; font-weight: 800; color: var(--bs-primary);
+    text-transform: uppercase; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px; letter-spacing: 0.05em;
+}
+.cat-header::after { content: ''; flex: 1; height: 1px; background: rgba(var(--bs-primary-rgb), 0.2); }
+.activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)); gap: 7px; }
+.activity-box {
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    padding: 10px 8px; border-radius: 10px; font-size: 0.74rem;
+    text-align: center; cursor: pointer; transition: 0.2s;
+    position: relative; color: var(--bs-body-color);
+}
+.activity-box:hover { border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.07); }
+.activity-box.selected {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    border-color: var(--bs-primary); color: var(--bs-primary);
+    font-weight: 600;
+}
+.activity-box.selected::after {
+    content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
+    position: absolute; top: 4px; left: 5px; font-size: 0.6rem;
+}
 
-        /* Mobile Adjustments for Sidebar */
-        .mobile-menu-btn {
-            display: none; width: 45px; height: 45px; background: rgba(255,255,255,0.05);
-            border: 1px solid var(--glass-border); border-radius: 12px; color: white;
-            align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer;
-            transition: 0.3s;
-        }
-        .mobile-menu-btn:hover { background: rgba(168, 85, 247, 0.1); border-color: var(--primary); }
+/* Column training */
+.column-card {
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 14px; padding: 18px 20px;
+    margin-bottom: 12px; display: flex;
+    align-items: flex-start; gap: 18px; transition: 0.3s;
+}
+.column-card:hover { border-color: rgba(var(--bs-primary-rgb), 0.3); }
+.column-card.disabled { opacity: 0.45; }
+.col-name {
+    font-weight: 700; font-size: 0.9rem;
+    background: rgba(var(--bs-primary-rgb), 0.1);
+    border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+    border-radius: 8px; padding: 5px 14px;
+    white-space: nowrap; min-width: 110px; text-align: center;
+    color: var(--bs-primary);
+}
+.col-body { flex: 1; }
+.col-note {
+    width: 100%; padding: 10px 14px;
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 10px; color: var(--bs-body-color);
+    font-family: inherit; font-size: 0.88rem;
+    outline: none; transition: 0.3s; resize: none; margin-top: 8px;
+}
+.col-note:focus { border-color: var(--bs-primary); box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15); }
+.toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--bs-secondary-color); }
+.toggle { position: relative; width: 38px; height: 21px; cursor: pointer; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider {
+    position: absolute; inset: 0; background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px; transition: 0.3s;
+}
+.slider::before {
+    content: ''; position: absolute;
+    width: 15px; height: 15px; left: 2px; bottom: 2px;
+    background: var(--bs-secondary-color); border-radius: 50%; transition: 0.3s;
+}
+.toggle input:checked + .slider { background: #ef4444; border-color: #ef4444; }
+.toggle input:checked + .slider::before { background: white; transform: translateX(17px); }
+.col-empty { text-align: center; padding: 40px; color: var(--bs-secondary-color); font-size: 0.9rem; }
+.col-empty i { font-size: 2.2rem; display: block; margin-bottom: 12px; opacity: 0.35; }
 
-        .sidebar-backdrop {
-            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-            backdrop-filter: blur(4px); z-index: 90;
-        }
+@media (max-width: 600px) {
+    .activity-grid { grid-template-columns: repeat(2, 1fr); }
+    .column-card { flex-direction: column; gap: 10px; }
+    .col-name { min-width: auto; width: 100%; }
+}
+{% endblock %}
 
-        @media (max-width: 1024px) {
-            .sidebar { transform: translateX(100%); right: 0; left: auto; transition: transform 0.3s ease; box-shadow: -10px 0 30px rgba(0,0,0,0.5); }
-            .sidebar.show { transform: translateX(0); }
-            .main-content { margin-right: 0; padding: 25px 15px; }
-            .mobile-menu-btn { display: flex; }
-            .sidebar-backdrop.show { display: block; }
-            
-            .header { flex-direction: row-reverse; gap: 15px; }
-            .header h2 { font-size: 1.5rem; }
-            .header p { font-size: 0.8rem; }
-            .glass-panel { padding: 20px; }
-        }
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+    <h1>تخطيط الذكاء الاصطناعي</h1>
+    <p class="text-secondary mb-0 mt-1">حدد ملامح وشخصية وكيل المبيعات الذي سيتحدث مع عملائك.</p>
+</div>
 
-        .form-group { margin-bottom: 25px; }
-        .label { display: block; margin-bottom: 10px; font-size: 0.95rem; color: #e2e8f0; font-weight: 600; }
-        
-        .input-wrapper { position: relative; }
-        .input-wrapper i { position: absolute; right: 16px; top: 16px; color: #64748b; }
-        
-        .input {
-            width: 100%;
-            padding: 15px 45px 15px 16px;
-            background: rgba(15, 23, 42, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            color: white;
-            font-size: 1rem;
-            font-family: inherit;
-            outline: none;
-            transition: all 0.3s ease;
-        }
+<!-- Info Banner -->
+<div class="info-banner">
+    <i class="ti ti-info-circle"></i>
+    <div>
+        <strong class="d-block mb-1">كيف تفيد هذه الإعدادات؟</strong>
+        <p class="text-secondary mb-0 small">تساعد هذه الإعدادات الذكاء الاصطناعي على فهم سياق العمل، وتبني الشخصية المناسبة (مثل "سارة" من فريق المبيعات)، والرد بلهجة تلائم طبيعة عملائك.</p>
+    </div>
+</div>
 
-        textarea.input { min-height: 120px; resize: vertical; line-height: 1.6; }
-        
-        .input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.15); }
-        .input:focus + i { color: var(--primary); }
+<!-- Planning Form -->
+<div class="card card-lg mb-4">
+    <div class="card-body">
+        <div id="alertBox" class="alert" style="display:none;"></div>
 
-        .btn {
-            padding: 15px 30px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: white;
-            border: none;
-            border-radius: 14px;
-            font-size: 1rem;
-            font-weight: 700;
-            font-family: inherit;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px -10px var(--primary); }
-        .btn:disabled { opacity: 0.7; cursor: not-allowed; }
-
-        .alert {
-            padding: 15px;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: none;
-            font-size: 0.95rem;
-        }
-        .alert-success { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
-        .alert-error { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
-
-        .info-card {
-            background: rgba(168, 85, 247, 0.05);
-            border: 1px solid rgba(168, 85, 247, 0.2);
-            padding: 20px;
-            border-radius: 12px;
-            margin-bottom: 30px;
-            display: flex;
-            gap: 15px;
-            align-items: flex-start;
-        }
-        
-        .info-card i { color: var(--primary); font-size: 1.5rem; margin-top: 3px; }
-        .info-card p { color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; }
-
-        /* Column Training */
-        .section-title {
-            font-size: 1.2rem; font-weight: 700; margin-bottom: 5px;
-            display: flex; align-items: center; gap: 10px;
-        }
-        .section-title i { color: var(--primary); }
-        .section-desc { color: var(--text-muted); font-size: 0.88rem; margin-bottom: 25px; }
-
-        .column-card {
-            background: rgba(15,23,42,0.5);
-            border: 1px solid var(--glass-border);
-            border-radius: 14px;
-            padding: 18px 22px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: flex-start;
-            gap: 18px;
-            transition: 0.3s;
-        }
-        .column-card:hover { border-color: rgba(168,85,247,0.3); }
-        .column-card.disabled { opacity: 0.5; }
-
-        .col-name {
-            font-weight: 700; font-size: 0.95rem; color: white;
-            background: rgba(168,85,247,0.12);
-            border: 1px solid rgba(168,85,247,0.25);
-            border-radius: 8px;
-            padding: 5px 14px;
-            white-space: nowrap;
-            min-width: 120px;
-            text-align: center;
-        }
-        .col-body { flex: 1; }
-        .col-note {
-            width: 100%;
-            padding: 10px 14px;
-            background: rgba(15,23,42,0.7);
-            border: 1px solid var(--glass-border);
-            border-radius: 10px;
-            color: white;
-            font-family: inherit;
-            font-size: 0.9rem;
-            outline: none;
-            transition: 0.3s;
-            resize: none;
-            margin-top: 8px;
-        }
-        .col-note:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(168,85,247,0.15); }
-        .col-note::placeholder { color: #475569; }
-
-        .toggle-wrap { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-muted); white-space: nowrap; }
-        .toggle {
-            position: relative; width: 40px; height: 22px; cursor: pointer;
-        }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider {
-            position: absolute; inset: 0; background: #334155;
-            border-radius: 999px; transition: 0.3s;
-        }
-        .slider::before {
-            content: ''; position: absolute;
-            width: 16px; height: 16px;
-            left: 3px; bottom: 3px;
-            background: white; border-radius: 50%; transition: 0.3s;
-        }
-        .toggle input:checked + .slider { background: #ef4444; }
-        .toggle input:checked + .slider::before { transform: translateX(18px); }
-
-        .col-empty {
-            text-align: center; padding: 40px;
-            color: var(--text-muted); font-size: 0.9rem;
-        }
-        .col-empty i { font-size: 2.5rem; display: block; margin-bottom: 12px; opacity: 0.4; }
-
-        .btn-save-cols {
-            padding: 13px 28px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-hover));
-            color: white; border: none; border-radius: 12px;
-            font-size: 0.95rem; font-weight: 700; font-family: inherit;
-            cursor: pointer; transition: 0.3s; display: inline-flex;
-            align-items: center; gap: 8px; margin-top: 20px;
-        }
-        .btn-save-cols:hover { transform: translateY(-2px); box-shadow: 0 8px 20px -8px var(--primary); }
-        .alert-cols { padding: 14px; border-radius: 10px; margin-top: 15px; display: none; font-size: 0.9rem; }
-        .alert-cols.ok { background: rgba(34,197,94,0.1); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
-        .alert-cols.err { background: rgba(239,68,68,0.1); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
-
-    </style>
-</head>
-<body>
-
-    <aside class="sidebar">
-        <div class="logo"><i class="fa-solid fa-brain"></i><span>الوكيل الذكي</span></div>
-        <div class="nav-links">
-            <a href="/merchant/home" class="nav-item"><i class="fa-solid fa-house"></i> الرئيسية</a>
-            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
-            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
-            <a href="/merchant/planning" class="nav-item active"><i class="fa-solid fa-map"></i> التخطيط</a>
-            <a href="/merchant/business-rules" class="nav-item"><i class="fa-solid fa-gavel"></i> قواعد العمل</a>
-            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
-                        <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
-            <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
-        </div>
-        <div class="user-info">
-            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
-            <div>
-                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
+        <form id="planningForm" onsubmit="savePlanning(event)">
+            <!-- Agent Name -->
+            <div class="mb-4">
+                <label class="form-label fw-600">اسم الوكيل (مندوب المبيعات الافتراضي)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="ti ti-user-circle"></i></span>
+                    <input type="text" id="ai_agent_name" class="form-control"
+                        value="{{ planning.ai_agent_name or '' }}"
+                        placeholder="مثال: سارة، أحمد، أو اتركها فارغة لاسم الشركة">
+                </div>
             </div>
-        </div>
-    </aside>
 
-    <main class="main-content">
-        <div class="header">
-            <div class="mobile-menu-btn" onclick="toggleSidebar()">
-                <i class="fa-solid fa-bars"></i>
+            <!-- Tone -->
+            <div class="mb-4">
+                <label class="form-label fw-600">لهجة الرد (Tone of Voice)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="ti ti-message-dots"></i></span>
+                    <input type="text" id="ai_tone" class="form-control"
+                        value="{{ planning.ai_tone or '' }}"
+                        placeholder="مثال: احترافي ومحترم، ودود وعامي، حماسي وتسويقي">
+                </div>
             </div>
-            <div>
-                <h2>تخطيط الذكاء الاصطناعي</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">حدد ملامح وشخصية وكيل المبيعات الذي سيتحدث مع عملائك.</p>
-            </div>
-        </div>
 
-        <div id="sidebarBackdrop" class="sidebar-backdrop" onclick="toggleSidebar()"></div>
+            <!-- Store Activity -->
+            <div class="mb-4" style="position: relative;">
+                <label class="form-label fw-600">
+                    نشاط المتجر
+                    <span class="badge bg-primary-subtle text-primary ms-2 small">اختر أكثر من نشاط</span>
+                </label>
 
-        <div class="info-card">
-            <i class="fa-solid fa-circle-info"></i>
-            <div>
-                <strong style="color: white; display: block; margin-bottom: 5px;">كيف تفيد هذه الإعدادات؟</strong>
-                <p>تساعد هذه الإعدادات الذكاء الاصطناعي على فهم سياق العمل، وتبني الشخصية المناسبة (مثل "سارة" من فريق المبيعات)، والرد بلهجة تلائم طبيعة عملائك.</p>
-            </div>
-        </div>
-
-        <div class="glass-panel">
-            <div id="alertBox" class="alert"></div>
-
-            <form id="planningForm" onsubmit="savePlanning(event)">
-                <div class="form-group">
-                    <label class="label">اسم الوكيل (مندوب المبيعات الافتراضي)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="ai_agent_name" class="input" value="{{ planning.ai_agent_name or '' }}" placeholder="مثال: سارة، أحمد، أو اتركها فارغة لاسم الشركة">
-                        <i class="fa-solid fa-user-tie"></i>
+                <div class="tags-input-container" id="activityTrigger" onclick="toggleActivityDropdown(event)">
+                    <div id="selectedTags" class="tags-list">
+                        {% if planning.store_activity %}
+                            {% for tag in planning.store_activity.split('، ') %}
+                                <span class="tag-chip">{{ tag }}<i class="fa-solid fa-xmark" onclick="removeTag(event, '{{ tag }}')"></i></span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="placeholder-text">انقر لاختيار الأنشطة...</span>
+                        {% endif %}
                     </div>
+                    <input type="hidden" id="store_activity" value="{{ planning.store_activity or '' }}">
+                    <i class="fa-solid fa-chevron-down toggle-icon"></i>
                 </div>
 
-                <div class="form-group">
-                    <label class="label">لهجة الرد (Tone of Voice)</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="ai_tone" class="input" value="{{ planning.ai_tone or '' }}" placeholder="مثال: احترافي ومحترم، ودود وعامي، حماسي وتسويقي">
-                        <i class="fa-solid fa-comment-dots"></i>
+                <!-- Pop-out Dropdown -->
+                <div id="activityDropdown" class="activity-dropdown">
+                    <div class="dropdown-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="text" id="activitySearch" placeholder="ابحث عن نشاط..."
+                            oninput="filterActivities(event)" onclick="event.stopPropagation()">
                     </div>
+                    <div class="dropdown-scroll" id="activityList"></div>
                 </div>
 
-                <div class="form-group" style="position: relative;">
-                    <label class="label">نشاط المتجر (اختر تخصصك - يمكنك اختيار أكثر من نشاط)</label>
-                    <div class="tags-input-container" id="activityTrigger" onclick="toggleActivityDropdown(event)">
-                        <div id="selectedTags" class="tags-list">
-                            {% if planning.store_activity %}
-                                {% for tag in planning.store_activity.split('، ') %}
-                                    <span class="tag-chip">{{ tag }}<i class="fa-solid fa-xmark" onclick="removeTag(event, '{{ tag }}')"></i></span>
-                                {% endfor %}
-                            {% else %}
-                                <span class="placeholder">انقر لاختيار الأنشطة...</span>
-                            {% endif %}
-                        </div>
-                        <input type="hidden" id="store_activity" value="{{ planning.store_activity or '' }}">
-                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
-                    </div>
-
-                    <!-- Professional Pop-out Dropdown -->
-                    <div id="activityDropdown" class="activity-dropdown">
-                        <div class="dropdown-search">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                            <input type="text" id="activitySearch" placeholder="ابحث عن نشاط..." oninput="filterActivities(event)" onclick="event.stopPropagation()">
-                        </div>
-                        <div class="dropdown-scroll" id="activityList">
-                            <!-- Categories and items will be rendered here -->
-                        </div>
-                    </div>
-                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
-                        <i class="fa-solid fa-circle-info"></i> سيقوم الذكاء الاصطناعي برفض أي طلبات لا تندرج تحت الأنشطة المختارة أعلاه.
-                    </p>
-                </div>
-
-                <div class="form-group">
-                    <label class="label">وصف مفصل للعمل (Business Description)</label>
-                    <div class="input-wrapper">
-                        <textarea id="business_description" class="input" placeholder="اكتب وصفاً شاملاً عن منتجاتك وخدماتك، سياسة الاسترجاع، أوقات العمل، وأي معلومات قد تهم العميل...">{{ planning.business_description or '' }}</textarea>
-                        <i class="fa-solid fa-align-right"></i>
-                    </div>
-                </div>
-
-                <button type="submit" class="btn" id="saveBtn">
-                    <i class="fa-solid fa-floppy-disk"></i> تحديث التخطيط
-                </button>
-            </form>
-        </div>
-
-        <!-- Column Training Section -->
-        <div class="glass-panel" style="margin-top: 30px;">
-            <div class="section-title"><i class="fa-solid fa-table-columns"></i> تدريب الأعمدة</div>
-            <div class="section-desc">خصص تعليماتك لكل عمود بيانات، واتحكم في ما يفكر به النموذج وما يتجاهله.</div>
-
-            <div id="colsAlertBox" class="alert-cols"></div>
-            <div id="colsContainer">
-                <div class="col-empty"><i class="fa-solid fa-table"></i>جاري تحميل الأعمدة...</div>
+                <p class="text-secondary mt-2 mb-0" style="font-size: 0.75rem;">
+                    <i class="ti ti-info-circle me-1"></i>
+                    سيقوم الذكاء الاصطناعي برفض أي طلبات لا تندرج تحت الأنشطة المختارة أعلاه.
+                </p>
             </div>
-            <button class="btn-save-cols" id="saveColsBtn" onclick="saveCols()" style="display:none;">
-                <i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة
+
+            <!-- Business Description -->
+            <div class="mb-4">
+                <label class="form-label fw-600">وصف مفصل للعمل (Business Description)</label>
+                <div class="input-group align-items-start">
+                    <span class="input-group-text mt-1"><i class="ti ti-align-right"></i></span>
+                    <textarea id="business_description" class="form-control" rows="5"
+                        placeholder="اكتب وصفاً شاملاً عن منتجاتك وخدماتك، سياسة الاسترجاع، أوقات العمل، وأي معلومات قد تهم العميل...">{{ planning.business_description or '' }}</textarea>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="saveBtn">
+                <i class="ti ti-device-floppy me-1"></i> تحديث التخطيط
             </button>
+        </form>
+    </div>
+</div>
+
+<!-- Column Training -->
+<div class="card card-lg">
+    <div class="card-header border-bottom-0">
+        <h5 class="mb-0"><i class="ti ti-table-column me-2 text-primary"></i>تدريب الأعمدة</h5>
+        <p class="text-secondary small mb-0 mt-1">خصص تعليماتك لكل عمود بيانات، واتحكم في ما يفكر به النموذج وما يتجاهله.</p>
+    </div>
+    <div class="card-body">
+        <div id="colsAlertBox" class="alert" style="display:none;"></div>
+        <div id="colsContainer">
+            <div class="col-empty"><i class="ti ti-table"></i>جاري تحميل الأعمدة...</div>
         </div>
+        <button class="btn btn-primary mt-3" id="saveColsBtn" onclick="saveCols()" style="display:none;">
+            <i class="ti ti-device-floppy me-1"></i> حفظ إعدادات الأعمدة
+        </button>
+    </div>
+</div>
+{% endblock %}
 
-        <style>
-            /* Tags Input Styling */
-            .tags-input-container {
-                min-height: 55px; background: rgba(15, 23, 42, 0.6); border: 1px solid var(--glass-border);
-                border-radius: 14px; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between;
-                cursor: pointer; transition: 0.3s; position: relative;
-            }
-            .tags-input-container:hover { border-color: var(--primary); }
-            .tags-list { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
-            .tag-chip {
-                background: var(--primary); color: white; padding: 4px 12px; border-radius: 8px;
-                font-size: 0.85rem; display: flex; align-items: center; gap: 8px; animation: tagPop 0.2s ease;
-            }
-            .tag-chip i { cursor: pointer; font-size: 0.7rem; opacity: 0.8; }
-            .tag-chip i:hover { opacity: 1; }
-            .placeholder { color: #64748b; font-size: 0.95rem; }
-            .toggle-icon { color: #64748b; font-size: 0.9rem; margin-right: 10px; }
+{% block extra_scripts %}
+<script>
+// ─── Activity Data ───────────────────────────────────────────────────────────
+const activityData = {
+    "التجزئة والتسوق": ["سوبر ماركت", "متجر تموينات", "خضار وفواكه", "لحوم ودواجن", "ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "عبايات وطرح", "أحذية وحقائب", "ساعات وهدايا", "إكسسوارات ومجوهرات", "عطور وبخور", "مستحضرات تجميل", "مكياج", "بصريات ونظارات", "ألعاب أطفال", "قرطاسية وأدوات مكتبية", "كتب ومجلات", "زهور وتغليف"],
+    "المطاعم والضيافة": ["مطعم وجبات سريعة", "مطعم مشاوي", "مطعم شعبي", "مطعم بحري", "بيتزا وفطائر", "برجر", "شاورما", "بوفيه", "مقهى / كوفي شوب", "حلويات ومعجنات", "آيس كريم", "عصائر طبيعية", "محمصة وقهوة", "مخبز"],
+    "إلكترونيات وتقنية": ["هواتف ذكية", "صيانة جوالات", "كمبيوتر ولابتوب", "إلكترونيات منزلية", "سماعات وألعاب", "كاميرات مراقبة", "برمجيات وأنظمة", "طباعة وتصوير"],
+    "المنزل والديكور": ["أثاث منزلي", "أثاث مكتبي", "إضاءة ونجف", "سجاد وموكيت", "ستائر ومفروشات", "أدوات مطبخ", "ديكورات وجبس", "دهانات وبويات", "سباكة وكهرباء", "بناء ومقاولات"],
+    "الخدمات والمهن": ["حلاقة رجالية", "مشغل نسائي", "مغسلة ملابس", "خياطة رجالية", "خياطة نسائية", "تنظيف سجاد", "تأجير سيارات", "مكتب عقار", "استشارات قانونية", "استشارات هندسية", "دعاية وإعلان", "تصميم وجرافيك", "فوتوغرافي"],
+    "الصحة والرياضة": ["صيدلية", "مكملات غذائية", "معدات طبية", "مركز رياضي / جيم", "أدوات رياضية", "ملاعب", "نادي صحي", "عيادة خاصة"],
+    "السيارات والمحركات": ["قطع غيار سيارات", "إطارات وبطاريات", "زيوت وفلاتر", "زينة سيارات", "معرض سيارات", "ورشة صيانة", "سمكرة ودهان"],
+    "التعليم والتدريب": ["مدرسة خاصة", "مركز تعليمي", "دروس خصوصية", "تدريب مهني", "لغات أجنبية", "برامج أكاديمية"],
+    "السياحة والترفيه": ["وكالة سياحية", "فندق / شقق مفروشة", "ملاهي ترفيهية", "حجوزات طيران", "تنظيم مناسبات", "ديكور حفلات"]
+};
 
-            @keyframes tagPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+let selectedActivities = [];
 
-            /* Dropdown Pop-out Styling */
-            .activity-dropdown {
-                display: none; position: absolute; top: 100%; right: 0; left: 0; 
-                background: #1e293b; border: 1px solid var(--glass-border); border-radius: 16px;
-                margin-top: 8px; z-index: 1000; box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-                flex-direction: column; overflow: hidden; animation: slideDown 0.25s cubic-bezier(0,0,0.2,1);
-            }
-            @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+window.addEventListener('DOMContentLoaded', () => {
+    const val = document.getElementById('store_activity').value;
+    if (val) selectedActivities = val.split('، ').filter(Boolean);
+    renderDropdown();
 
-            .dropdown-search { padding: 12px 15px; border-bottom: 1px solid var(--glass-border); position: relative; }
-            .dropdown-search input {
-                width: 100%; padding: 10px 35px 10px 15px; background: rgba(0,0,0,0.2);
-                border: 1px solid var(--glass-border); border-radius: 10px; color: white; font-size: 0.85rem; outline: none;
-            }
-            .dropdown-search i { position: absolute; right: 28px; top: 22px; color: #64748b; font-size: 0.8rem; }
+    document.addEventListener('click', (e) => {
+        const trigger = document.getElementById('activityTrigger');
+        const dropdown = document.getElementById('activityDropdown');
+        if (!trigger.contains(e.target) && !dropdown.contains(e.target)) {
+            closeActivityDropdown();
+        }
+    });
+});
 
-            .dropdown-scroll { max-height: 350px; overflow-y: auto; padding: 15px; }
-            
-            /* Category Table Style */
-            .cat-section { margin-bottom: 20px; }
-            .cat-header { 
-                font-size: 0.75rem; font-weight: 800; color: var(--primary); text-transform: uppercase;
-                margin-bottom: 10px; display: flex; align-items: center; gap: 8px; opacity: 0.9;
-            }
-            .cat-header::after { content: ''; flex: 1; height: 1px; background: rgba(168, 85, 247, 0.2); }
-            
-            .activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
-            .activity-box {
-                background: rgba(255,255,255,0.03); border: 1px solid var(--glass-border);
-                padding: 10px 8px; border-radius: 10px; font-size: 0.75rem; text-align: center;
-                cursor: pointer; transition: 0.2s; position: relative; color: #cbd5e1;
-            }
-            .activity-box:hover { background: rgba(255,255,255,0.06); transform: scale(1.02); }
-            
-            .activity-box.selected {
-                background: rgba(168, 85, 247, 0.1); border-color: var(--primary);
-                color: var(--primary); font-weight: 600; opacity: 0.6;
-            }
-            .activity-box.selected::after {
-                content: '\f00c'; font-family: 'Font Awesome 6 Free'; font-weight: 900;
-                position: absolute; top: 4px; left: 4px; font-size: 0.65rem;
-            }
+function toggleActivityDropdown(e) {
+    const dd = document.getElementById('activityDropdown');
+    if (dd.style.display === 'flex') closeActivityDropdown();
+    else { dd.style.display = 'flex'; renderDropdown(); }
+}
 
-            /* Mobile Adjustments */
-            @media (max-width: 600px) {
-                .activity-grid { grid-template-columns: repeat(2, 1fr); }
-                .activity-box { padding: 8px 5px; font-size: 0.7rem; }
-                .tags-input-container { min-height: 50px; padding: 8px 12px; }
-                .tag-chip { font-size: 0.75rem; padding: 3px 10px; }
-            }
-        </style>
+function closeActivityDropdown() {
+    document.getElementById('activityDropdown').style.display = 'none';
+}
 
-        <script>
-            // === Extensive Activities Data ===
-            const activityData = {
-                "التجزئة والتسوق": ["سوبر ماركت", "متجر تموينات", "خضار وفواكه", "لحوم ودواجن", "ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "عبايات وطرح", "أحذية وحقائب", "ساعات وهدايا", "إكسسوارات ومجوهرات", "عطور وبخور", "مستحضرات تجميل", "مكياج", "بصريات ونظارات", "ألعاب أطفال", "قرطاسية وأدوات مكتبية", "كتب ومجلات", "زهور وتغليف"],
-                "المطاعم والضيافة": ["مطعم وجبات سريعة", "مطعم مشاوي", "مطعم شعبي", "مطعم بحري", "بيتزا وفطائر", "برجر", "شاورما", "بوفيه", "مقهى / كوفي شوب", "حلويات ومعجنات", "آيس كريم", "عصائر طبيعية", "محمصة وقهوة", "مخبز"],
-                "إلكترونيات وتقنية": ["هواتف ذكية", "صيانة جوالات", "كمبيوتر ولابتوب", "إلكترونيات منزلية", "سماعات وألعاب", "كاميرات مراقبة", "برمجيات وأنظمة"],
-                "المنزل والديكور": ["أثاث منزلي", "أثاث مكتبي", "إضاءة ونجف", "سجاد وموكيت", "ستائر ومفروشات", "أدوات مطبخ", "ديكورات وجبس", "دهانات وبويات", "سباكة وكهرباء", "بناء ومقاولات"],
-                "الخدمات والمهن": ["حلاقة رجالية", "مشغل نسائي", "مغسلة ملابس", "خياطة رجالية", "خياطة نسائية", "تنظيف سجاد", "تأجير سيارات", "مكتب عقار", "استشارات قانونية", "استشارات هندسية", "دعاية وإعلان", "تصميم وجرافيك"],
-                "الصحة والرياضة": ["صيدلية", "مكملات غذائية", "معدات طبية", "مركز رياضي / جيم", "أدوات رياضية", "ملاعب", "نادي صحي"],
-                "السيارات والمحركات": ["قطع غيار سيارات", "إطارات وبطاريات", "زيوت وفلاتر", "زينة سيارات", "معرض سيارات", "ورشة صيانة", "سمكرة ودهان"]
-            };
+function renderDropdown(filter = '') {
+    const list = document.getElementById('activityList');
+    let html = '';
+    for (const [cat, items] of Object.entries(activityData)) {
+        const filtered = items.filter(i => i.includes(filter));
+        if (filtered.length > 0) {
+            html += `<div class="cat-section">
+                <div class="cat-header">${cat}</div>
+                <div class="activity-grid">
+                    ${filtered.map(item => `
+                        <div class="activity-box ${selectedActivities.includes(item) ? 'selected' : ''}"
+                             onclick="toggleActivity('${item}')">${item}</div>
+                    `).join('')}
+                </div>
+            </div>`;
+        }
+    }
+    if (!html && filter) {
+        html = `<div class="text-center py-4 text-secondary small">
+            لا توجد نتائج..
+            <span class="text-primary" style="cursor:pointer;" onclick="toggleActivity('${filter}')">
+                إضافة "${filter}" كنشاط مخصص
+            </span>
+        </div>`;
+    }
+    list.innerHTML = html;
+}
 
-            let selectedActivities = [];
+function filterActivities(e) { renderDropdown(e.target.value); }
 
-            // Initialize selected activities from hidden input
-            window.addEventListener('DOMContentLoaded', () => {
-                const val = document.getElementById('store_activity').value;
-                if(val) selectedActivities = val.split('، ');
-                renderDropdown();
-                
-                // Close dropdown when clicking outside
-                document.addEventListener('click', (e) => {
-                    if (!document.getElementById('activityTrigger').contains(e.target) && 
-                        !document.getElementById('activityDropdown').contains(e.target)) {
-                        closeActivityDropdown();
-                    }
-                });
-            });
+function toggleActivity(val) {
+    if (selectedActivities.includes(val)) selectedActivities = selectedActivities.filter(a => a !== val);
+    else selectedActivities.push(val);
+    updateUI();
+    renderDropdown(document.getElementById('activitySearch').value);
+}
 
-            function toggleActivityDropdown(e) {
-                const dropdown = document.getElementById('activityDropdown');
-                if (dropdown.style.display === 'flex') {
-                    closeActivityDropdown();
-                } else {
-                    dropdown.style.display = 'flex';
-                    renderDropdown();
-                }
-            }
+function removeTag(e, val) {
+    e.stopPropagation();
+    selectedActivities = selectedActivities.filter(a => a !== val);
+    updateUI();
+    renderDropdown(document.getElementById('activitySearch').value);
+}
 
-            function closeActivityDropdown() {
-                document.getElementById('activityDropdown').style.display = 'none';
-            }
+function updateUI() {
+    const container = document.getElementById('selectedTags');
+    const hidden = document.getElementById('store_activity');
+    if (!selectedActivities.length) {
+        container.innerHTML = '<span class="placeholder-text">انقر لاختيار الأنشطة...</span>';
+        hidden.value = '';
+    } else {
+        container.innerHTML = selectedActivities.map(tag =>
+            `<span class="tag-chip">${tag}<i class="fa-solid fa-xmark" onclick="removeTag(event, '${tag}')"></i></span>`
+        ).join('');
+        hidden.value = selectedActivities.join('، ');
+    }
+}
 
-            function renderDropdown(filter = "") {
-                const list = document.getElementById('activityList');
-                let html = "";
-                
-                for (const [category, items] of Object.entries(activityData)) {
-                    const filtered = items.filter(i => i.includes(filter));
-                    if (filtered.length > 0) {
-                        html += `
-                            <div class="cat-section">
-                                <div class="cat-header">${category}</div>
-                                <div class="activity-grid">
-                                    ${filtered.map(item => `
-                                        <div class="activity-box ${selectedActivities.includes(item) ? 'selected' : ''}" 
-                                             onclick="toggleActivity('${item}')">
-                                            ${item}
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            </div>
-                        `;
-                    }
-                }
-                
-                if(!html && filter) {
-                    html = `<div style="text-align:center; padding: 20px; color: var(--text-muted); font-size: 0.8rem;">
-                        لا توجد نتائج.. <span style="color:var(--primary); cursor:pointer;" onclick="toggleActivity('${filter}')">إضافة "${filter}" كنشاط مخصص</span>
-                    </div>`;
-                }
-                
-                list.innerHTML = html;
-            }
-
-            function filterActivities(e) {
-                renderDropdown(e.target.value);
-            }
-
-            function toggleActivity(val) {
-                if (selectedActivities.includes(val)) {
-                    selectedActivities = selectedActivities.filter(a => a !== val);
-                } else {
-                    selectedActivities.push(val);
-                }
-                updateUI();
-                renderDropdown(document.getElementById('activitySearch').value);
-            }
-
-            function removeTag(e, val) {
-                e.stopPropagation();
-                selectedActivities = selectedActivities.filter(a => a !== val);
-                updateUI();
-                renderDropdown(document.getElementById('activitySearch').value);
-            }
-
-            function updateUI() {
-                const container = document.getElementById('selectedTags');
-                const hiddenInput = document.getElementById('store_activity');
-                
-                if (selectedActivities.length === 0) {
-                    container.innerHTML = '<span class="placeholder">انقر لاختيار الأنشطة...</span>';
-                    hiddenInput.value = "";
-                } else {
-                    container.innerHTML = selectedActivities.map(tag => `
-                        <span class="tag-chip">${tag}<i class="fa-solid fa-xmark" onclick="removeTag(event, '${tag}')"></i></span>
-                    `).join('');
-                    hiddenInput.value = selectedActivities.join('، ');
-                }
-            }
-
-        async function savePlanning(e) {
-            e.preventDefault();
-            const btn = document.getElementById('saveBtn');
-            const alertBox = document.getElementById('alertBox');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
-            alertBox.style.display = 'none';
-            const payload = {
+// ─── Save Planning ────────────────────────────────────────────────────────────
+async function savePlanning(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveBtn');
+    const alertBox = document.getElementById('alertBox');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
+    alertBox.style.display = 'none';
+    try {
+        const res = await fetch('/merchant/api/planning', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
                 ai_agent_name: document.getElementById('ai_agent_name').value,
                 ai_tone: document.getElementById('ai_tone').value,
                 store_activity: document.getElementById('store_activity').value,
                 business_description: document.getElementById('business_description').value
-            };
-            try {
-                const res = await fetch('/merchant/api/planning', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'error'}`;
-                alertBox.innerText = data.message;
-                alertBox.style.display = 'block';
-            } catch(err) {
-                alertBox.className = 'alert alert-error';
-                alertBox.innerText = 'حدث خطأ في الاتصال';
-                alertBox.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> تحديث التخطيط';
-            }
+            })
+        });
+        const data = await res.json();
+        alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
+        alertBox.innerText = data.message;
+        alertBox.style.display = 'block';
+    } catch(err) {
+        alertBox.className = 'alert alert-danger';
+        alertBox.innerText = 'حدث خطأ في الاتصال';
+        alertBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> تحديث التخطيط';
+    }
+}
+
+// ─── Column Training ──────────────────────────────────────────────────────────
+let currentCols = [];
+
+async function loadColumns() {
+    const container = document.getElementById('colsContainer');
+    try {
+        const res = await fetch('/merchant/api/planning/columns');
+        const data = await res.json();
+        currentCols = data.columns || [];
+        if (!currentCols.length) {
+            container.innerHTML = `<div class="col-empty"><i class="ti ti-table"></i><br>لا توجد بيانات مزامنة حتى الآن. <a href="/merchant/data-sync" class="text-primary">إضافة مصدر</a></div>`;
+            document.getElementById('saveColsBtn').style.display = 'none';
+            return;
         }
+        container.innerHTML = currentCols.map(col => `
+            <div class="column-card ${col.is_disabled ? 'disabled' : ''}" id="card_${col.name}">
+                <div class="col-name">${col.name}</div>
+                <div class="col-body">
+                    <div class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="dis_${col.name}" ${col.is_disabled ? 'checked' : ''}
+                                onchange="toggleCard('${col.name}', this.checked)">
+                            <span class="slider"></span>
+                        </label>
+                        إيقاف هذا العمود (لن يفكر به النموذج)
+                    </div>
+                    <textarea class="col-note" id="note_${col.name}" rows="2"
+                        placeholder="اكتب تعليمات للنموذج حول هذا العمود...">${col.note || ''}</textarea>
+                </div>
+            </div>`).join('');
+        document.getElementById('saveColsBtn').style.display = 'inline-flex';
+    } catch(err) {
+        container.innerHTML = '<div class="col-empty"><i class="ti ti-alert-triangle"></i><br>حدث خطأ في جلب الأعمدة</div>';
+    }
+}
 
-        // === Column Training ===
-        let currentCols = [];
+function toggleCard(name, disabled) {
+    document.getElementById('card_' + name).classList.toggle('disabled', disabled);
+}
 
-        async function loadColumns() {
-            const container = document.getElementById('colsContainer');
-            try {
-                const res = await fetch('/merchant/api/planning/columns');
-                const data = await res.json();
-                currentCols = data.columns || [];
-
-                if (!currentCols.length) {
-                    container.innerHTML = `<div class="col-empty"><i class="fa-solid fa-table"></i>لا توجد بيانات مزامنة حتى الآن. <a href="/merchant/data-sync" style="color:var(--primary)">إضافة مصدر</a></div>`;
-                    document.getElementById('saveColsBtn').style.display = 'none';
-                    return;
-                }
-
-                container.innerHTML = currentCols.map(col => `
-                    <div class="column-card ${col.is_disabled ? 'disabled' : ''}" id="card_${col.name}">
-                        <div class="col-name">${col.name}</div>
-                        <div class="col-body">
-                            <div class="toggle-wrap">
-                                <label class="toggle">
-                                    <input type="checkbox" id="dis_${col.name}" ${col.is_disabled ? 'checked' : ''}
-                                        onchange="toggleCard('${col.name}', this.checked)">
-                                    <span class="slider"></span>
-                                </label>
-                                إيقاف هذا العمود (لن يفكر به النموذج)
-                            </div>
-                            <textarea class="col-note" id="note_${col.name}" rows="2"
-                                placeholder="اكتب تعليمات للنموذج حول هذا العمود... مثال: هذا هو سعر البيع، اعطه أولوية عند الذكر">${col.note || ''}</textarea>
-                        </div>
-                    </div>`).join('');
-
-                document.getElementById('saveColsBtn').style.display = 'inline-flex';
-            } catch(err) {
-                container.innerHTML = '<div class="col-empty"><i class="fa-solid fa-triangle-exclamation"></i>حدث خطأ في جلب الأعمدة</div>';
-            }
-        }
-
-        function toggleCard(name, disabled) {
-            const card = document.getElementById('card_' + name);
-            if (disabled) card.classList.add('disabled');
-            else card.classList.remove('disabled');
-        }
-
-        async function saveCols() {
-            const btn = document.getElementById('saveColsBtn');
-            const alertBox = document.getElementById('colsAlertBox');
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري الحفظ...';
-            alertBox.style.display = 'none';
-
-            const updates = currentCols.map(col => ({
+async function saveCols() {
+    const btn = document.getElementById('saveColsBtn');
+    const alertBox = document.getElementById('colsAlertBox');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
+    alertBox.style.display = 'none';
+    try {
+        const res = await fetch('/merchant/api/planning/columns', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ columns: currentCols.map(col => ({
                 column_name: col.name,
                 note: document.getElementById('note_' + col.name)?.value || '',
                 is_disabled: document.getElementById('dis_' + col.name)?.checked || false
-            }));
+            }))})
+        });
+        const data = await res.json();
+        alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
+        alertBox.innerText = data.message;
+        alertBox.style.display = 'block';
+    } catch(err) {
+        alertBox.className = 'alert alert-danger';
+        alertBox.innerText = 'حدث خطأ في الاتصال';
+        alertBox.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ إعدادات الأعمدة';
+    }
+}
 
-            try {
-                const res = await fetch('/merchant/api/planning/columns', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ columns: updates })
-                });
-                const data = await res.json();
-                alertBox.className = `alert-cols ${data.status === 'success' ? 'ok' : 'err'}`;
-                alertBox.innerText = data.message;
-                alertBox.style.display = 'block';
-            } catch(err) {
-                alertBox.className = 'alert-cols err';
-                alertBox.innerText = 'حدث خطأ في الاتصال';
-                alertBox.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> حفظ إعدادات الأعمدة';
-            }
-        }
-
-        loadColumns();
-
-        function toggleSidebar() {
-            document.querySelector('.sidebar').classList.toggle('show');
-            document.getElementById('sidebarBackdrop').classList.toggle('show');
-        }
-    </script>
-</body>
-</html>
+loadColumns();
+</script>
+{% endblock %}

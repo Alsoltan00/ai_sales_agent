@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}لوحة التحكم{% endblock %} | الوكيل الذكي</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800&family=Public+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Tabler Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+
+  <!-- Bootstrap 5 RTL CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+
+  <!-- Dasher Theme CSS -->
+  <link rel="stylesheet" href="/static/dasher/css/theme.css">
+
+  <!-- Custom Arabic Overrides -->
+  <style>
+    :root {
+      --font-primary: 'Noto Kufi Arabic', 'Public Sans', sans-serif;
+    }
+    body, * {
+      font-family: var(--font-primary) !important;
+    }
+    /* RTL sidebar fix */
+    #miniSidebar {
+      right: 0; left: auto;
+      border-left: 1px solid var(--bs-border-color);
+      border-right: none;
+    }
+    #content {
+      margin-right: var(--sidebar-width, 260px);
+      margin-left: 0;
+    }
+    /* Active nav item */
+    #miniSidebar .nav-link.active {
+      color: var(--bs-primary) !important;
+      background-color: var(--bs-primary-bg-subtle);
+      border-right: 3px solid var(--bs-primary);
+    }
+    /* Mobile topbar */
+    .mobile-topbar {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 1030;
+      padding: 12px 16px;
+      background: var(--bs-body-bg);
+      border-bottom: 1px solid var(--bs-border-color);
+      align-items: center;
+      justify-content: space-between;
+    }
+    @media (max-width: 991.98px) {
+      #miniSidebar { display: none !important; }
+      #content { margin-right: 0 !important; }
+      .mobile-topbar { display: flex !important; }
+    }
+    /* Page header */
+    .page-header {
+      padding: 24px 0 16px;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin: 0;
+    }
+    {% block extra_css %}{% endblock %}
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════ DESKTOP SIDEBAR ═══════════════════════ -->
+<div id="miniSidebar">
+  <!-- Logo -->
+  <div class="brand-logo">
+    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
+      <span style="font-size:1.6rem;">🤖</span>
+      <span class="fw-bold fs-5 site-logo-text">الوكيل الذكي</span>
+    </a>
+  </div>
+
+  <ul class="navbar-nav flex-column">
+    <!-- Dashboard -->
+    <li class="nav-item">
+      <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
+        <span class="nav-icon"><i class="ti ti-home"></i></span>
+        <span class="text">الرئيسية</span>
+      </a>
+    </li>
+
+    <!-- Store Management -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/store' in request.url.path %}active{% endif %}" href="/merchant/store">
+        <span class="nav-icon"><i class="ti ti-building-store"></i></span>
+        <span class="text">إدارة المتجر</span>
+      </a>
+    </li>
+
+    <!-- Channels -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/channels' in request.url.path %}active{% endif %}" href="/merchant/channels">
+        <span class="nav-icon"><i class="ti ti-antenna"></i></span>
+        <span class="text">الاستقبال والإرسال</span>
+      </a>
+    </li>
+
+    <!-- Planning -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/planning' in request.url.path %}active{% endif %}" href="/merchant/planning">
+        <span class="nav-icon"><i class="ti ti-map"></i></span>
+        <span class="text">التخطيط</span>
+      </a>
+    </li>
+
+    <!-- Business Rules -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/business-rules' in request.url.path %}active{% endif %}" href="/merchant/business-rules">
+        <span class="nav-icon"><i class="ti ti-gavel"></i></span>
+        <span class="text">قواعد العمل</span>
+      </a>
+    </li>
+
+    <!-- Data Sync -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/data-sync' in request.url.path %}active{% endif %}" href="/merchant/data-sync">
+        <span class="nav-icon"><i class="ti ti-refresh"></i></span>
+        <span class="text">مزامنة البيانات</span>
+      </a>
+    </li>
+
+    <!-- Data View -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/data-view' in request.url.path %}active{% endif %}" href="/merchant/data-view">
+        <span class="nav-icon"><i class="ti ti-table"></i></span>
+        <span class="text">عرض البيانات</span>
+      </a>
+    </li>
+
+    <!-- Authorized Numbers -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/authorized-numbers' in request.url.path %}active{% endif %}" href="/merchant/authorized-numbers">
+        <span class="nav-icon"><i class="ti ti-shield-check"></i></span>
+        <span class="text">الأرقام المصرّحة</span>
+      </a>
+    </li>
+
+    <!-- Divider -->
+    <li class="nav-item">
+      <div class="nav-heading">الحساب</div>
+      <hr class="mx-4 nav-line mb-1">
+    </li>
+
+    <!-- User info -->
+    <li class="nav-item">
+      <div class="text-center py-4 upgrade-ui">
+        <div class="avatar avatar-md rounded-circle bg-primary d-flex align-items-center justify-content-center mx-auto mb-2"
+             style="width:48px;height:48px;font-size:1.3rem;font-weight:700;">
+          {{ user.name[0] if user and user.name else 'T' }}
+        </div>
+        <div class="fw-600 mb-1">{{ user.name if user else 'التاجر' }}</div>
+        <span class="text-secondary small">تاجر نشط</span>
+      </div>
+    </li>
+  </ul>
+</div>
+
+<!-- ═══════════════════════ MOBILE TOPBAR ═══════════════════════ -->
+<div class="mobile-topbar">
+  <button class="btn btn-icon btn-ghost-secondary" type="button"
+          data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar">
+    <i class="ti ti-menu-2 fs-5"></i>
+  </button>
+  <span class="fw-bold" style="color:var(--bs-primary);">🤖 الوكيل الذكي</span>
+  <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
+       style="width:36px;height:36px;font-weight:700;">
+    {{ user.name[0] if user and user.name else 'T' }}
+  </div>
+</div>
+
+<!-- ═══════════════════════ MOBILE OFFCANVAS SIDEBAR ═══════════════════════ -->
+<div class="offcanvas offcanvasNav offcanvas-end" tabindex="-1" id="mobileSidebar">
+  <div class="offcanvas-header border-bottom">
+    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
+      <span style="font-size:1.4rem;">🤖</span>
+      <span class="fw-bold fs-5">الوكيل الذكي</span>
+    </a>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    <ul class="navbar-nav flex-column">
+      <li class="nav-item">
+        <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
+          <span class="nav-icon"><i class="ti ti-home"></i></span> <span class="text">الرئيسية</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/store' in request.url.path %}active{% endif %}" href="/merchant/store">
+          <span class="nav-icon"><i class="ti ti-building-store"></i></span> <span class="text">إدارة المتجر</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/channels' in request.url.path %}active{% endif %}" href="/merchant/channels">
+          <span class="nav-icon"><i class="ti ti-antenna"></i></span> <span class="text">الاستقبال والإرسال</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/planning' in request.url.path %}active{% endif %}" href="/merchant/planning">
+          <span class="nav-icon"><i class="ti ti-map"></i></span> <span class="text">التخطيط</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/business-rules' in request.url.path %}active{% endif %}" href="/merchant/business-rules">
+          <span class="nav-icon"><i class="ti ti-gavel"></i></span> <span class="text">قواعد العمل</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/data-sync' in request.url.path %}active{% endif %}" href="/merchant/data-sync">
+          <span class="nav-icon"><i class="ti ti-refresh"></i></span> <span class="text">مزامنة البيانات</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/data-view' in request.url.path %}active{% endif %}" href="/merchant/data-view">
+          <span class="nav-icon"><i class="ti ti-table"></i></span> <span class="text">عرض البيانات</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/authorized-numbers' in request.url.path %}active{% endif %}" href="/merchant/authorized-numbers">
+          <span class="nav-icon"><i class="ti ti-shield-check"></i></span> <span class="text">الأرقام المصرّحة</span>
+        </a>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<!-- ═══════════════════════ MAIN CONTENT ═══════════════════════ -->
+<div id="content" class="position-relative h-100">
+
+  <!-- Topbar (desktop) -->
+  <nav class="topbar topbar-second d-none d-lg-flex align-items-center px-4 border-bottom">
+    <div class="d-flex align-items-center gap-3 ms-auto">
+      <div class="d-flex align-items-center gap-2">
+        <div class="avatar rounded-circle bg-primary d-flex align-items-center justify-content-center"
+             style="width:34px;height:34px;font-weight:700;font-size:0.9rem;">
+          {{ user.name[0] if user and user.name else 'T' }}
+        </div>
+        <div>
+          <div class="fw-600 small">{{ user.name if user else 'التاجر' }}</div>
+          <div class="text-secondary" style="font-size:0.7rem;">تاجر نشط</div>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Page Content -->
+  <div class="custom-container">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- Bootstrap 5 JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- Dasher Sidebar JS (simplebar etc.) -->
+<script src="/static/dasher/js/vendors/color-modes.js" onerror="void(0)"></script>
+<script src="/static/dasher/js/vendors/sidebarnav.js" onerror="void(0)"></script>
+
+<!-- Sidebar collapse state -->
+<script>
+  // Restore sidebar expand/collapse state
+  if (localStorage.getItem('sidebarExpanded') === 'false') {
+    document.documentElement.classList.add('collapsed');
+  } else {
+    document.documentElement.classList.add('expanded');
+  }
+</script>
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

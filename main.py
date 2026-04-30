@@ -2,6 +2,7 @@ import os
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 import asyncio
 
@@ -37,6 +38,12 @@ app.include_router(merchant_router)
 app.include_router(telegram_router, prefix="/webhook")
 app.include_router(evolution_router, prefix="/webhook")
 app.include_router(official_router, prefix="/webhook")
+
+# ─── Static Files ─────────────────────────────────────────────────────────────
+_static_path = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(_static_path):
+    app.mount("/static", StaticFiles(directory=_static_path), name="static")
+
 
 @app.on_event("startup")
 async def startup_event():

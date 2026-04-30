@@ -1,366 +1,183 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لوحة التاجر | نظام وكيل المبيعات الذكي</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Kufi+Arabic:wght@400;700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --secondary: #ec4899;
-            --bg-dark: #0f172a;
-            --bg-sidebar: rgba(15, 23, 42, 0.85);
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --sidebar-width: 280px;
-        }
+{% extends "merchant_base.html" %}
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+{% block title %}الرئيسية{% endblock %}
 
-        body {
-            font-family: 'Noto Kufi Arabic', 'Outfit', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(at top left, rgba(99, 102, 241, 0.1) 0%, transparent 40%);
-        }
+{% block extra_css %}
+.welcome-banner {
+  background: linear-gradient(135deg, var(--bs-primary), #6f42c1);
+  border-radius: 16px;
+  padding: 32px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.welcome-banner::after {
+  content: '🤖';
+  position: absolute;
+  left: 24px;
+  bottom: -10px;
+  font-size: 6rem;
+  opacity: 0.15;
+}
+.feature-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
+}
+.feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  color: inherit;
+}
+.feature-card .card-body {
+  padding: 24px;
+}
+.feature-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  margin-bottom: 16px;
+}
+.feature-card h5 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.feature-card p {
+  font-size: 0.85rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 16px;
+  line-height: 1.6;
+}
+.feature-arrow {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+{% endblock %}
 
-        /* Sidebar */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-sidebar);
-            backdrop-filter: blur(20px);
-            border-left: 1px solid var(--glass-border);
-            display: flex;
-            flex-direction: column;
-            position: fixed;
-            height: 100vh;
-            right: 0;
-            top: 0;
-            z-index: 100;
-        }
-
-        .logo {
-            padding: 30px 20px;
-            font-size: 1.5rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .logo i {
-            font-size: 2rem;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .nav-links {
-            flex: 1;
-            padding: 20px 0;
-            overflow-y: auto;
-        }
-
-        .nav-item {
-            padding: 15px 25px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            color: var(--text-muted);
-            text-decoration: none;
-            transition: 0.3s;
-            font-size: 0.95rem;
-            border-right: 3px solid transparent;
-        }
-
-        .nav-item:hover, .nav-item.active {
-            color: var(--primary);
-            background: rgba(99, 102, 241, 0.1);
-            border-right-color: var(--primary);
-        }
-
-        .nav-item i { font-size: 1.2rem; width: 25px; text-align: center; }
-
-        .user-info {
-            padding: 20px;
-            border-top: 1px solid var(--glass-border);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .user-avatar {
-            width: 40px; height: 40px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-        }
-
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-right: var(--sidebar-width);
-            padding: 40px;
-        }
-
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 40px;
-        }
-
-        .header h2 { font-size: 2rem; font-weight: 700; }
-        
-        .logout-btn {
-            background: rgba(239, 68, 68, 0.1);
-            color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
-            padding: 10px 20px;
-            border-radius: 12px;
-            text-decoration: none;
-            font-weight: 600;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .logout-btn:hover { background: rgba(239, 68, 68, 0.2); }
-
-        /* Dashboard Grid */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 25px;
-        }
-
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            padding: 30px;
-            transition: 0.3s;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            border-color: rgba(99, 102, 241, 0.3);
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
-        }
-
-        .card i.bg-icon {
-            position: absolute;
-            bottom: -20px;
-            left: -20px;
-            font-size: 8rem;
-            opacity: 0.05;
-            color: var(--primary);
-            z-index: 0;
-            transform: rotate(-15deg);
-        }
-
-        .card-icon {
-            width: 60px; height: 60px;
-            border-radius: 15px;
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.8rem;
-            z-index: 1;
-        }
-
-        .card h3 { font-size: 1.2rem; z-index: 1; }
-        .card p { color: var(--text-muted); font-size: 0.9rem; z-index: 1; line-height: 1.6; flex: 1; }
-        
-        .card-link {
-            z-index: 1;
-            color: var(--primary);
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 0.95rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            margin-top: 10px;
-        }
-
-        .card-link i { transition: 0.3s; }
-        .card:hover .card-link i { transform: translateX(-5px); }
-
-        /* Specific card colors */
-        .card.purple .card-icon { background: rgba(168, 85, 247, 0.1); color: #a855f7; }
-        .card.purple:hover { border-color: rgba(168, 85, 247, 0.3); }
-        .card.purple .card-link { color: #a855f7; }
-
-        .card.pink .card-icon { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
-        .card.pink:hover { border-color: rgba(236, 72, 153, 0.3); }
-        .card.pink .card-link { color: #ec4899; }
-
-        .card.emerald .card-icon { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .card.emerald:hover { border-color: rgba(16, 185, 129, 0.3); }
-        .card.emerald .card-link { color: #10b981; }
-
-        /* Mobile Responsiveness */
-        .mobile-header {
-            display: none; align-items: center; justify-content: space-between;
-            padding: 15px 20px; background: var(--bg-sidebar); border-bottom: 1px solid var(--glass-border);
-            position: sticky; top: 0; z-index: 90; backdrop-filter: blur(10px);
-        }
-        
-        .mobile-menu-btn {
-            background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;
-        }
-
-        @media (max-width: 1024px) {
-            .sidebar { 
-                right: -100%; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
-                width: 280px; box-shadow: -10px 0 30px rgba(0,0,0,0.5);
-            }
-            .sidebar.active { right: 0; }
-            .main-content { margin-right: 0; padding: 20px; }
-            .mobile-header { display: flex; }
-            .header { flex-direction: column; align-items: flex-start; gap: 20px; margin-bottom: 30px; }
-            .header h2 { font-size: 1.5rem; }
-            .grid-container { grid-template-columns: 1fr; gap: 15px; }
-        }
-
-        .overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); z-index: 95;
-        }
-        .overlay.active { display: block; }
-    </style>
-</head>
-<body>
-
-    <div class="overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
-    
-    <div class="mobile-header">
-        <div style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
-            <i class="fa-solid fa-brain"></i> الوكيل الذكي
-        </div>
-        <button class="mobile-menu-btn" onclick="toggleSidebar()"><i class="fa-solid fa-bars-staggered"></i></button>
+{% block content %}
+<!-- Page Header -->
+<div class="page-header mb-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+    <div>
+      <h1>مرحباً، {{ user.name if user else 'التاجر' }} 👋</h1>
+      <p class="text-secondary mb-0 mt-1">إليك نظرة عامة على أدوات الوكيل الذكي الخاص بك</p>
     </div>
+    <a href="/auth/logout" class="btn btn-outline-danger btn-sm">
+      <i class="ti ti-logout me-1"></i> تسجيل الخروج
+    </a>
+  </div>
+</div>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="logo">
-            <i class="fa-solid fa-brain"></i>
-            <span>الوكيل الذكي</span>
+<!-- Welcome Banner -->
+<div class="welcome-banner mb-5">
+  <div class="row align-items-center">
+    <div class="col-lg-8">
+      <h2 class="fw-bold mb-2">مرحباً بك في لوحة الوكيل الذكي</h2>
+      <p class="mb-4 opacity-90">
+        نظام المبيعات المدعوم بالذكاء الاصطناعي لإدارة متجرك والرد على عملائك تلقائياً على واتساب وتيليجرام.
+      </p>
+      <a href="/merchant/planning" class="btn btn-light fw-600">
+        <i class="ti ti-settings me-1"></i> إعداد الوكيل
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Feature Cards Grid -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-4">
+
+  <!-- Store Management -->
+  <div class="col">
+    <a href="/merchant/store" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon bg-primary-subtle text-primary">
+          <i class="ti ti-building-store"></i>
         </div>
-        <div class="nav-links">
-            <a href="/merchant/home" class="nav-item active"><i class="fa-solid fa-house"></i> الرئيسية</a>
-            <a href="/merchant/store" class="nav-item"><i class="fa-solid fa-store"></i> إدارة المتجر</a>
-            <a href="/merchant/channels" class="nav-item"><i class="fa-solid fa-satellite-dish"></i> الاستقبال والإرسال</a>
-            <a href="/merchant/planning" class="nav-item"><i class="fa-solid fa-map"></i> التخطيط</a>
-            <a href="/merchant/business-rules" class="nav-item"><i class="fa-solid fa-gavel"></i> قواعد العمل</a>
-            <a href="/merchant/data-sync" class="nav-item"><i class="fa-solid fa-rotate"></i> مزامنة البيانات</a>
-            <a href="/merchant/data-view" class="nav-item"><i class="fa-solid fa-table"></i> عرض البيانات</a>
-            <a href="/merchant/authorized-numbers" class="nav-item"><i class="fa-solid fa-shield-halved"></i> الأرقام المصرّحة</a>
+        <h5>إدارة المتجر</h5>
+        <p>تعديل بيانات واسم المتجر والرابط ورقم التواصل الخاص بك.</p>
+        <span class="feature-arrow text-primary">الدخول للإعدادات <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
+
+  <!-- Planning -->
+  <div class="col">
+    <a href="/merchant/planning" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon bg-purple-subtle text-purple" style="background:rgba(111,66,193,0.12);color:#6f42c1;">
+          <i class="ti ti-map"></i>
         </div>
-        <div class="user-info">
-            <div class="user-avatar">{{ user.name[0] if user and user.name else 'T' }}</div>
-            <div>
-                <div style="font-weight: 700;">{{ user.name if user else 'التاجر' }}</div>
-                <div style="font-size: 0.8rem; color: var(--text-muted);">تاجر نشط</div>
-            </div>
+        <h5>التخطيط</h5>
+        <p>تحديد وصف الشركة، اللهجة المستخدمة للرد، واسم موظف المبيعات.</p>
+        <span class="feature-arrow" style="color:#6f42c1;">إدارة التخطيط <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
+
+  <!-- Data Sync -->
+  <div class="col">
+    <a href="/merchant/data-sync" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon bg-success-subtle text-success">
+          <i class="ti ti-refresh"></i>
         </div>
-    </aside>
+        <h5>مزامنة البيانات</h5>
+        <p>ربط مصادر البيانات (Supabase, Aiven, Sheets) لتتزامن بشكل تلقائي مع الذكاء الاصطناعي.</p>
+        <span class="feature-arrow text-success">إدارة المزامنة <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
 
-    <main class="main-content">
-        <div class="header">
-            <div>
-                <h2>مرحباً، {{ user.name if user else 'التاجر' }} 👋</h2>
-                <p style="color: var(--text-muted); margin-top: 5px;">إليك نظرة عامة على أدوات الوكيل الذكي الخاص بك</p>
-            </div>
-            <a href="/auth/logout" class="logout-btn">
-                تسجيل الخروج <i class="fa-solid fa-arrow-right-from-bracket"></i>
-            </a>
+  <!-- Channels -->
+  <div class="col">
+    <a href="/merchant/channels" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon bg-info-subtle text-info">
+          <i class="ti ti-antenna"></i>
         </div>
+        <h5>الاستقبال والإرسال</h5>
+        <p>إعداد قنوات التواصل (واتساب، تيليجرام) لاستقبال وإرسال الردود الآلية.</p>
+        <span class="feature-arrow text-info">إدارة القنوات <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
 
-        <div class="grid-container">
-            <!-- Card 1 -->
-            <div class="card">
-                <i class="fa-solid fa-store bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-store"></i></div>
-                <h3>إدارة المتجر</h3>
-                <p>تعديل بيانات واسم المتجر والرابط ورقم التواصل الخاص بك.</p>
-                <a href="/merchant/store" class="card-link">الدخول للإعدادات <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-
-            <!-- Card 2 -->
-            <div class="card purple">
-                <i class="fa-solid fa-map bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-map"></i></div>
-                <h3>التخطيط</h3>
-                <p>تحديد وصف الشركة، اللهجة المستخدمة للرد، واسم موظف المبيعات.</p>
-                <a href="/merchant/planning" class="card-link">إدارة التخطيط <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-
-
-            <!-- Card 4 -->
-            <div class="card emerald">
-                <i class="fa-solid fa-rotate bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-rotate"></i></div>
-                <h3>مزامنة وعرض البيانات</h3>
-                <p>ربط مصادر البيانات (Supabase, Aiven, Sheets) لتتزامن بشكل تلقائي.</p>
-                <a href="/merchant/data-sync" class="card-link">إدارة المزامنة <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-            
-            <!-- Card 5 -->
-            <div class="card">
-                <i class="fa-solid fa-satellite-dish bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-satellite-dish"></i></div>
-                <h3>الاستقبال والإرسال</h3>
-                <p>إعداد قنوات التواصل (واتساب، تيليجرام) لاستقبال وإرسال الردود الآلية.</p>
-                <a href="/merchant/channels" class="card-link">إدارة القنوات <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-
-            <!-- Card 6 -->
-            <div class="card emerald">
-                <i class="fa-solid fa-shield-halved bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-shield-halved"></i></div>
-                <h3>الأرقام المصرّحة</h3>
-                <p>تحديد الأرقام المسموح لها بالتحدث مع الوكيل الذكي لضمان الأمان.</p>
-                <a href="/merchant/authorized-numbers" class="card-link">إدارة الأرقام <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-
-            <!-- Card 7 -->
-            <div class="card purple">
-                <i class="fa-solid fa-gavel bg-icon"></i>
-                <div class="card-icon"><i class="fa-solid fa-gavel"></i></div>
-                <h3>قواعد العمل</h3>
-                <p>صياغة السياسات المالية وخدمة العملاء التي سيلتزم بها الذكاء الاصطناعي.</p>
-                <a href="/merchant/business-rules" class="card-link">إدارة القواعد <i class="fa-solid fa-arrow-left"></i></a>
-            </div>
-
+  <!-- Authorized Numbers -->
+  <div class="col">
+    <a href="/merchant/authorized-numbers" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon bg-success-subtle text-success">
+          <i class="ti ti-shield-check"></i>
         </div>
-    </main>
+        <h5>الأرقام المصرّحة</h5>
+        <p>تحديد الأرقام المسموح لها بالتحدث مع الوكيل الذكي لضمان الأمان.</p>
+        <span class="feature-arrow text-success">إدارة الأرقام <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
 
-    <script>
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('active');
-            document.getElementById('sidebarOverlay').classList.toggle('active');
-        }
-    </script>
-</body>
-</html>
+  <!-- Business Rules -->
+  <div class="col">
+    <a href="/merchant/business-rules" class="feature-card card card-lg h-100">
+      <div class="card-body">
+        <div class="feature-icon" style="background:rgba(111,66,193,0.12);color:#6f42c1;">
+          <i class="ti ti-gavel"></i>
+        </div>
+        <h5>قواعد العمل</h5>
+        <p>صياغة السياسات المالية وخدمة العملاء التي سيلتزم بها الذكاء الاصطناعي.</p>
+        <span class="feature-arrow" style="color:#6f42c1;">إدارة القواعد <i class="ti ti-arrow-left"></i></span>
+      </div>
+    </a>
+  </div>
+
+</div>
+{% endblock %}
