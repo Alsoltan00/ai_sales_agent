@@ -31,10 +31,15 @@ class QueryBuilder:
         self._data = None
         self._limit = None
         self._single = False
+        self._order_by = []
 
     def select(self, cols="*"):
         self._action = "SELECT"
         self._select_cols = cols
+        return self
+
+    def order(self, col, desc=False):
+        self._order_by.append((col, "DESC" if desc else "ASC"))
         return self
 
     def insert(self, data):
@@ -84,7 +89,12 @@ class QueryBuilder:
             where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
             if self._action == "SELECT":
-                query = f"SELECT {self._select_cols} FROM {self.table_name}{where_sql}"
+                order_sql = ""
+                if self._order_by:
+                    clauses = [f"{col} {direction}" for col, direction in self._order_by]
+                    order_sql = " ORDER BY " + ", ".join(clauses)
+                
+                query = f"SELECT {self._select_cols} FROM {self.table_name}{where_sql}{order_sql}"
                 if self._limit:
                     query += f" LIMIT {self._limit}"
                 

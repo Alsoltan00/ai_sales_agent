@@ -172,12 +172,18 @@ async def evolution_webhook(instance_name: str, request: Request):
                                                 ai_m = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
                                                 if ai_m.data:
                                                     api_key = ai_m.data.get("api_key")
-                                                    import base64
-                                                    audio_bytes = base64.b64decode(b64_data)
-                                                    # محاولة التحويل الصوتي (فقط لـ Groq/OpenAI)
-                                                    text = await transcribe_audio(audio_bytes, api_key)
-                                                    if text:
-                                                        print(f"[VOICE] Transcribed Text: {text}")
+                                                    provider = ai_m.data.get("provider")
+                                                    
+                                                    # لا نحتاج لتحويل الصوت لنص إذا كان المحرك هو Gemini (Google) لأنه يدعم الصوت مباشرة
+                                                    if provider != "google":
+                                                        import base64
+                                                        audio_bytes = base64.b64decode(b64_data)
+                                                        # محاولة التحويل الصوتي (فقط لـ Groq/OpenAI)
+                                                        text = await transcribe_audio(audio_bytes, api_key)
+                                                        if text:
+                                                            print(f"[VOICE] Transcribed Text: {text}")
+                                                    else:
+                                                        print("[DEBUG] Skipping transcription for Google provider, using native audio support.")
                                 
                                 elif msg_type == "image":
                                     image_base64 = b64_data
