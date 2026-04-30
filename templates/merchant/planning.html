@@ -206,7 +206,7 @@
                 </div>
 
                 <!-- Pop-out Dropdown -->
-                <div id="activityDropdown" class="activity-dropdown">
+                <div id="activityDropdown" class="activity-dropdown" onclick="event.stopPropagation()">
                     <div class="dropdown-search">
                         <i class="fa-solid fa-magnifying-glass"></i>
                         <input type="text" id="activitySearch" placeholder="ابحث عن نشاط..."
@@ -288,9 +288,12 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function toggleActivityDropdown(e) {
+    e.stopPropagation();
     const dd = document.getElementById('activityDropdown');
-    if (dd.style.display === 'flex') closeActivityDropdown();
-    else { dd.style.display = 'flex'; renderDropdown(); }
+    if (dd.style.display !== 'flex') {
+        dd.style.display = 'flex';
+        renderDropdown();
+    }
 }
 
 function closeActivityDropdown() {
