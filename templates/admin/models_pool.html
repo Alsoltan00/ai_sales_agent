@@ -30,16 +30,19 @@
                 <h3 class="h4 mb-2 text-body fw-bold">{{ model.model_name }}</h3>
                 <code class="d-block bg-secondary-bg-subtle p-2 rounded text-secondary mb-3 small">{{ model.model_id }}</code>
                 
-                <div class="d-flex gap-2 mb-3">
+                <div class="d-flex flex-wrap gap-2 mb-3">
                     {% set caps = model.capabilities or {} %}
                     {% if caps.get('text') %}
-                        <span class="badge bg-success-subtle text-success small border border-success-subtle"><i class="ti ti-message me-1"></i>نصوص</span>
+                        <span class="badge bg-success-subtle text-success x-small border border-success-subtle"><i class="ti ti-message me-1"></i>نصوص</span>
                     {% endif %}
-                    {% if caps.get('vision') %}
-                        <span class="badge bg-info-subtle text-info small border border-info-subtle"><i class="ti ti-photo me-1"></i>صور</span>
+                    {% if caps.get('vision_in') %}
+                        <span class="badge bg-info-subtle text-info x-small border border-info-subtle"><i class="ti ti-eye me-1"></i>رؤية</span>
                     {% endif %}
-                    {% if caps.get('audio') %}
-                        <span class="badge bg-primary-subtle text-primary small border border-primary-subtle"><i class="ti ti-microphone me-1"></i>صوت</span>
+                    {% if caps.get('audio_in') %}
+                        <span class="badge bg-primary-subtle text-primary x-small border border-primary-subtle"><i class="ti ti-ear me-1"></i>سماع</span>
+                    {% endif %}
+                    {% if caps.get('audio_out') %}
+                        <span class="badge bg-warning-subtle text-warning x-small border border-warning-subtle"><i class="ti ti-speakerphone me-1"></i>تحدث</span>
                     {% endif %}
                 </div>
 
@@ -124,7 +127,7 @@
                             </div>
                             <!-- Vision Test Card -->
                             <div class="card bg-secondary-bg-subtle border-0 p-3" id="test-vision">
-                                <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
                                     <div class="d-flex align-items-center">
                                         <div class="avatar avatar-xs bg-white rounded shadow-sm me-2 text-info">
                                             <i class="ti ti-photo"></i>
@@ -133,10 +136,14 @@
                                     </div>
                                     <span class="status-badge text-secondary small">--</span>
                                 </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-white text-secondary border border-secondary-subtle x-small" id="vision-in"><i class="ti ti-eye me-1"></i>استقبال</span>
+                                    <span class="badge bg-white text-secondary border border-secondary-subtle x-small" id="vision-out"><i class="ti ti-brush me-1"></i>إرسال</span>
+                                </div>
                             </div>
                             <!-- Audio Test Card -->
                             <div class="card bg-secondary-bg-subtle border-0 p-3" id="test-audio">
-                                <div class="d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
                                     <div class="d-flex align-items-center">
                                         <div class="avatar avatar-xs bg-white rounded shadow-sm me-2 text-success">
                                             <i class="ti ti-microphone"></i>
@@ -144,6 +151,10 @@
                                         <span class="fw-bold">اختبار الصوت (Audio)</span>
                                     </div>
                                     <span class="status-badge text-secondary small">--</span>
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <span class="badge bg-white text-secondary border border-secondary-subtle x-small" id="audio-in"><i class="ti ti-ear me-1"></i>سماع</span>
+                                    <span class="badge bg-white text-secondary border border-secondary-subtle x-small" id="audio-out"><i class="ti ti-speakerphone me-1"></i>تحدث</span>
                                 </div>
                             </div>
                         </div>
@@ -293,8 +304,27 @@
             discoveredCapabilities = testData.capabilities;
             
             updateTestCard('text', 'done', discoveredCapabilities.text);
-            updateTestCard('vision', 'done', discoveredCapabilities.vision);
-            updateTestCard('audio', 'done', discoveredCapabilities.audio);
+            updateTestCard('vision', 'done', discoveredCapabilities.vision_in || discoveredCapabilities.vision_out);
+            updateTestCard('audio', 'done', discoveredCapabilities.audio_in || discoveredCapabilities.audio_out);
+
+            // Update Sub-Badges
+            const setBadge = (id, success) => {
+                const el = document.getElementById(id);
+                if (success) {
+                    el.classList.replace('bg-white', 'bg-success-subtle');
+                    el.classList.replace('text-secondary', 'text-success');
+                    el.classList.replace('border-secondary-subtle', 'border-success-subtle');
+                } else {
+                    el.classList.replace('bg-white', 'bg-danger-subtle');
+                    el.classList.replace('text-secondary', 'text-danger');
+                    el.classList.replace('border-secondary-subtle', 'border-danger-subtle');
+                }
+            };
+
+            setBadge('vision-in', discoveredCapabilities.vision_in);
+            setBadge('vision-out', discoveredCapabilities.vision_out);
+            setBadge('audio-in', discoveredCapabilities.audio_in);
+            setBadge('audio-out', discoveredCapabilities.audio_out);
 
             showFeedback('نجاح الفحص', 'تم التحقق من النموذج بنجاح. يمكنك الحفظ الآن.', 'success', true);
             btn.disabled = false;

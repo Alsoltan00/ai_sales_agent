@@ -475,7 +475,11 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
     if not all([provider, api_key, model_id]):
         return {"status": "error", "message": "جميع الحقول مطلوبة"}
 
-    results = {"text": False, "vision": False, "audio": False}
+    results = {
+        "text": False, 
+        "vision_in": False, "vision_out": False, 
+        "audio_in": False, "audio_out": False
+    }
     messages_with_image = [
         {"role": "user", "content": [
             {"type": "text", "text": "What is in this image?"},
@@ -488,6 +492,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
         timeout = httpx.Timeout(20.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             # 1. اختبار النص (Text Test) - أساسي
+            # 1. OpenAI Test
             if provider == "openai":
                 res = await client.post("https://api.openai.com/v1/chat/completions",
                     headers={"Authorization": f"Bearer {api_key}"},
@@ -495,26 +500,27 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
                 )
                 if res.status_code == 200: 
                     results["text"] = True
-                    # اختبار الرؤية
+                    # Vision In
                     res_v = await client.post("https://api.openai.com/v1/chat/completions",
                         headers={"Authorization": f"Bearer {api_key}"},
                         json={"model": model_id, "messages": messages_with_image, "max_tokens": 5}
                     )
-                    if res_v.status_code == 200: results["vision"] = True
+                    if res_v.status_code == 200: results["vision_in"] = True
             
+            # 2. Google Gemini Test
             elif provider == "google" or provider == "gemini":
-                # اختبار النص
                 res = await client.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
                     json={"contents": [{"parts": [{"text": "Hi"}]}]}
                 )
                 if res.status_code == 200: 
                     results["text"] = True
-                    results["vision"] = True # أغلب نماذج Gemini تدعم الصور
-                    # اختبار الصوت (Native Audio)
+                    results["vision_in"] = True 
+                    results["audio_in"] = True
+                    # Check Native Audio Out
                     res_a = await client.post(f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}",
-                        json={"contents": [{"parts": [{"text": "listen"}, {"inline_data": {"mime_type": "audio/ogg", "data": "T2dnUwACAAAAAAAAAAA="}}]}]}
+                        json={"contents": [{"parts": [{"text": "say hi"}]}], "generationConfig": {"response_mime_type": "audio/wav"}}
                     )
-                    if res_a.status_code == 200: results["audio"] = True
+                    if res_a.status_code == 200: results["audio_out"] = True
 
             elif provider == "groq":
                 res = await client.post("https://api.groq.com/openai/v1/chat/completions",
