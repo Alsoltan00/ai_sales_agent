@@ -211,8 +211,9 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
    - اعتمد حصراً على قائمة المنتجات أعلاه للإجابة عن الأسعار والمخزون.
    - إذا سُئلت عن سعر غير موجود، قل أنك ستتحقق وتعود للعميل.
 
-3. قواعد عامة:
-- رد دائماً بالعربية وبنفس لهجة العميل إذا كانت عربية.
+3. قواعد عامة وصارمة:
+- رد دائماً بالعربية الفصحى أو بلهجة العميل إذا كانت عربية، أو بالإنجليزية إذا تحدث بها.
+- يمنع منعاً باتاً استخدام أي رموز أو لغات غريبة (مثل الحروف الصينية أو الرموز البرمجية) في الرد.
 - كن مقنعاً ومحترماً وركز على دفع العميل نحو "إتمام الطلب".
 - الردود تكون مختصرة وجذابة (حد أقصى 3 فقرات).
 - لا تذكر أنك ذكاء اصطناعي.
@@ -286,7 +287,7 @@ async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
         res = await client.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "max_tokens": 500},
+            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
             timeout=30
         )
         data = res.json()
@@ -304,7 +305,7 @@ async def _call_anthropic(api_key: str, model_id: str, messages: list, system: s
                 "anthropic-version": "2023-06-01",
                 "Content-Type": "application/json"
             },
-            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500},
+            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500, "temperature": 0.1},
             timeout=30
         )
         data = res.json()
@@ -316,7 +317,7 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         res = await client.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "max_tokens": 500},
+            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
             timeout=30
         )
         data = res.json()
@@ -369,7 +370,7 @@ async def _call_google(api_key: str, model_id: str, user_message: str, system: s
                 "parts": parts
             }
         ],
-        "generationConfig": {"maxOutputTokens": 500}
+        "generationConfig": {"maxOutputTokens": 500, "temperature": 0.1}
     }
     async with httpx.AsyncClient() as client:
         res = await client.post(url, headers=headers, json=body, timeout=30)
@@ -392,7 +393,7 @@ async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
                 "HTTP-Referer": "https://ai-sales-agent-dreu.onrender.com",
                 "X-Title": "AI Sales Agent"
             },
-            json={"model": model_id, "messages": messages},
+            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
             timeout=30
         )
         data = res.json()
