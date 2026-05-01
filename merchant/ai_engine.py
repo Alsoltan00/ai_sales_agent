@@ -9,21 +9,19 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     """
     supabase = get_supabase_client()
 
-    # 1. جلب إعدادات الوكيل (الاسم والشركة من جدولين مختلفين)
+    # 1. جلب إعدادات الوكيل (الاسم والشركة)
     try:
-        # جلب اسم الشركة
-        client_res = supabase.table("clients").select("company_name").eq("id", client_id).single().execute()
-        company_name = client_res.data.get("company_name", "الشركة") if client_res.data else "الشركة"
-
-        # جلب إعدادات التخطيط (الشخصية والنشاط)
-        planning_res = supabase.table("planning_config").select(
-            "sales_agent_name, dialect_instructions, company_description, store_activity"
-        ).eq("client_id", client_id).single().execute()
+        from merchant.planning.planning_config import get_planning_config
+        from merchant.store_management.store_settings import get_store_settings
         
-        p = planning_res.data or {}
-        agent_name     = p.get("sales_agent_name") or company_name
-        tone           = p.get("dialect_instructions") or "احترافي ومهذب"
-        description    = p.get("company_description") or ""
+        settings = get_store_settings(client_id)
+        company_name = settings.get("company_name", "الشركة")
+        
+        p = get_planning_config(client_id)
+        # نستخدم المفاتيح التي تعود من get_planning_config وهي (ai_agent_name, ai_tone, business_description, store_activity)
+        agent_name     = p.get("ai_agent_name") or company_name
+        tone           = p.get("ai_tone") or "احترافي ومهذب"
+        description    = p.get("business_description") or ""
         store_activity = p.get("store_activity") or ""
     except Exception as e:
         print(f"Error fetching planning config: {e}")
