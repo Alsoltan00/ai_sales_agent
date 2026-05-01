@@ -35,7 +35,9 @@ def update_planning_config(client_id: str, data: dict) -> bool:
                 update_data[field_map[k]] = v
         
         if update_data:
-            supabase.table("planning_config").update(update_data).eq("client_id", client_id).execute()
+            update_data["client_id"] = client_id
+            # استخدام upsert لضمان إنشاء السجل إذا لم يكن موجوداً
+            supabase.table("planning_config").upsert(update_data).execute()
         return True
     except Exception as e:
         print(f"Error updating planning config: {e}")
