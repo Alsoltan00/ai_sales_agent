@@ -258,6 +258,29 @@
 
 {% block extra_scripts %}
 <script>
+    function showGlobalFeedback(id, title, msg, type = 'success') {
+        const box = document.getElementById(id);
+        box.className = `alert alert-${type} shadow-sm border-0 mb-4 animate__animated animate__fadeIn`;
+        box.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="ti ti-${type === 'success' ? 'check' : 'alert-triangle'} fs-4 me-2"></i>
+                <div>
+                    <strong class="d-block">${title}</strong>
+                    <span class="small">${msg}</span>
+                </div>
+            </div>
+        `;
+        box.style.display = 'block';
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        if(type === 'success') {
+            setTimeout(() => {
+                box.classList.replace('animate__fadeIn', 'animate__fadeOut');
+                setTimeout(() => box.style.display = 'none', 500);
+            }, 5000);
+        }
+    }
+
 // ─── Activity Data ───────────────────────────────────────────────────────────
 const activityData = {
     "التجزئة والتسوق": ["سوبر ماركت", "متجر تموينات", "خضار وفواكه", "لحوم ودواجن", "ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "عبايات وطرح", "أحذية وحقائب", "ساعات وهدايا", "إكسسوارات ومجوهرات", "عطور وبخور", "مستحضرات تجميل", "مكياج", "بصريات ونظارات", "ألعاب أطفال", "قرطاسية وأدوات مكتبية", "كتب ومجلات", "زهور وتغليف"],
@@ -362,10 +385,10 @@ function updateUI() {
 async function savePlanning(e) {
     e.preventDefault();
     const btn = document.getElementById('saveBtn');
-    const alertBox = document.getElementById('alertBox');
     btn.disabled = true;
+    const originalHTML = btn.innerHTML;
     btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
-    alertBox.style.display = 'none';
+    
     try {
         const res = await fetch('/merchant/api/planning', {
             method: 'POST',
@@ -378,16 +401,23 @@ async function savePlanning(e) {
             })
         });
         const data = await res.json();
-        alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
-        alertBox.innerText = data.message;
-        alertBox.style.display = 'block';
+        if(data.status === 'success') {
+            btn.classList.replace('btn-primary', 'btn-success');
+            btn.innerHTML = '<i class="ti ti-check me-1"></i> تم التحديث!';
+            showGlobalFeedback('alertBox', 'نجاح التحديث', 'تم حفظ إعدادات التخطيط بنجاح.', 'success');
+            setTimeout(() => {
+                btn.classList.replace('btn-success', 'btn-primary');
+                btn.innerHTML = originalHTML;
+            }, 3000);
+        } else {
+            showGlobalFeedback('alertBox', 'خطأ', data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
     } catch(err) {
-        alertBox.className = 'alert alert-danger';
-        alertBox.innerText = 'حدث خطأ في الاتصال';
-        alertBox.style.display = 'block';
-    } finally {
+        showGlobalFeedback('alertBox', 'خطأ في الاتصال', 'تعذر حفظ البيانات بسبب مشكلة في الشبكة.', 'danger');
         btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> تحديث التخطيط';
+        btn.innerHTML = originalHTML;
     }
 }
 
@@ -407,7 +437,7 @@ async function loadColumns() {
         }
         container.innerHTML = currentCols.map(col => `
             <div class="column-card ${col.is_disabled ? 'disabled' : ''}" id="card_${col.name}">
-                <div class="col-name">${col.name}</div>
+                <div class="col-name text-truncate" title="${col.name}">${col.name}</div>
                 <div class="col-body">
                     <div class="toggle-wrap">
                         <label class="toggle">
@@ -433,10 +463,10 @@ function toggleCard(name, disabled) {
 
 async function saveCols() {
     const btn = document.getElementById('saveColsBtn');
-    const alertBox = document.getElementById('colsAlertBox');
     btn.disabled = true;
+    const originalHTML = btn.innerHTML;
     btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
-    alertBox.style.display = 'none';
+    
     try {
         const res = await fetch('/merchant/api/planning/columns', {
             method: 'POST',
@@ -448,16 +478,24 @@ async function saveCols() {
             }))})
         });
         const data = await res.json();
-        alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
-        alertBox.innerText = data.message;
-        alertBox.style.display = 'block';
+        
+        if(data.status === 'success') {
+            btn.classList.replace('btn-primary', 'btn-success');
+            btn.innerHTML = '<i class="ti ti-check me-1"></i> تم الحفظ بنجاح!';
+            showGlobalFeedback('colsAlertBox', 'تم الحفظ', 'تم تحديث إعدادات الأعمدة بنجاح.', 'success');
+            setTimeout(() => {
+                btn.classList.replace('btn-success', 'btn-primary');
+                btn.innerHTML = originalHTML;
+            }, 3000);
+        } else {
+            showGlobalFeedback('colsAlertBox', 'فشل الحفظ', data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
     } catch(err) {
-        alertBox.className = 'alert alert-danger';
-        alertBox.innerText = 'حدث خطأ في الاتصال';
-        alertBox.style.display = 'block';
-    } finally {
+        showGlobalFeedback('colsAlertBox', 'خطأ فني', 'تعذر الحفظ بسبب خطأ في الاتصال بالسيرفر.', 'danger');
         btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ إعدادات الأعمدة';
+        btn.innerHTML = originalHTML;
     }
 }
 
