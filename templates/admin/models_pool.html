@@ -148,13 +148,16 @@
                         </div>
                         
                         <div id="diagnostic-feedback" class="mt-3 d-none">
-                            <div class="alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3" id="feedback-box">
+                            <div class="alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3 mb-2" id="feedback-box">
                                 <div class="me-3" id="feedback-icon"></div>
-                                <div>
+                                <div class="flex-grow-1">
                                     <h6 class="mb-1 fw-bold" id="feedback-title">نتائج الفحص</h6>
                                     <p class="mb-0 small" id="feedback-text"></p>
                                 </div>
                             </div>
+                            <button type="button" class="btn btn-success w-100 d-none" id="finalSaveBtn" onclick="finalizeSave()">
+                                <i class="ti ti-check me-1"></i> تأكيد وحفظ النموذج الآن
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -217,21 +220,25 @@
         }
     }
 
-    function showFeedback(title, text, type = 'info') {
+    function showFeedback(title, text, type = 'info', showSave = false) {
         const wrapper = document.getElementById('diagnostic-feedback');
         const box = document.getElementById('feedback-box');
         const titleEl = document.getElementById('feedback-title');
         const textEl = document.getElementById('feedback-text');
         const iconEl = document.getElementById('feedback-icon');
+        const saveBtn = document.getElementById('finalSaveBtn');
 
         wrapper.classList.remove('d-none');
-        box.className = `alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3 bg-${type}-subtle text-${type}`;
+        box.className = `alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3 bg-${type}-subtle text-${type} mb-2`;
         titleEl.innerText = title;
         textEl.innerText = text;
         
         if (type === 'success') iconEl.innerHTML = '<i class="ti ti-circle-check fs-3"></i>';
         else if (type === 'danger') iconEl.innerHTML = '<i class="ti ti-alert-triangle fs-3"></i>';
         else iconEl.innerHTML = '<i class="ti ti-info-circle fs-3"></i>';
+
+        if (showSave) saveBtn.classList.remove('d-none');
+        else saveBtn.classList.add('d-none');
     }
 
     async function runDiagnostics() {
@@ -250,6 +257,7 @@
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
         document.getElementById('diagnostic-feedback').classList.add('d-none');
+        document.getElementById('finalSaveBtn').classList.add('d-none');
         
         // Reset Cards
         ['text', 'vision', 'audio'].forEach(id => {
@@ -286,29 +294,48 @@
             updateTestCard('vision', 'done', discoveredCapabilities.vision);
             updateTestCard('audio', 'done', discoveredCapabilities.audio);
 
-            showFeedback('نجاح الفحص', 'تم التحقق من النموذج بنجاح. يمكنك الحفظ الآن.', 'success');
-
-            setTimeout(async () => {
-                if(confirm('تم الانتهاء من الفحص. هل تريد حفظ هذا النموذج؟')) {
-                    const res = await fetch('/admin/api/models-pool', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ ...payload, capabilities: discoveredCapabilities })
-                    });
-                    const data = await res.json();
-                    if(data.status === 'success') {
-                        addModal.hide();
-                        window.location.reload();
-                    } else {
-                        showFeedback('خطأ في الحفظ', data.message, 'danger');
-                    }
-                }
-                btn.disabled = false;
-            }, 800);
+            showFeedback('نجاح الفحص', 'تم التحقق من النموذج بنجاح. يمكنك الحفظ الآن.', 'success', true);
+            btn.disabled = false;
 
         } catch(e) { 
             showFeedback('خطأ فني', 'تعذر الاتصال بالخادم لإجراء الفحص.', 'danger');
             btn.disabled = false;
+        }
+    }
+
+    async function finalizeSave() {
+        const payload = {
+            model_name: document.getElementById('model_name').value,
+            provider: document.getElementById('provider').value,
+            model_id: document.getElementById('model_id').value,
+            api_key: document.getElementById('api_key').value,
+            capabilities: discoveredCapabilities
+        };
+
+        const saveBtn = document.getElementById('finalSaveBtn');
+        const originalContent = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري الحفظ...';
+
+        try {
+            const res = await fetch('/admin/api/models-pool', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if(data.status === 'success') {
+                addModal.hide();
+                window.location.reload();
+            } else {
+                showFeedback('خطأ في الحفظ', data.message, 'danger');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = originalContent;
+            }
+        } catch(e) {
+            showFeedback('خطأ في الاتصال', 'تعذر حفظ النموذج بسبب خطأ في الشبكة.', 'danger');
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalContent;
         }
     }
 
@@ -320,9 +347,9 @@
             if(data.status === 'success') {
                 window.location.reload();
             } else {
-                alert('خطأ: ' + data.message);
+                showFeedback('خطأ في الحذف', data.message, 'danger');
             }
-        } catch(e) { alert('خطأ في الحذف'); }
+        } catch(e) { showFeedback('خطأ فني', 'حدث خطأ غير متوقع أثناء الحذف.', 'danger'); }
     }
 </script>
 {% endblock %}
