@@ -155,6 +155,19 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     except Exception as e:
         print(f"Warning: Could not fetch business rules: {e}")
 
+    # 3.6 جلب تدريب الأعمدة (Column Training)
+    column_training_prompt = ""
+    try:
+        col_train_res = supabase.table("column_training").select("column_name, note, is_disabled").eq("client_id", client_id).execute()
+        if col_train_res.data:
+            train_notes = []
+            for ct in col_train_res.data:
+                status = "تجاهل هذا العمود تماماً" if ct['is_disabled'] else ct['note']
+                train_notes.append(f"- العمود [{ct['column_name']}]: {status}")
+            column_training_prompt = "\nتعليمات خاصة بأعمدة البيانات:\n" + "\n".join(train_notes) + "\n"
+    except Exception as e:
+        print(f"Warning: Could not fetch column training: {e}")
+
     # 3.7 جلب ذاكرة العميل (تاريخ المحادثات السابقة)
     chat_history_prompt = ""
     try:
@@ -181,17 +194,21 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     product_context = ""
     if store_data:
         product_context = f"""
-بيانات المنتجات والمخزون المتاحة حالياً (JSON):
+بيانات المنتجات والمخزون المتاحة حالياً:
 -------------------------------------------
 {store_data}
 -------------------------------------------
-ملاحظة: استخدم البيانات أعلاه للإجابة على توفر المنتج، السعر، والمواصفات. إذا لم تجد المنتج في القائمة أعلاه، أخبر العميل بلباقة أنك ستتحقق من توفره لاحقاً.
+{column_training_prompt}
+ملاحظة هامة: استخدم البيانات والتعليمات أعلاه حصراً للإجابة. إذا تم تعطيل عمود، لا تذكر معلوماته أبداً.
 """
 
-    system_prompt = f"""أنت {agent_name}، مندوب مبيعات محترف وذكي يعمل لدى {company_name}.
-{chat_history_prompt}
+    system_prompt = f"""هويتك الشخصية:
+- اسمك هو "{agent_name}".
+- عندما يسألك العميل من أنت، يجب أن تجيب: "أنا {agent_name}، مندوب مبيعات في {company_name}".
+- ممنوع تماماً أن تقول "أنا مندوب مبيعات ذكي" أو "أنا مساعد آلي". استخدم اسمك دائماً.
+- نبرة صوتك (Tone): {tone}
 
-لهجة الرد: {tone}
+{chat_history_prompt}
 
 معلومات الشركة والخدمات العامة:
 {description}
@@ -204,16 +221,15 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 1. الالتزام بالنشاط: نشاط المتجر الأساسي هو: [{store_activity}].
    - وظيفتك هي المساعدة في بيع المنتجات الموجودة في القائمة أعلاه.
    - يُمنع الإجابة على أسئلة خارج نطاق التجارة أو تخصص المتجر.
-   - إذا سألك العميل عن شيء خارج النشاط تماماً (مثل السياسة)، اعتذر بلطف وعد للموضوع التجاري.
+   - إذا سألك العميل عن شيء خارج النشاط تماماً، اعتذر بلطف وعد للموضوع التجاري.
 
 2. منع المعلومات المضللة:
    - لا تخترع منتجات غير موجودة.
-   - اعتمد حصراً على قائمة المنتجات أعلاه للإجابة عن الأسعار والمخزون.
-   - إذا سُئلت عن سعر غير موجود، قل أنك ستتحقق وتعود للعميل.
+   - اعتمد حصراً على قائمة المنتجات أعلاه والتعليمات الخاصة بالأعمدة للإجابة.
 
 3. قواعد عامة وصارمة:
 - رد دائماً بالعربية الفصحى أو بلهجة العميل إذا كانت عربية، أو بالإنجليزية إذا تحدث بها.
-- يمنع منعاً باتاً استخدام أي رموز أو لغات غريبة (مثل الحروف الصينية أو الرموز البرمجية) في الرد.
+- يمنع منعاً باتاً استخدام أي رموز أو لغات غريبة في الرد.
 - كن مقنعاً ومحترماً وركز على دفع العميل نحو "إتمام الطلب".
 - الردود تكون مختصرة وجذابة (حد أقصى 3 فقرات).
 - لا تذكر أنك ذكاء اصطناعي.
