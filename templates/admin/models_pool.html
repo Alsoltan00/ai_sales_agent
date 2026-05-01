@@ -147,9 +147,14 @@
                             </div>
                         </div>
                         
-                        <div class="alert alert-info mt-3 small mb-0">
-                            <i class="ti ti-info-circle me-1"></i>
-                            سيتم اختبار قدرات النموذج في الوقت الفعلي قبل الحفظ.
+                        <div id="diagnostic-feedback" class="mt-3 d-none">
+                            <div class="alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3" id="feedback-box">
+                                <div class="me-3" id="feedback-icon"></div>
+                                <div>
+                                    <h6 class="mb-1 fw-bold" id="feedback-title">نتائج الفحص</h6>
+                                    <p class="mb-0 small" id="feedback-text"></p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -212,6 +217,23 @@
         }
     }
 
+    function showFeedback(title, text, type = 'info') {
+        const wrapper = document.getElementById('diagnostic-feedback');
+        const box = document.getElementById('feedback-box');
+        const titleEl = document.getElementById('feedback-title');
+        const textEl = document.getElementById('feedback-text');
+        const iconEl = document.getElementById('feedback-icon');
+
+        wrapper.classList.remove('d-none');
+        box.className = `alert border-0 rounded-3 shadow-sm d-flex align-items-start p-3 bg-${type}-subtle text-${type}`;
+        titleEl.innerText = title;
+        textEl.innerText = text;
+        
+        if (type === 'success') iconEl.innerHTML = '<i class="ti ti-circle-check fs-3"></i>';
+        else if (type === 'danger') iconEl.innerHTML = '<i class="ti ti-alert-triangle fs-3"></i>';
+        else iconEl.innerHTML = '<i class="ti ti-info-circle fs-3"></i>';
+    }
+
     async function runDiagnostics() {
         const payload = {
             model_name: document.getElementById('model_name').value,
@@ -221,12 +243,13 @@
         };
 
         if(!payload.model_name || !payload.api_key) {
-            alert('يرجى ملء جميع البيانات الأساسية');
+            showFeedback('تنبيه', 'يرجى ملء جميع بيانات النموذج أولاً.', 'warning');
             return;
         }
 
         const btn = document.getElementById('saveBtn');
         btn.disabled = true;
+        document.getElementById('diagnostic-feedback').classList.add('d-none');
         
         // Reset Cards
         ['text', 'vision', 'audio'].forEach(id => {
@@ -246,20 +269,27 @@
             
             if(testData.status !== 'success') {
                 ['text', 'vision', 'audio'].forEach(id => updateTestCard(id, 'done', false));
-                alert('عذراً، فشل التحقق الأساسي: ' + testData.message);
+                
+                let errorMsg = testData.message;
+                if (errorMsg.includes('429')) errorMsg = 'النموذج مشغول حالياً (ضغط كبير). يرجى المحاولة بعد دقيقة.';
+                else if (errorMsg.includes('invalid_api_key')) errorMsg = 'مفتاح الـ API غير صالح لهذا المزود.';
+                else if (errorMsg.includes('model_not_found')) errorMsg = 'معرف النموذج غير صحيح أو غير متاح لحسابك.';
+                
+                showFeedback('فشل الاختبار', errorMsg, 'danger');
                 btn.disabled = false;
                 return;
             }
             
             discoveredCapabilities = testData.capabilities;
             
-            // Visual feedback
             updateTestCard('text', 'done', discoveredCapabilities.text);
             updateTestCard('vision', 'done', discoveredCapabilities.vision);
             updateTestCard('audio', 'done', discoveredCapabilities.audio);
 
+            showFeedback('نجاح الفحص', 'تم التحقق من النموذج بنجاح. يمكنك الحفظ الآن.', 'success');
+
             setTimeout(async () => {
-                if(confirm('تم الانتهاء من الفحص. هل تريد حفظ هذا النموذج بقدراته المكتشفة؟')) {
+                if(confirm('تم الانتهاء من الفحص. هل تريد حفظ هذا النموذج؟')) {
                     const res = await fetch('/admin/api/models-pool', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -270,14 +300,14 @@
                         addModal.hide();
                         window.location.reload();
                     } else {
-                        alert('خطأ أثناء الحفظ: ' + data.message);
+                        showFeedback('خطأ في الحفظ', data.message, 'danger');
                     }
                 }
                 btn.disabled = false;
-            }, 500);
+            }, 800);
 
         } catch(e) { 
-            alert('خطأ في الاتصال بالخادم'); 
+            showFeedback('خطأ فني', 'تعذر الاتصال بالخادم لإجراء الفحص.', 'danger');
             btn.disabled = false;
         }
     }
