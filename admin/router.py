@@ -523,6 +523,13 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
                 )
                 if res.status_code == 200: results["text"] = True
 
+            elif provider == "xai":
+                res = await client.post("https://api.x.ai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+                if res.status_code == 200: results["text"] = True
+
             elif provider == "anthropic":
                 res = await client.post("https://api.anthropic.com/v1/messages",
                     headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
