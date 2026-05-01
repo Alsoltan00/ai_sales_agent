@@ -184,7 +184,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             for h in history:
                 chat_history_prompt += f"- العميل: {h['message_text']}\n"
                 chat_history_prompt += f"- أنت: {h['ai_response']}\n"
-            chat_history_prompt += "\nملاحظة: استخدم هذا التاريخ لتعرف إذا كان العميل قد سأل عن شيء سابقاً أو طلب طلباً معيناً لتقديم تجربة شخصية مميزة.\n"
+            chat_history_prompt += "\nملاحظة: بما أن هناك تاريخ محادثة أعلاه (أكثر من رسالة)، فهذا يعني أنك قد رحبت بالعميل مسبقاً. التزم بالقاعدة رقم 2 في هويتك الشخصية ولا تكرر اسمك أو اسم المتجر الآن.\n"
     except Exception as e:
         print(f"Warning: Could not fetch chat history: {e}")
 
