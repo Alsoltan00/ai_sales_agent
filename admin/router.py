@@ -453,7 +453,8 @@ async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_
             "model_name": payload.get("model_name", "").strip(),
             "provider": payload.get("provider", "").strip().lower(),
             "model_id": payload.get("model_id", "").strip(),
-            "api_key": payload.get("api_key", "").strip()
+            "api_key": payload.get("api_key", "").strip(),
+            "capabilities": payload.get("capabilities", {})
         }
         supabase.table("global_ai_models").insert(clean_payload).execute()
         return {"status": "success", "message": "تم إضافة النموذج للمكتبة بنجاح"}
