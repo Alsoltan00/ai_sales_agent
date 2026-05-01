@@ -52,6 +52,11 @@ class QueryBuilder:
         self._data = data
         return self
 
+    def upsert(self, data):
+        self._action = "UPSERT"
+        self._data = data
+        return self
+
     def delete(self):
         self._action = "DELETE"
         return self
@@ -133,11 +138,40 @@ class QueryBuilder:
                 else:
                     query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
                     result = conn.execute(text(query), params)
-                    # محاولة جلب المعرف الجديد في حال كان الترقيم تلقائياً
                     try:
                         last_id = result.lastrowid
                         if last_id: data["id"] = last_id
                     except: pass
+                    return MockResponse([data])
+
+            elif self._action == "UPSERT":
+                if isinstance(self._data, list):
+                    data = self._data[0] if len(self._data) > 0 else {}
+                else:
+                    data = self._data
+                
+                if not data: return MockResponse([])
+
+                cols = ", ".join(data.keys())
+                vals = ", ".join([f":p_upd_{k}" for k in data.keys()])
+                for k, v in data.items():
+                    params[f"p_upd_{k}"] = json.dumps(v, ensure_ascii=False) if isinstance(v, (dict, list)) else v
+                
+                is_postgres = "postgres" in str(engine.url) or "postgresql" in str(engine.url)
+                
+                if is_postgres:
+                    # Postgres upsert (assuming client_id or id is the conflict key)
+                    conflict_key = "client_id" if "client_id" in data else "id"
+                    update_cols = ", ".join([f"{k} = EXCLUDED.{k}" for k in data.keys() if k != conflict_key])
+                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) ON CONFLICT ({conflict_key}) DO UPDATE SET {update_cols} RETURNING *"
+                    result = conn.execute(text(query), params)
+                    rows = [dict(mapping) for mapping in result.mappings()]
+                    return MockResponse(rows)
+                else:
+                    # MySQL upsert
+                    update_cols = ", ".join([f"{k} = VALUES({k})" for k in data.keys() if k != "id"])
+                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) ON DUPLICATE KEY UPDATE {update_cols}"
+                    conn.execute(text(query), params)
                     return MockResponse([data])
 
             elif self._action == "UPDATE":
