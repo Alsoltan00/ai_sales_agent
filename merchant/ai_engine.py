@@ -115,11 +115,15 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             # جلب البيانات اليدوية المرفوعة
             manual_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
             if manual_res.data:
-                # نأخذ أول سجل ونحوله لتنسيق نصي سهل القراءة للذكاء الاصطناعي
+                # نأخذ أول سجل ونحوله لتنسيق نصي ذكي يفهم أي أعمدة متغيرة
                 raw_data = manual_res.data[0]["data"]
-                if isinstance(raw_data, list):
-                    formatted_lines = []
-                    for item in raw_data[:300]: # حد أقصى 300 منتج لضمان السياق
+                if isinstance(raw_data, list) and len(raw_data) > 0:
+                    # استخراج أسماء الأعمدة من أول سجل لمساعدة الذكاء الاصطناعي على فهم الهيكل
+                    columns = list(raw_data[0].keys())
+                    formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
+                    formatted_lines.append("---")
+                    
+                    for item in raw_data[:300]:
                         line = " | ".join([f"{k}: {v}" for k, v in item.items()])
                         formatted_lines.append(f"- {line}")
                     store_data = "\n".join(formatted_lines)
