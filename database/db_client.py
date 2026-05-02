@@ -32,10 +32,12 @@ class QueryBuilder:
         self._limit = None
         self._single = False
         self._order_by = []
+        self._count_mode = None
 
-    def select(self, cols="*"):
+    def select(self, cols="*", count=None):
         self._action = "SELECT"
         self._select_cols = cols
+        self._count_mode = count
         return self
 
     def order(self, col, desc=False):
@@ -107,9 +109,14 @@ class QueryBuilder:
                 result = conn.execute(text(query), params)
                 rows = [dict(mapping) for mapping in result.mappings()]
                 
+                count_val = None
+                if self._count_mode == "exact":
+                    count_query = f"SELECT COUNT(*) FROM {self.table_name}{where_sql}"
+                    count_val = conn.execute(text(count_query), params).scalar()
+
                 if self._single:
-                    return MockResponse(rows[0] if rows else None)
-                return MockResponse(rows)
+                    return MockResponse(rows[0] if rows else None, count=count_val)
+                return MockResponse(rows, count=count_val)
 
             elif self._action == "INSERT":
                 if isinstance(self._data, list):
