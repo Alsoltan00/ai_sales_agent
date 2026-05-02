@@ -107,7 +107,17 @@ async def evolution_webhook(instance_name: str, request: Request):
             return Response(status_code=200)
 
         phone       = key.get("remoteJid", "")
+        msg_id      = key.get("id")
         msg_content = data.get("message", {})
+
+        # 1. منع تكرار الرد على نفس الرسالة (Deduplication)
+        # إذا كانت الرسالة موجودة مسبقاً في السجل، نتجاهلها
+        if msg_id:
+            supabase = get_supabase_client()
+            check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
+            if check_dup.data:
+                print(f"[DEBUG] Skipping duplicate message: {msg_id}")
+                return Response(status_code=200)
 
         # التحقق من نوع الرسالة
         msg_type = "text"
@@ -219,7 +229,7 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # توليد الرد
         print(f"[AI] Calling AI for client {client_id}...")
-        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution", image_base64=image_base64, audio_base64=audio_base64)
+        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution", image_base64=image_base64, audio_base64=audio_base64, message_id=msg_id)
         print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد

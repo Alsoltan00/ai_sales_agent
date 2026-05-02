@@ -3,7 +3,7 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
-async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None, audio_base64: str = None) -> str:
+async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None, audio_base64: str = None, message_id: str = None) -> str:
     """
     يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور والصوت)
     """
@@ -102,31 +102,27 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     # 3. جلب بيانات المتجر للسياق
     store_data = ""
     try:
+        # جلب إعدادات المزامنة
         sync_cfg = supabase.table("sync_config").select("*").eq("client_id", client_id).single().execute()
-        if sync_cfg.data and sync_cfg.data.get("source_type") == "aiven":
-            # يمكن إضافة منطق جلب من MySQL هنا لاحقاً
-            pass
-        elif sync_cfg.data and sync_cfg.data.get("source_type") == "google_sheets":
-            # يمكن إضافة منطق جلب من جوجل شيتس هنا لاحقاً
-            pass
-        elif sync_cfg.data and sync_cfg.data.get("source_type") == "excel":
-            # جلب البيانات اليدوية المرفوعة
-            manual_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
-            if manual_res.data:
-                # نأخذ أول سجل ونحوله لتنسيق نصي ذكي يفهم أي أعمدة متغيرة
-                raw_data = manual_res.data[0]["data"]
-                if isinstance(raw_data, list) and len(raw_data) > 0:
-                    # استخراج أسماء الأعمدة من أول سجل لمساعدة الذكاء الاصطناعي على فهم الهيكل
-                    columns = list(raw_data[0].keys())
-                    formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
-                    formatted_lines.append("---")
-                    
-                    for item in raw_data[:300]:
-                        line = " | ".join([f"{k}: {v}" for k, v in item.items()])
-                        formatted_lines.append(f"- {line}")
-                    store_data = "\n".join(formatted_lines)
-                else:
-                    store_data = json.dumps(raw_data, ensure_ascii=False)
+        
+        # محاولة جلب البيانات اليدوية (إكسيل) كخيار أول أو احتياطي
+        manual_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
+        if manual_res.data:
+            raw_data = manual_res.data[0]["data"]
+            if isinstance(raw_data, list) and len(raw_data) > 0:
+                columns = list(raw_data[0].keys())
+                formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
+                formatted_lines.append("---")
+                for item in raw_data[:300]:
+                    line = " | ".join([f"{k}: {v}" for k, v in item.items()])
+                    formatted_lines.append(f"- {line}")
+                store_data = "\n".join(formatted_lines)
+            else:
+                store_data = json.dumps(raw_data, ensure_ascii=False)
+
+        # إذا كانت المزامنة Aiven أو غيرها، يمكن إضافة منطقها هنا مستقبلاً
+    except Exception as e:
+        print(f"Warning: Could not fetch store data: {e}")
 
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
@@ -197,15 +193,18 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 {store_data}
 -------------------------------------------
 {column_training_prompt}
-ملاحظة هامة: استخدم البيانات والتعليمات أعلاه حصراً للإجابة. إذا تم تعطيل عمود، لا تذكر معلوماته أبداً.
+ملاحظة هامة (القاعدة الذهبية): 
+- استخدم البيانات أعلاه حصراً للإجابة عن الأسعار والمخزون.
+- إذا لم تجد المنتج في القائمة أعلاه، لا تخترع سعراً أو تفاصيل أبداً. قل للعميل بلباقة: "عذراً، هذا المنتج غير متوفر حالياً في مخزوننا أو ربما تقصد شيئاً آخر؟"
+- يمنع ذكر أي سعر أو معلومة لم تذكر في البيانات.
 """
 
     system_prompt = f"""هويتك الشخصية:
 - اسمك هو "{agent_name}".
-- قواعد التعريف بالنفس:
-  1. إذا كانت هذه هي الرسالة الأولى (ترحيب)، يجب أن تعرف بنفسك وبالشركة: "مرحباً، أنا {agent_name} من {company_name}".
-  2. إذا كانت المحادثة مستمرة (ليست أول رسالة)، لا تكرر اسمك أو اسم المتجر أبداً إلا إذا سألك العميل عن هويتك.
-  3. كن طبيعياً وتحدث كبشر؛ ادخل في صلب الموضوع مباشرة في الردود التالية.
+- قواعد التعريف بالنفس (صارمة جداً):
+  1. إذا كانت هذه هي الرسالة الأولى في المحادثة (ترحيب)، يجب أن تعرف بنفسك وبالشركة: "مرحباً، أنا {agent_name} من {company_name}".
+  2. إذا كان هناك تاريخ محادثة سابق (حتى لو رسالة واحدة فقط)، يمنع منعاً باتاً تكرار التعريف بنفسك أو بالمتجر. ادخل في صلب الموضوع مباشرة وكأنك تكمل المحادثة.
+  3. كن طبيعياً ومختصراً؛ تحدث كبشر لا كآلة.
 
 - نبرة صوتك (Tone): {tone}
 
@@ -286,7 +285,7 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             response = await _call_openai(api_key, model_id, messages)
 
         # 6. تسجيل السجل وتحديث العداد
-        _log_message(supabase, client_id, user_message, response, phone_number, channel)
+        _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
         try:
             supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         except Exception as update_err:
@@ -421,7 +420,7 @@ async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
             raise Exception(f"OpenRouter Error: {error_msg}")
 
 
-def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution"):
+def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution", message_id: str = None):
     try:
         supabase.table("message_logs").insert({
             "client_id": client_id,
@@ -429,7 +428,8 @@ def _log_message(supabase, client_id: str, user_message: str, ai_response: str, 
             "direction": "in",
             "phone_number": phone_number,
             "message_text": user_message,
-            "ai_response": ai_response
+            "ai_response": ai_response,
+            "message_id": message_id
         }).execute()
     except Exception as e:
         print(f"Log error: {e}")
