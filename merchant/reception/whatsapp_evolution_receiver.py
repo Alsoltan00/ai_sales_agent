@@ -101,6 +101,7 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         data = body.get("data", {})
         key  = data.get("key", {})
+        supabase = get_supabase_client()
 
         # تجاهل الرسائل الصادرة من الجهاز نفسه
         if key.get("fromMe", False):
@@ -113,7 +114,6 @@ async def evolution_webhook(instance_name: str, request: Request):
         # 1. منع تكرار الرد على نفس الرسالة (Deduplication)
         if msg_id:
             try:
-                supabase = get_supabase_client()
                 check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
                 if check_dup.data and len(check_dup.data) > 0:
                     print(f"[DEBUG] Skipping duplicate message: {msg_id}")

@@ -3,6 +3,11 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
+def _normalize_col_name(name: str) -> str:
+    if not isinstance(name, str):
+        return ""
+    return " ".join(name.strip().lower().split())
+
 async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None, audio_base64: str = None, message_id: str = None) -> str:
     """
     يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور والصوت)
@@ -99,7 +104,29 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     api_key   = ai_cfg_data["api_key"]
     provider  = ai_cfg_data.get("provider", "openai")
 
-    # 3. جلب بيانات المتجر للسياق
+    # 3. جلب تعليمات الأعمدة مبكراً (لاستخدامها في فلترة البيانات فعلياً قبل إرسالها للنموذج)
+    column_training_prompt = ""
+    disabled_cols_norm = set()
+    try:
+        col_train_res = supabase.table("column_training").select("column_name, note, is_disabled").eq("client_id", client_id).execute()
+        if col_train_res.data:
+            train_notes = []
+            for ct in col_train_res.data:
+                col_name = (ct.get("column_name") or "").strip()
+                if not col_name:
+                    continue
+                if ct.get("is_disabled"):
+                    disabled_cols_norm.add(_normalize_col_name(col_name))
+                    status = "تجاهل هذا العمود تماماً ولا تذكره للعميل أبداً تحت أي ظرف"
+                else:
+                    status = (ct.get("note") or "").strip() or "استخدم هذا العمود عند الحاجة فقط."
+                train_notes.append(f"- العمود [{col_name}]: {status}")
+            if train_notes:
+                column_training_prompt = "\nتعليمات خاصة بأعمدة البيانات (يجب الالتزام بها حرفياً):\n" + "\n".join(train_notes) + "\n"
+    except Exception as e:
+        print(f"Warning: Could not fetch column training: {e}")
+
+    # 4. جلب بيانات المتجر للسياق (بعد فلترة الأعمدة المعطّلة فعلياً)
     store_data = ""
     try:
         # جلب إعدادات المزامنة
@@ -110,20 +137,32 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         if manual_res.data:
             raw_data = manual_res.data[0]["data"]
             if isinstance(raw_data, list) and len(raw_data) > 0:
-                columns = list(raw_data[0].keys())
-                formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
-                formatted_lines.append("---")
-                for item in raw_data[:300]:
-                    line = " | ".join([f"{k}: {v}" for k, v in item.items()])
-                    formatted_lines.append(f"- {line}")
-                store_data = "\n".join(formatted_lines)
+                filtered_rows = []
+                for row in raw_data[:300]:
+                    if not isinstance(row, dict):
+                        continue
+                    filtered_row = {}
+                    for k, v in row.items():
+                        if _normalize_col_name(str(k)) in disabled_cols_norm:
+                            continue
+                        filtered_row[k] = v
+                    if filtered_row:
+                        filtered_rows.append(filtered_row)
+
+                if not filtered_rows:
+                    store_data = "لا توجد بيانات عرض صالحة بعد تطبيق فلترة الأعمدة المعطلة."
+                else:
+                    columns = list(filtered_rows[0].keys())
+                    formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
+                    formatted_lines.append("---")
+                    for item in filtered_rows:
+                        line = " | ".join([f"{k}: {v}" for k, v in item.items()])
+                        formatted_lines.append(f"- {line}")
+                    store_data = "\n".join(formatted_lines)
             else:
                 store_data = json.dumps(raw_data, ensure_ascii=False)
 
         # إذا كانت المزامنة Aiven أو غيرها، يمكن إضافة منطقها هنا مستقبلاً
-    except Exception as e:
-        print(f"Warning: Could not fetch store data: {e}")
-
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
 
@@ -149,42 +188,23 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     except Exception as e:
         print(f"Warning: Could not fetch business rules: {e}")
 
-    # 3.6 جلب تدريب الأعمدة (Column Training)
-    column_training_prompt = ""
-    try:
-        col_train_res = supabase.table("column_training").select("column_name, note, is_disabled").eq("client_id", client_id).execute()
-        if col_train_res.data:
-            train_notes = []
-            for ct in col_train_res.data:
-                status = "تجاهل هذا العمود تماماً ولا تذكره للعميل أبداً تحت أي ظرف" if ct['is_disabled'] else ct['note']
-                train_notes.append(f"- العمود [{ct['column_name']}]: {status}")
-            column_training_prompt = "\nتعليمات خاصة بأعمدة البيانات (يجب الالتزام بها حرفياً):\n" + "\n".join(train_notes) + "\n"
-    except Exception as e:
-        print(f"Warning: Could not fetch column training: {e}")
-
-    # 3.7 جلب ذاكرة العميل (تاريخ المحادثات السابقة)
+    # 5. مؤشر وجود محادثة سابقة فقط (بدون حقن النص القديم داخل الموجه لمنع إعادة أسئلة سابقة)
     chat_history_prompt = ""
     try:
-        # جلب آخر 5 رسائل متبادلة مع هذا الرقم
         history_res = supabase.table("message_logs") \
-            .select("message_text, ai_response, timestamp") \
+            .select("id") \
             .order("timestamp", desc=True) \
             .eq("client_id", client_id) \
             .eq("phone_number", phone_number) \
-            .limit(5) \
+            .limit(1) \
             .execute()
         
         if history_res.data:
-            history = history_res.data[::-1]
-            chat_history_prompt = "\nسياق المحادثة السابقة مع هذا العميل (للتذكر والمتابعة):\n"
-            for h in history:
-                chat_history_prompt += f"- العميل: {h['message_text']}\n"
-                chat_history_prompt += f"- أنت: {h['ai_response']}\n"
-            chat_history_prompt += "\nملاحظة: بما أن هناك تاريخ محادثة أعلاه (أكثر من رسالة)، فهذا يعني أنك قد رحبت بالعميل مسبقاً. التزم بالقاعدة رقم 2 في هويتك الشخصية ولا تكرر اسمك أو اسم المتجر الآن.\n"
+            chat_history_prompt = "\nملاحظة سياقية: توجد محادثة سابقة مع هذا العميل، لا تكرر التحية ولا تُعِد طرح إجابات لأسئلة قديمة. ركّز فقط على الرسالة الحالية.\n"
     except Exception as e:
         print(f"Warning: Could not fetch chat history: {e}")
 
-    # 4. بناء System Prompt
+    # 6. بناء System Prompt
     product_context = ""
     if store_data:
         product_context = f"""
