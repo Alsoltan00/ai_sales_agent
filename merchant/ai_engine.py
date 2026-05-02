@@ -426,7 +426,8 @@ async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
             return data["choices"][0]["message"]["content"].strip()
         else:
             error_msg = data.get("error", {}).get("message", "Unknown OpenRouter error")
-            raise Exception(f"OpenRouter Error: {error_msg}")
+            print(f"[OpenRouter API Error] Response: {data}")
+            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenRouter). يرجى المحاولة بعد قليل."
 
 
 def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution", message_id: str = None):
