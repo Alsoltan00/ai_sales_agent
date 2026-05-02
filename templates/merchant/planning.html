@@ -205,14 +205,22 @@
                     <i class="fa-solid fa-chevron-down toggle-icon"></i>
                 </div>
 
-                <!-- Pop-out Dropdown -->
-                <div id="activityDropdown" class="activity-dropdown" onclick="event.stopPropagation()">
-                    <div class="dropdown-search">
-                        <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="text" id="activitySearch" placeholder="ابحث عن نشاط..."
-                            oninput="filterActivities(event)" onclick="event.stopPropagation()">
+                <!-- Pop-out Dropdown (Rich Directory UI) -->
+                <div id="activityDropdown" class="activity-dropdown shadow-lg rounded-3 border-0" onclick="event.stopPropagation()" style="width: 100%; max-width: 800px; max-height: 500px; display: none; flex-direction: column;">
+                    <div class="dropdown-header p-3 border-bottom bg-light rounded-top-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0 fw-bold"><i class="ti ti-apps me-2 text-primary"></i>دليل الأنشطة الشامل</h6>
+                            <button type="button" class="btn-close" onclick="closeActivityDropdown()"></button>
+                        </div>
+                        <div class="dropdown-search position-relative">
+                            <i class="fa-solid fa-magnifying-glass position-absolute top-50 translate-middle-y ms-3 text-secondary" style="right: 10px;"></i>
+                            <input type="text" id="activitySearch" class="form-control form-control-lg ps-5 bg-white" placeholder="ابحث عن أي نشاط، مجال، أو خدمة (مثال: سوبر ماركت، صيدلية، تسويق)..."
+                                oninput="filterActivities(event)" onclick="event.stopPropagation()">
+                        </div>
                     </div>
-                    <div class="dropdown-scroll" id="activityList"></div>
+                    <div class="dropdown-scroll p-3 bg-white" id="activityList" style="overflow-y: auto; flex: 1;">
+                        <!-- يتم تحميل النشاطات هنا بواسطة JavaScript -->
+                    </div>
                 </div>
 
                 <p class="text-secondary mt-2 mb-0" style="font-size: 0.75rem;">
@@ -257,6 +265,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/activities_catalog.js"></script>
 <script>
     function showGlobalFeedback(id, title, msg, type = 'success') {
         const box = document.getElementById(id);
@@ -282,24 +291,12 @@
     }
 
 // ─── Activity Data ───────────────────────────────────────────────────────────
-const activityData = {
-    "التجزئة والتسوق": ["سوبر ماركت", "متجر تموينات", "خضار وفواكه", "لحوم ودواجن", "ملابس رجالية", "ملابس نسائية", "ملابس أطفال", "عبايات وطرح", "أحذية وحقائب", "ساعات وهدايا", "إكسسوارات ومجوهرات", "عطور وبخور", "مستحضرات تجميل", "مكياج", "بصريات ونظارات", "ألعاب أطفال", "قرطاسية وأدوات مكتبية", "كتب ومجلات", "زهور وتغليف"],
-    "المطاعم والضيافة": ["مطعم وجبات سريعة", "مطعم مشاوي", "مطعم شعبي", "مطعم بحري", "بيتزا وفطائر", "برجر", "شاورما", "بوفيه", "مقهى / كوفي شوب", "حلويات ومعجنات", "آيس كريم", "عصائر طبيعية", "محمصة وقهوة", "مخبز"],
-    "إلكترونيات وتقنية": ["هواتف ذكية", "صيانة جوالات", "كمبيوتر ولابتوب", "إلكترونيات منزلية", "سماعات وألعاب", "كاميرات مراقبة", "برمجيات وأنظمة", "طباعة وتصوير"],
-    "المنزل والديكور": ["أثاث منزلي", "أثاث مكتبي", "إضاءة ونجف", "سجاد وموكيت", "ستائر ومفروشات", "أدوات مطبخ", "ديكورات وجبس", "دهانات وبويات", "سباكة وكهرباء", "بناء ومقاولات"],
-    "الخدمات والمهن": ["حلاقة رجالية", "مشغل نسائي", "مغسلة ملابس", "خياطة رجالية", "خياطة نسائية", "تنظيف سجاد", "تأجير سيارات", "مكتب عقار", "استشارات قانونية", "استشارات هندسية", "دعاية وإعلان", "تصميم وجرافيك", "فوتوغرافي"],
-    "الصحة والرياضة": ["صيدلية", "مكملات غذائية", "معدات طبية", "مركز رياضي / جيم", "أدوات رياضية", "ملاعب", "نادي صحي", "عيادة خاصة"],
-    "السيارات والمحركات": ["قطع غيار سيارات", "إطارات وبطاريات", "زيوت وفلاتر", "زينة سيارات", "معرض سيارات", "ورشة صيانة", "سمكرة ودهان"],
-    "التعليم والتدريب": ["مدرسة خاصة", "مركز تعليمي", "دروس خصوصية", "تدريب مهني", "لغات أجنبية", "برامج أكاديمية"],
-    "السياحة والترفيه": ["وكالة سياحية", "فندق / شقق مفروشة", "ملاهي ترفيهية", "حجوزات طيران", "تنظيم مناسبات", "ديكور حفلات"]
-};
-
 let selectedActivities = [];
 
 window.addEventListener('DOMContentLoaded', () => {
     const val = document.getElementById('store_activity').value;
     if (val) selectedActivities = val.split('، ').filter(Boolean);
-    renderDropdown();
+    updateUI();
 
     document.addEventListener('click', (e) => {
         const trigger = document.getElementById('activityTrigger');
@@ -316,6 +313,7 @@ function toggleActivityDropdown(e) {
     if (dd.style.display !== 'flex') {
         dd.style.display = 'flex';
         renderDropdown();
+        document.getElementById('activitySearch').focus();
     }
 }
 
@@ -325,27 +323,60 @@ function closeActivityDropdown() {
 
 function renderDropdown(filter = '') {
     const list = document.getElementById('activityList');
+    // Using the searchActivities function from activities_catalog.js
+    const results = typeof searchActivities !== 'undefined' ? searchActivities(filter) : [];
+    
     let html = '';
-    for (const [cat, items] of Object.entries(activityData)) {
-        const filtered = items.filter(i => i.includes(filter));
-        if (filtered.length > 0) {
-            html += `<div class="cat-section">
-                <div class="cat-header">${cat}</div>
-                <div class="activity-grid">
-                    ${filtered.map(item => `
-                        <div class="activity-box ${selectedActivities.includes(item) ? 'selected' : ''}"
-                             onclick="toggleActivity('${item}')">${item}</div>
+    
+    if (results.length > 0) {
+        // Group by domain
+        const grouped = {};
+        results.forEach(item => {
+            if (!grouped[item.domain]) grouped[item.domain] = [];
+            grouped[item.domain].push(item);
+        });
+
+        for (const [domain, items] of Object.entries(grouped)) {
+            html += `<div class="mb-4">
+                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">${domain}</h6>
+                <div class="row g-3">
+                    ${items.map(item => `
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 border ${selectedActivities.includes(item.name) ? 'border-primary bg-primary-subtle' : 'border-light'} hover-shadow" 
+                                 style="cursor: pointer; transition: 0.2s;"
+                                 onclick="toggleActivity('${item.name}')">
+                                <div class="card-body p-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <div class="avatar avatar-sm bg-white text-primary rounded shadow-sm me-2">
+                                            <i class="${item.icon} fs-5"></i>
+                                        </div>
+                                        <h6 class="mb-0 fw-bold">${item.name}</h6>
+                                    </div>
+                                    <p class="text-secondary small mb-2" style="font-size: 0.75rem; line-height: 1.4;">${item.description}</p>
+                                    <div class="d-flex justify-content-between align-items-center mt-auto">
+                                        <div class="d-flex gap-1 flex-wrap">
+                                            ${item.tags.slice(0, 2).map(t => `<span class="badge bg-light text-secondary border" style="font-size:0.65rem;">${t}</span>`).join('')}
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="text-warning small"><i class="fa-solid fa-star"></i> ${item.rating}</span>
+                                            <span class="text-success small ms-1 fw-bold">${item.cost}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     `).join('')}
                 </div>
             </div>`;
         }
-    }
-    if (!html && filter) {
-        html = `<div class="text-center py-4 text-secondary small">
-            لا توجد نتائج..
-            <span class="text-primary" style="cursor:pointer;" onclick="toggleActivity('${filter}')">
+    } else {
+        html = `<div class="text-center py-5 text-secondary">
+            <i class="ti ti-search fs-1 mb-3 text-muted"></i>
+            <h5>لا توجد نتائج مطابقة لـ "${filter}"</h5>
+            <p class="small">جرب البحث بكلمات أخرى أو إضافة نشاط مخصص.</p>
+            <button class="btn btn-outline-primary btn-sm mt-2" onclick="toggleActivity('${filter}')">
                 إضافة "${filter}" كنشاط مخصص
-            </span>
+            </button>
         </div>`;
     }
     list.innerHTML = html;
