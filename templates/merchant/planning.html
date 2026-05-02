@@ -140,6 +140,78 @@
 }
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Activity Dropdown - Dark Mini Cards Style */
+    .activity-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background: #111b21 !important; /* Dark background matching the image */
+        border: 1px solid #2d3748 !important;
+        border-radius: 0.5rem;
+        z-index: 1000;
+        margin-top: 0.5rem;
+    }
+    
+    .activity-dropdown .dropdown-header {
+        background: #1a202c !important;
+        border-bottom: 1px solid #2d3748 !important;
+        color: #fff;
+    }
+    
+    .activity-dropdown .dropdown-search input {
+        background: #2d3748 !important;
+        border: 1px solid #4a5568 !important;
+        color: #fff !important;
+    }
+    
+    .activity-dropdown .dropdown-search input::placeholder {
+        color: #a0aec0 !important;
+    }
+    
+    .activity-dropdown .dropdown-scroll {
+        background: #111b21 !important;
+    }
+
+    .activity-mini-card {
+        background: transparent;
+        border: 1px solid #2d3748;
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        width: calc(33.333% - 0.5rem);
+        min-width: 180px;
+        max-width: 250px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    .activity-mini-card:hover {
+        border-color: #4a5568;
+        background: #1a202c;
+    }
+
+    .activity-mini-card.selected {
+        border-color: #10b981; /* Success green border */
+        background: rgba(16, 185, 129, 0.05);
+    }
+    
+    .activity-mini-card .icon-right {
+        order: 2;
+        margin-left: 0;
+        margin-right: auto;
+    }
+    
+    .activity-dropdown .text-success {
+        color: #10b981 !important; /* Brighter green */
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
 <div class="page-header mb-4">
@@ -338,30 +410,26 @@ function renderDropdown(filter = '') {
 
         for (const [domain, items] of Object.entries(grouped)) {
             html += `<div class="mb-4">
-                <h6 class="text-primary fw-bold mb-3 border-bottom pb-2">${domain}</h6>
-                <div class="row g-3">
+                <div class="d-flex justify-content-end mb-2">
+                    <h6 class="text-success fw-bold mb-0">${domain}</h6>
+                </div>
+                <hr class="border-secondary mt-0 mb-3 opacity-25">
+                <div class="d-flex flex-wrap gap-2 justify-content-end" dir="rtl">
                     ${items.map(item => `
-                        <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 border ${selectedActivities.includes(item.name) ? 'border-primary bg-primary-subtle' : 'border-light'} hover-shadow" 
-                                 style="cursor: pointer; transition: 0.2s;"
-                                 onclick="toggleActivity('${item.name}')">
-                                <div class="card-body p-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <div class="avatar avatar-sm bg-white text-primary rounded shadow-sm me-2">
-                                            <i class="${item.icon} fs-5"></i>
-                                        </div>
-                                        <h6 class="mb-0 fw-bold">${item.name}</h6>
-                                    </div>
-                                    <p class="text-secondary small mb-2" style="font-size: 0.75rem; line-height: 1.4;">${item.description}</p>
-                                    <div class="d-flex justify-content-between align-items-center mt-auto">
-                                        <div class="d-flex gap-1 flex-wrap">
-                                            ${item.tags.slice(0, 2).map(t => `<span class="badge bg-light text-secondary border" style="font-size:0.65rem;">${t}</span>`).join('')}
-                                        </div>
-                                        <div class="text-end">
-                                            <span class="text-warning small"><i class="fa-solid fa-star"></i> ${item.rating}</span>
-                                            <span class="text-success small ms-1 fw-bold">${item.cost}</span>
-                                        </div>
-                                    </div>
+                        <div class="activity-mini-card ${selectedActivities.includes(item.name) ? 'selected' : ''}" 
+                             onclick="toggleActivity('${item.name}')">
+                            <div class="d-flex justify-content-between align-items-start w-100 mb-1">
+                                <i class="${item.icon} fs-6 text-secondary icon-right"></i>
+                                <h6 class="mb-0 fw-bold text-white text-end w-100 pe-2" style="font-size: 0.85rem;">${item.name}</h6>
+                            </div>
+                            <p class="text-secondary text-end w-100 mb-2" style="font-size: 0.65rem; line-height: 1.2;">${item.description}</p>
+                            <div class="d-flex justify-content-between align-items-center w-100 mt-auto">
+                                <div class="d-flex gap-1 flex-wrap justify-content-end w-100">
+                                    ${item.tags.slice(0, 2).map(t => `<span class="badge border border-secondary text-light bg-transparent px-1 py-0 rounded-1" style="font-size:0.55rem;">${t}</span>`).join('')}
+                                </div>
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                    <span class="text-warning" style="font-size:0.6rem;"><i class="fa-solid fa-star" style="font-size:0.5rem;"></i> ${item.rating}</span>
+                                    <span class="text-success fw-bold" style="font-size:0.6rem;">${item.cost}</span>
                                 </div>
                             </div>
                         </div>
