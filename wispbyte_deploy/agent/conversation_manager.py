@@ -107,9 +107,9 @@ async def handle_incoming_message(payload: dict):
         conversation_history[remote_jid].append({"role": "user", "content": text})
         conversation_history[remote_jid].append({"role": "assistant", "content": final_response_text})
 
-        # Keep history concise (last 10 interactions)
-        if len(conversation_history[remote_jid]) > 10:
-            conversation_history[remote_jid] = conversation_history[remote_jid][-10:]
+        # Keep history concise (last 4 interactions only to prevent hallucination from old context)
+        if len(conversation_history[remote_jid]) > 4:
+            conversation_history[remote_jid] = conversation_history[remote_jid][-4:]
 
         # 4. Send the Text Reply back to WhatsApp IMMEDIATELY for speed
         send_whatsapp_text(remote_jid, final_response_text)
