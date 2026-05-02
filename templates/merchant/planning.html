@@ -354,7 +354,7 @@
 {% endblock %}
 
 {% block extra_scripts %}
-<script src="/static/js/activities_catalog.js"></script>
+<script src="/static/js/activities_catalog.js?v=450"></script>
 <script>
     function showGlobalFeedback(id, title, msg, type = 'success') {
         const box = document.getElementById(id);
@@ -418,29 +418,37 @@ function renderDropdown(filter = '') {
     let html = '';
     
     if (results.length > 0) {
-        // Group by domain
+        // Group by main sector -> sub sector
         const grouped = {};
         results.forEach(item => {
-            if (!grouped[item.domain]) grouped[item.domain] = [];
-            grouped[item.domain].push(item);
+            const main = item.main_sector || item.domain || 'غير مصنف';
+            const sub = item.sub_sector || 'عام';
+            if (!grouped[main]) grouped[main] = {};
+            if (!grouped[main][sub]) grouped[main][sub] = [];
+            grouped[main][sub].push(item);
         });
 
-        for (const [domain, items] of Object.entries(grouped)) {
+        for (const [mainSector, subGroups] of Object.entries(grouped)) {
             html += `<div class="mb-4">
                 <div class="d-flex justify-content-end mb-2">
-                    <h6 class="text-success fw-bold mb-0">${domain}</h6>
+                    <h6 class="text-success fw-bold mb-0">${mainSector}</h6>
                 </div>
                 <hr class="border-secondary mt-0 mb-3 opacity-25">
-                <div class="d-flex flex-wrap gap-2 justify-content-end" dir="rtl">
-                    ${items.map(item => `
-                        <div class="activity-mini-card ${selectedActivities.includes(item.name) ? 'selected' : ''}" 
-                             onclick="toggleActivity('${item.name}')">
-                            <div class="d-flex justify-content-center align-items-center w-100 mb-0">
-                                <h6 class="mb-0 fw-bold w-100" style="font-size: 0.75rem;">${item.name}</h6>
-                            </div>
+                ${Object.entries(subGroups).map(([subSector, items]) => `
+                    <div class="mb-3">
+                        <div class="small text-secondary fw-semibold mb-2">${subSector}</div>
+                        <div class="d-flex flex-wrap gap-2 justify-content-end" dir="rtl">
+                            ${items.map(item => `
+                                <div class="activity-mini-card ${selectedActivities.includes(item.name) ? 'selected' : ''}" 
+                                    onclick="toggleActivity('${item.name}')">
+                                    <div class="d-flex justify-content-center align-items-center w-100 mb-0">
+                                        <h6 class="mb-0 fw-bold w-100" style="font-size: 0.75rem;">${item.name}</h6>
+                                    </div>
+                                </div>
+                            `).join('')}
                         </div>
-                    `).join('')}
-                </div>
+                    </div>
+                `).join('')}
             </div>`;
         }
     } else {
