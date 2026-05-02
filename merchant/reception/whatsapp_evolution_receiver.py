@@ -169,9 +169,6 @@ async def evolution_webhook(instance_name: str, request: Request):
                                 if msg_type == "audio":
                                     audio_base64 = b64_data
                                     from utils.transcriber import transcribe_audio
-                                    from database.db_client import get_supabase_client
-                                    supabase = get_supabase_client()
-                                    
                                     # محاولة جلب المفتاح للتحويل الصوتي
                                     model_res = supabase.table("clients").select("subscription_plan").eq("id", cfg["client_id"]).single().execute()
                                     if model_res.data:

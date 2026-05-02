@@ -167,8 +167,8 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     try:
         # جلب آخر 5 رسائل متبادلة مع هذا الرقم
         history_res = supabase.table("message_logs") \
-            .select("message_text, ai_response, created_at") \
-            .order("created_at", desc=True) \
+            .select("message_text, ai_response, timestamp") \
+            .order("timestamp", desc=True) \
             .eq("client_id", client_id) \
             .eq("phone_number", phone_number) \
             .limit(5) \
@@ -307,6 +307,8 @@ async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
             timeout=30
         )
         data = res.json()
+        if "choices" not in data:
+            print(f"[OpenAI API Error] Response: {data}")
         return data["choices"][0]["message"]["content"].strip()
 
 
@@ -325,6 +327,8 @@ async def _call_anthropic(api_key: str, model_id: str, messages: list, system: s
             timeout=30
         )
         data = res.json()
+        if "content" not in data:
+            print(f"[Anthropic API Error] Response: {data}")
         return data["content"][0]["text"].strip()
 
 
@@ -337,6 +341,8 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
             timeout=30
         )
         data = res.json()
+        if "choices" not in data:
+            print(f"[Groq API Error] Response: {data}")
         return data["choices"][0]["message"]["content"].strip()
 
 
