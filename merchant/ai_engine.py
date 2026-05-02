@@ -309,6 +309,7 @@ async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
         data = res.json()
         if "choices" not in data:
             print(f"[OpenAI API Error] Response: {data}")
+            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenAI). يرجى المحاولة بعد قليل."
         return data["choices"][0]["message"]["content"].strip()
 
 
@@ -329,6 +330,7 @@ async def _call_anthropic(api_key: str, model_id: str, messages: list, system: s
         data = res.json()
         if "content" not in data:
             print(f"[Anthropic API Error] Response: {data}")
+            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Anthropic). يرجى المحاولة بعد قليل."
         return data["content"][0]["text"].strip()
 
 
@@ -343,6 +345,7 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         data = res.json()
         if "choices" not in data:
             print(f"[Groq API Error] Response: {data}")
+            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Groq Rate Limit). يرجى المحاولة بعد قليل."
         return data["choices"][0]["message"]["content"].strip()
 
 
