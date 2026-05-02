@@ -111,13 +111,17 @@ async def evolution_webhook(instance_name: str, request: Request):
         msg_content = data.get("message", {})
 
         # 1. منع تكرار الرد على نفس الرسالة (Deduplication)
-        # إذا كانت الرسالة موجودة مسبقاً في السجل، نتجاهلها
         if msg_id:
-            supabase = get_supabase_client()
-            check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
-            if check_dup.data:
-                print(f"[DEBUG] Skipping duplicate message: {msg_id}")
-                return Response(status_code=200)
+            try:
+                supabase = get_supabase_client()
+                check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
+                if check_dup.data and len(check_dup.data) > 0:
+                    print(f"[DEBUG] Skipping duplicate message: {msg_id}")
+                    return Response(status_code=200)
+            except Exception as dup_err:
+                print(f"[DEBUG] Deduplication check failed (maybe column missing?): {dup_err}")
+                # نفضل الرد حتى لو فشل التحقق من التكرار
+                pass
 
         # التحقق من نوع الرسالة
         msg_type = "text"
