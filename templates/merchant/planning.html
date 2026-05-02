@@ -175,16 +175,26 @@
     .activity-mini-card {
         background: transparent;
         border: 1px solid #2d3748;
-        border-radius: 0.5rem;
-        padding: 0.75rem;
-        width: calc(33.333% - 0.5rem);
-        min-width: 180px;
-        max-width: 250px;
+        border-radius: 0.35rem;
+        padding: 0.4rem 0.5rem;
+        width: calc(20% - 0.4rem); /* 5 cards per row on desktop */
+        min-width: 120px;
+        max-width: 160px;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: all 0.15s ease;
         display: flex;
         flex-direction: column;
         align-items: flex-end;
+    }
+
+    @media (max-width: 992px) {
+        .activity-mini-card { width: calc(25% - 0.4rem); } /* 4 cards on tablet */
+    }
+    @media (max-width: 768px) {
+        .activity-mini-card { width: calc(33.333% - 0.4rem); } /* 3 cards on mobile */
+    }
+    @media (max-width: 480px) {
+        .activity-mini-card { width: calc(50% - 0.4rem); min-width: 100px; } /* 2 cards on small mobile */
     }
 
     .activity-mini-card:hover {
@@ -195,14 +205,38 @@
     .activity-mini-card.selected {
         border-color: #10b981; /* Success green border */
         background: rgba(16, 185, 129, 0.05);
+        box-shadow: 0 0 0 1px #10b981 inset;
     }
     
     .activity-mini-card .icon-right {
         order: 2;
         margin-left: 0;
         margin-right: auto;
+        font-size: 0.75rem !important;
+        opacity: 0.7;
     }
     
+    .activity-mini-card h6 {
+        font-size: 0.7rem !important;
+        line-height: 1.1;
+        margin-bottom: 2px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .activity-mini-card p {
+        display: none; /* Hide description for maximum compactness */
+    }
+    
+    .activity-mini-card .badges-container {
+        display: none; /* Hide tags to save space */
+    }
+    
+    .activity-mini-card .stats-container {
+        display: none; /* Hide rating and cost to save space */
+    }
+
     .activity-dropdown .text-success {
         color: #10b981 !important; /* Brighter green */
     }
@@ -414,16 +448,16 @@ function renderDropdown(filter = '') {
                     ${items.map(item => `
                         <div class="activity-mini-card ${selectedActivities.includes(item.name) ? 'selected' : ''}" 
                              onclick="toggleActivity('${item.name}')">
-                            <div class="d-flex justify-content-between align-items-start w-100 mb-1">
+                            <div class="d-flex justify-content-between align-items-center w-100 mb-0">
                                 <i class="${item.icon} fs-6 text-secondary icon-right"></i>
-                                <h6 class="mb-0 fw-bold text-white text-end w-100 pe-2" style="font-size: 0.85rem;">${item.name}</h6>
+                                <h6 class="mb-0 fw-bold text-white text-end w-100 pe-2" style="font-size: 0.75rem;">${item.name}</h6>
                             </div>
-                            <p class="text-secondary text-end w-100 mb-2" style="font-size: 0.65rem; line-height: 1.2;">${item.description}</p>
-                            <div class="d-flex justify-content-between align-items-center w-100 mt-auto">
+                            <p class="text-secondary text-end w-100 mb-0" style="font-size: 0.65rem; line-height: 1.2;">${item.description}</p>
+                            <div class="d-flex justify-content-between align-items-center w-100 mt-auto badges-container">
                                 <div class="d-flex gap-1 flex-wrap justify-content-end w-100">
                                     ${item.tags.slice(0, 2).map(t => `<span class="badge border border-secondary text-light bg-transparent px-1 py-0 rounded-1" style="font-size:0.55rem;">${t}</span>`).join('')}
                                 </div>
-                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2">
+                                <div class="d-flex align-items-center gap-2 flex-shrink-0 ms-2 stats-container">
                                     <span class="text-warning" style="font-size:0.6rem;"><i class="fa-solid fa-star" style="font-size:0.5rem;"></i> ${item.rating}</span>
                                     <span class="text-success fw-bold" style="font-size:0.6rem;">${item.cost}</span>
                                 </div>
