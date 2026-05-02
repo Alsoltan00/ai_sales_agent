@@ -139,42 +139,42 @@
     .col-name { min-width: auto; width: 100%; }
 }
 
-    /* Activity Dropdown - Dark Mini Cards Style */
+    /* Activity Dropdown - Adaptive Mini Cards Style */
     .activity-dropdown {
         position: absolute;
         top: 100%;
         left: 0;
         width: 100%;
-        background: #111b21 !important; /* Dark background matching the image */
-        border: 1px solid #2d3748 !important;
+        background: var(--bs-body-bg) !important;
+        border: 1px solid var(--bs-border-color) !important;
         border-radius: 0.5rem;
         z-index: 1000;
         margin-top: 0.5rem;
     }
     
     .activity-dropdown .dropdown-header {
-        background: #1a202c !important;
-        border-bottom: 1px solid #2d3748 !important;
-        color: #fff;
+        background: var(--bs-secondary-bg) !important;
+        border-bottom: 1px solid var(--bs-border-color) !important;
+        color: var(--bs-body-color);
     }
     
     .activity-dropdown .dropdown-search input {
-        background: #2d3748 !important;
-        border: 1px solid #4a5568 !important;
-        color: #fff !important;
+        background: var(--bs-body-bg) !important;
+        border: 1px solid var(--bs-border-color) !important;
+        color: var(--bs-body-color) !important;
     }
     
     .activity-dropdown .dropdown-search input::placeholder {
-        color: #a0aec0 !important;
+        color: var(--bs-secondary-color) !important;
     }
     
     .activity-dropdown .dropdown-scroll {
-        background: #111b21 !important;
+        background: var(--bs-body-bg) !important;
     }
 
     .activity-mini-card {
         background: transparent;
-        border: 1px solid #2d3748;
+        border: 1px solid var(--bs-border-color);
         border-radius: 0.35rem;
         padding: 0.4rem 0.6rem;
         width: calc(20% - 0.4rem); /* 5 cards per row on desktop */
@@ -199,28 +199,28 @@
     }
 
     .activity-mini-card:hover {
-        border-color: #4a5568;
-        background: #1a202c;
+        border-color: var(--bs-primary);
+        background: var(--bs-secondary-bg);
     }
 
     .activity-mini-card.selected {
-        border-color: #10b981; /* Success green border */
-        background: rgba(16, 185, 129, 0.05);
-        box-shadow: 0 0 0 1px #10b981 inset;
+        border-color: var(--bs-primary); /* Primary border */
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        box-shadow: 0 0 0 1px var(--bs-primary) inset;
     }
     
     .activity-mini-card h6 {
         font-size: 0.75rem !important;
         line-height: 1.2;
         margin-bottom: 0 !important;
-        color: #e2e8f0;
+        color: var(--bs-body-color);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
     }
 
     .activity-mini-card.selected h6 {
-        color: #10b981 !important;
+        color: var(--bs-primary) !important;
         font-weight: 700 !important;
     }
 
