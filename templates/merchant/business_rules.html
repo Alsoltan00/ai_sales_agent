@@ -121,30 +121,6 @@
                 </div>
             </div>
 
-            <div id="chatPaymentOptions" class="mt-4 p-4 rounded bg-light border" style="display: none;">
-                <h6 class="fw-bold mb-3"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة:</h6>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label class="radio-label mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
-                            <span>الدفع عند الاستلام</span>
-                        </label>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="radio-label mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
-                            <span>تحويل بنكي</span>
-                        </label>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="radio-label mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
-                            <span>روابط دفع خارجية</span>
-                        </label>
-                    </div>
-                </div>
-            </div>
-
             <hr>
             <div class="d-flex justify-content-end">
                 <button type="button" class="btn btn-primary px-4" onclick="nextStep(1)">
@@ -161,24 +137,60 @@
             <p class="text-secondary small mb-0">الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
         </div>
         <div class="card-body">
-            <div class="option-group mt-3">
-                <h6 class="mb-3 fw-bold">سياسة الخصومات: "كيف يتم تطبيق الخصم في متجرك؟"</h6>
+
+            <!-- Chat Only: Payment Methods -->
+            <div class="chat-only option-group mt-3" style="border-color: #25D366; background: rgba(37, 211, 102, 0.05); padding: 15px; border-radius: 12px; display: none;">
+                <h6 class="mb-3 fw-bold text-success"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة:</h6>
+                <p class="small text-muted mb-3">حدد للعميل كيف يمكنه الدفع بعد تأكيد طلبه.</p>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="radio-label bg-white mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
+                            <span>الدفع عند الاستلام</span>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="radio-label bg-white mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
+                            <span>تحويل بنكي</span>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="radio-label bg-white mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
+                            <span>روابط دفع خارجية</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Store Only: Checkout Guidance -->
+            <div class="store-only option-group mt-3" style="border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.05); padding: 15px; border-radius: 12px;">
+                <h6 class="mb-2 fw-bold text-primary"><i class="ti ti-shopping-cart me-2"></i>إتمام الطلب في المتجر:</h6>
+                <p class="small text-muted mb-0">سيقوم الموظف بتوجيه العملاء للمتجر، وكل طرق الدفع وعمليات الشراء ستكون مدارة بالكامل من خلال منصة متجرك الإلكتروني.</p>
+            </div>
+
+            <div class="option-group mt-4">
+                <h6 class="mb-3 fw-bold">سياسة الخصومات: 
+                    <span class="store-only text-primary">"كيف يستخدم العميل الخصم في المتجر؟"</span>
+                    <span class="chat-only text-success" style="display:none;">"كيف نطبق الخصم للعميل في المحادثة؟"</span>
+                </h6>
                 <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="discount_type" value="fixed" checked>
+                    <input class="form-check-input" type="radio" name="discount_type" value="fixed" {% if rules.discount_type == 'fixed' or not rules.discount_type %}checked{% endif %}>
                     <span>خصم ثابت بنسبة 
                         <input type="number" name="discount_percent" class="form-control form-control-sm d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % 
                         عند تجاوز مبلغ 
                         <input type="number" name="discount_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.
                     </span>
                 </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="discount_type" value="code">
-                    <span>خصم باستخدام كود معين وهو 
+                <label class="radio-label store-only">
+                    <input class="form-check-input" type="radio" name="discount_type" value="code" {% if rules.discount_type == 'code' %}checked{% endif %}>
+                    <span>توجيه العميل لاستخدام كود الخصم في سلة المتجر: 
                         <input type="text" name="discount_code" class="form-control form-control-sm d-inline-block mx-2" style="width: 130px;" value="{{ rules.discount_code or '' }}" placeholder="COUPON20">.
                     </span>
                 </label>
                 <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="discount_type" value="custom">
+                    <input class="form-check-input" type="radio" name="discount_type" value="custom" {% if rules.discount_type == 'custom' %}checked{% endif %}>
                     <span>إجابة مخصصة: 
                         <input type="text" name="discount_custom" class="form-control form-control-sm d-inline-block mx-2" style="width: 250px;" value="{{ rules.discount_custom or '' }}">
                     </span>
@@ -186,21 +198,24 @@
             </div>
 
             <div class="mb-4 ps-4">
-                <label class="form-label fw-600">تخصيص الرسالة: "ماذا يقول الموظف عند تطبيق الخصم؟"</label>
+                <label class="form-label fw-600">تخصيص الرسالة:</label>
                 <textarea name="discount_msg" class="form-control" rows="2" placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!">{{ rules.discount_msg or '' }}</textarea>
             </div>
 
             <div class="option-group">
-                <h6 class="mb-3 fw-bold">سياسة الشحن: "متى يستحق العميل الشحن المجاني؟"</h6>
+                <h6 class="mb-3 fw-bold">سياسة الشحن: 
+                    <span class="store-only text-primary">"متى يتم إعفاء العميل من الشحن في المتجر؟"</span>
+                    <span class="chat-only text-success" style="display:none;">"كيف نخبر العميل عن الشحن في الفاتورة اليدوية؟"</span>
+                </h6>
                 <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="shipping_type" value="city" checked>
-                    <span>لجميع الطلبات داخل مدينة 
+                    <input class="form-check-input" type="radio" name="shipping_type" value="city" {% if rules.shipping_type == 'city' or not rules.shipping_type %}checked{% endif %}>
+                    <span>شحن مجاني داخل مدينة 
                         <input type="text" name="shipping_city" class="form-control form-control-sm d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or '' }}">.
                     </span>
                 </label>
                 <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="shipping_type" value="amount">
-                    <span>عند وصول السلة لمبلغ 
+                    <input class="form-check-input" type="radio" name="shipping_type" value="amount" {% if rules.shipping_type == 'amount' %}checked{% endif %}>
+                    <span>شحن مجاني عند وصول الفاتورة/السلة لمبلغ 
                         <input type="number" name="shipping_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال.
                     </span>
                 </label>
@@ -426,23 +441,31 @@
         }
     });
 
-    // Toggle Chat Payment Options
-    const chatOptionsDiv = document.getElementById('chatPaymentOptions');
-    function toggleChatOptions() {
-        const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value;
-        if (selectedType === 'chat') {
-            chatOptionsDiv.style.display = 'block';
-            chatOptionsDiv.style.animation = 'fadeIn 0.4s ease-out';
-        } else {
-            chatOptionsDiv.style.display = 'none';
-        }
+    // Dynamic Flow Toggle based on Store vs Chat
+    function toggleDynamicFlow() {
+        const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value || 'store';
+        
+        // Show/Hide store specific elements
+        document.querySelectorAll('.store-only').forEach(el => {
+            el.style.display = selectedType === 'store' ? '' : 'none';
+        });
+        
+        // Show/Hide chat specific elements
+        document.querySelectorAll('.chat-only').forEach(el => {
+            if (selectedType === 'chat') {
+                el.style.display = '';
+                el.style.animation = 'fadeIn 0.4s ease-out';
+            } else {
+                el.style.display = 'none';
+            }
+        });
     }
 
     document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
-        radio.addEventListener('change', toggleChatOptions);
+        radio.addEventListener('change', toggleDynamicFlow);
     });
 
     // Run on init
-    toggleChatOptions();
+    toggleDynamicFlow();
 </script>
 {% endblock %}
