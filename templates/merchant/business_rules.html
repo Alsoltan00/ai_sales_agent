@@ -51,6 +51,31 @@
     width: 20%;
     transition: width 0.4s ease;
 }
+.business-model-card {
+    width: 100%;
+    cursor: pointer;
+    display: block;
+}
+.business-model-card input {
+    display: none;
+}
+.business-model-card .card-content {
+    border: 2px solid var(--bs-border-color);
+    border-radius: 16px;
+    transition: all 0.3s ease;
+    background: var(--bs-body-bg);
+    height: 100%;
+}
+.business-model-card:hover .card-content {
+    border-color: var(--bs-primary-border-subtle);
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+.business-model-card input:checked + .card-content {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.05);
+    box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.1);
+}
 {% endblock %}
 
 {% block content %}
@@ -66,10 +91,73 @@
 </div>
 
 <form id="businessRulesForm">
-    <!-- Step 1: Financial Logic -->
+    <!-- Step 1: Business Model (NEW) -->
     <div class="card card-lg step-card active" id="step1">
+        <div class="card-header border-bottom-0 pb-0 text-center">
+            <h4 class="mb-1 fw-bold text-primary">أولاً: أين سيتم إتمام الطلب والدفع؟</h4>
+            <p class="text-secondary small mb-0">اختر الطريقة التي تريد من الموظف الآلي توجيه عملائك لها.</p>
+        </div>
+        <div class="card-body">
+            <div class="row g-4 mt-2 mb-4">
+                <div class="col-md-6">
+                    <label class="business-model-card">
+                        <input type="radio" name="checkout_type" value="store" {% if rules.checkout_type == 'store' or not rules.checkout_type %}checked{% endif %}>
+                        <div class="card-content text-center p-4">
+                            <i class="ti ti-shopping-cart" style="font-size: 3.5rem; color: var(--bs-primary);"></i>
+                            <h5 class="mt-3 fw-bold">عبر المتجر الإلكتروني</h5>
+                            <p class="text-muted small">سيوجه الموظف الآلي العميل لروابط المنتجات في متجرك لإتمام الشراء والدفع.</p>
+                        </div>
+                    </label>
+                </div>
+                <div class="col-md-6">
+                    <label class="business-model-card">
+                        <input type="radio" name="checkout_type" value="chat" {% if rules.checkout_type == 'chat' %}checked{% endif %}>
+                        <div class="card-content text-center p-4">
+                            <i class="ti ti-brand-whatsapp" style="font-size: 3.5rem; color: #25D366;"></i>
+                            <h5 class="mt-3 fw-bold">داخل المحادثة (واتساب)</h5>
+                            <p class="text-muted small">سيقوم الموظف بأخذ بيانات العميل (الاسم، العنوان، الهاتف) وتأكيد الطلب يدوياً في المحادثة.</p>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div id="chatPaymentOptions" class="mt-4 p-4 rounded bg-light border" style="display: none;">
+                <h6 class="fw-bold mb-3"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة:</h6>
+                <div class="row">
+                    <div class="col-md-4">
+                        <label class="radio-label mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
+                            <span>الدفع عند الاستلام</span>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="radio-label mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
+                            <span>تحويل بنكي</span>
+                        </label>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="radio-label mb-0">
+                            <input class="form-check-input" type="checkbox" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
+                            <span>روابط دفع خارجية</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <hr>
+            <div class="d-flex justify-content-end">
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(1)">
+                    التالي: السياسات المالية <i class="ti ti-arrow-left ms-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Financial Logic -->
+    <div class="card card-lg step-card" id="step2">
         <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">أولاً: العمليات والسياسات المالية</h4>
+            <h4 class="mb-1 fw-bold text-primary">ثانياً: العمليات والسياسات المالية</h4>
             <p class="text-secondary small mb-0">الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
         </div>
         <div class="card-body">
@@ -124,18 +212,21 @@
             </div>
             
             <hr>
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(1)">
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                    <i class="ti ti-arrow-right me-2"></i> السابق
+                </button>
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(2)">
                     التالي: إدارة المخزون <i class="ti ti-arrow-left ms-2"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Step 2: Inventory Behavior -->
-    <div class="card card-lg step-card" id="step2">
+    <!-- Step 3: Inventory Behavior -->
+    <div class="card card-lg step-card" id="step3">
         <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">ثانياً: إدارة المخزون والمنتجات</h4>
+            <h4 class="mb-1 fw-bold text-primary">ثالثاً: إدارة المخزون والمنتجات</h4>
             <p class="text-secondary small mb-0">الهدف: ضمان عدم "التأليف" عند غياب المعلومة.</p>
         </div>
         <div class="card-body">
@@ -172,20 +263,20 @@
             
             <hr>
             <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
+                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
                     <i class="ti ti-arrow-right me-2"></i> السابق
                 </button>
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(2)">
+                <button type="button" class="btn btn-primary px-4" onclick="nextStep(3)">
                     التالي: خدمة العملاء <i class="ti ti-arrow-left ms-2"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Step 3: Customer Service Tone -->
-    <div class="card card-lg step-card" id="step3">
+    <!-- Step 4: Customer Service Tone -->
+    <div class="card card-lg step-card" id="step4">
         <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">ثالثاً: خدمة العملاء والسلوك</h4>
+            <h4 class="mb-1 fw-bold text-primary">رابعاً: خدمة العملاء والسلوك</h4>
         </div>
         <div class="card-body">
             <div class="option-group mt-3">
@@ -217,36 +308,6 @@
             <div class="mb-4 ps-4">
                 <label class="form-label fw-600">رسالة التهدئة للعميل الغاضب:</label>
                 <textarea name="complaint_msg" class="form-control" rows="2">{{ rules.complaint_msg or '' }}</textarea>
-            </div>
-
-            <hr>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
-                    <i class="ti ti-arrow-right me-2"></i> السابق
-                </button>
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(3)">
-                    التالي: إتمام البيع <i class="ti ti-arrow-left ms-2"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 4: Closing the Sale -->
-    <div class="card card-lg step-card" id="step4">
-        <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">رابعاً: إتمام البيع (Closing)</h4>
-        </div>
-        <div class="card-body">
-            <div class="option-group mt-3">
-                <h6 class="mb-3 fw-bold">رابط الدفع:</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="checkout_type" value="link" checked>
-                    <span>أرسل رابط المنتج المباشر.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="checkout_type" value="manual">
-                    <span>طلب البيانات (الاسم، العنوان) للفاتورة اليدوية.</span>
-                </label>
             </div>
 
             <hr>
@@ -340,6 +401,9 @@
         // Correct boolean values
         data.ban_prices = formData.has('ban_prices');
         data.ban_eta = formData.has('ban_eta');
+        data.chat_payment_cod = formData.has('chat_payment_cod');
+        data.chat_payment_transfer = formData.has('chat_payment_transfer');
+        data.chat_payment_link = formData.has('chat_payment_link');
 
         try {
             const response = await fetch('/merchant/api/business-rules', {
@@ -361,5 +425,24 @@
             btn.innerHTML = 'حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>';
         }
     });
+
+    // Toggle Chat Payment Options
+    const chatOptionsDiv = document.getElementById('chatPaymentOptions');
+    function toggleChatOptions() {
+        const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value;
+        if (selectedType === 'chat') {
+            chatOptionsDiv.style.display = 'block';
+            chatOptionsDiv.style.animation = 'fadeIn 0.4s ease-out';
+        } else {
+            chatOptionsDiv.style.display = 'none';
+        }
+    }
+
+    document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
+        radio.addEventListener('change', toggleChatOptions);
+    });
+
+    // Run on init
+    toggleChatOptions();
 </script>
 {% endblock %}
