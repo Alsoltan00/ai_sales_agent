@@ -285,6 +285,10 @@
                     <input class="form-check-input" type="radio" name="stock_out_type" value="collect_info" {% if rules.stock_out_type == 'collect_info' %}checked{% endif %}>
                     <span>الاعتذار وأخذ رقم العميل لإبلاغه فور توفر المنتج مرة أخرى.</span>
                 </label>
+                <label class="radio-label">
+                    <input class="form-check-input" type="radio" name="stock_out_type" value="custom_only" {% if rules.stock_out_type == 'custom_only' %}checked{% endif %}>
+                    <span>الاكتفاء بالرسالة المخصصة (بدون اقتراح بديل أو أخذ بيانات).</span>
+                </label>
             </div>
 
             <div class="mb-4 ps-4">
