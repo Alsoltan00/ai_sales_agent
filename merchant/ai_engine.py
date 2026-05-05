@@ -22,9 +22,6 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         return "عذراً، لم يتم العثور على إعدادات هذا المتجر."
     
     client = client_res.data
-    api_key = client.get("api_key")
-    model_id = client.get("model_id", "gpt-3.5-turbo")
-    provider = client.get("ai_provider", "openai")
     agent_name = client.get("agent_name", "نوره")
     company_name = client.get("company_name", "متجرنا")
     store_activity = client.get("store_activity", "تجارة عامة")
@@ -32,6 +29,20 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     tone = client.get("ai_tone", "friendly")
     messages_used = client.get("messages_used", 0)
     message_limit = client.get("message_limit", 1000)
+
+    # Fetch AI Model Config
+    api_key = None
+    model_id = "gpt-3.5-turbo"
+    provider = "openai"
+    try:
+        model_res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
+        if model_res.data:
+            m_cfg = model_res.data[0]
+            api_key = m_cfg.get("api_key")
+            model_id = m_cfg.get("model_id")
+            provider = m_cfg.get("provider", "openai").lower()
+    except Exception as e:
+        print(f"Warning: Could not fetch AI config: {e}")
 
     if messages_used >= message_limit:
         return "نعتذر منك، لقد انتهى الرصيد المخصص للرسائل لهذا المتجر حالياً."
@@ -54,9 +65,9 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     # 3. Column Training
     column_training_prompt = ""
     try:
-        col_res = supabase.table("column_training").select("column_name, column_note").eq("client_id", client_id).execute()
+        col_res = supabase.table("column_training").select("column_name, note").eq("client_id", client_id).execute()
         if col_res.data:
-            notes = [f"- {c['column_name']}: {c['column_note']}" for c in col_res.data]
+            notes = [f"- {c['column_name']}: {c['note']}" for c in col_res.data]
             column_training_prompt = "تعليمات خاصة بأعمدة البيانات:\n" + "\n".join(notes)
     except Exception as e:
         print(f"Warning: Could not fetch column training: {e}")
