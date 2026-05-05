@@ -188,19 +188,32 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
     except Exception as e:
         print(f"Warning: Could not fetch business rules: {e}")
 
-    # 5. مؤشر وجود محادثة سابقة فقط (بدون حقن النص القديم داخل الموجه لمنع إعادة أسئلة سابقة)
+    # 5. جلب سجل المحادثة الفعلي (آخر 6 رسائل) لتمكين النموذج من فهم السياق
     chat_history_prompt = ""
+    chat_history_messages = []
     try:
         history_res = supabase.table("message_logs") \
-            .select("id") \
+            .select("message_text, ai_response, timestamp") \
             .order("timestamp", desc=True) \
             .eq("client_id", client_id) \
             .eq("phone_number", phone_number) \
-            .limit(1) \
+            .limit(6) \
             .execute()
         
         if history_res.data:
-            chat_history_prompt = "\nملاحظة سياقية: توجد محادثة سابقة مع هذا العميل، لا تكرر التحية ولا تُعِد طرح إجابات لأسئلة قديمة. ركّز فقط على الرسالة الحالية.\n"
+            sorted_history = sorted(history_res.data, key=lambda x: x.get("timestamp", ""))
+            history_lines = []
+            for msg in sorted_history:
+                user_msg = (msg.get("message_text") or "").strip()
+                ai_msg = (msg.get("ai_response") or "").strip()
+                if user_msg:
+                    history_lines.append(f"العميل: {user_msg}")
+                    chat_history_messages.append({"role": "user", "content": user_msg})
+                if ai_msg:
+                    history_lines.append(f"أنت: {ai_msg}")
+                    chat_history_messages.append({"role": "assistant", "content": ai_msg})
+            if history_lines:
+                chat_history_prompt = "\nسجل المحادثة السابقة مع هذا العميل (اقرأه بدقة لفهم السياق):\n" + "\n".join(history_lines[-12:]) + "\nتنبيه: لا تكرر التحية. أكمل المحادثة بشكل طبيعي.\n"
     except Exception as e:
         print(f"Warning: Could not fetch chat history: {e}")
 
@@ -282,8 +295,11 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content_parts}
         ]
+        # Inject conversation history for context
+        if chat_history_messages:
+            messages.extend(chat_history_messages[-8:])
+        messages.append({"role": "user", "content": content_parts})
     else:
         # إذا كان هناك صوت والنموذج لا يدعمه، ولم ننجح في التحويل لنص سابقاً
         final_msg = user_message
@@ -292,8 +308,11 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             
         messages = [
             {"role": "system", "content": system_prompt},
-            {"role": "user",   "content": final_msg}
         ]
+        # Inject conversation history for context
+        if chat_history_messages:
+            messages.extend(chat_history_messages[-8:])
+        messages.append({"role": "user", "content": final_msg})
 
     # 5. استدعاء API حسب المزود
     try:
