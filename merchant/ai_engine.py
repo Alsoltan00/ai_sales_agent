@@ -1,172 +1,57 @@
-import os
-import json
-import httpx
-from database.db_client import get_supabase_client
-
-def _normalize_col_name(name: str) -> str:
-    if not isinstance(name, str):
-        return ""
-    return " ".join(name.strip().lower().split())
-
-async def get_ai_response(client_id: str, user_message: str, phone_number: str, channel: str = "unknown", image_base64: str = None, audio_base64: str = None, message_id: str = None) -> str:
+import os\nimport json\nimport httpx\nfrom database.db_client import get_supabase_client\n\ndef _normalize_col_name(name: str) -> str:\n    if not isinstance(name, str):\n        return ""\n    return " ".join(name.strip().lower().split())\n\nasync def get_ai_response(client_id: str, phone_number: str, user_message: str, 
+                         image_base64: str = None, audio_base64: str = None, 
+                         message_id: str = None, channel: str = "whatsapp"):
     """
-    يجلب إعدادات الذكاء الاصطناعي والبيانات ثم يولد رداً احترافياً (يدعم النصوص والصور والصوت)
+    Main orchestrator for AI logic. Fetches context, builds prompt, and calls LLM.
     """
     supabase = get_supabase_client()
+    
+    # 1. Fetch client/merchant settings
+    client_res = supabase.table("clients").select("*").eq("id", client_id).single().execute()
+    if not client_res.data:
+        return "عذراً، لم يتم العثور على إعدادات هذا المتجر."
+    
+    client = client_res.data
+    api_key = client.get("api_key")
+    model_id = client.get("model_id", "gpt-3.5-turbo")
+    provider = client.get("ai_provider", "openai")
+    agent_name = client.get("agent_name", "نوره")
+    company_name = client.get("company_name", "متجرنا")
+    store_activity = client.get("store_activity", "تجارة عامة")
+    description = client.get("description", "")
+    tone = client.get("ai_tone", "friendly")
+    messages_used = client.get("messages_used", 0)
+    message_limit = client.get("message_limit", 1000)
 
-    # 1. جلب إعدادات الوكيل (الاسم والشركة)
-    try:
-        from merchant.planning.planning_config import get_planning_config
-        from merchant.store_management.store_settings import get_store_settings
-        
-        settings = get_store_settings(client_id)
-        company_name = settings.get("company_name", "الشركة")
-        
-        p = get_planning_config(client_id)
-        # نستخدم المفاتيح التي تعود من get_planning_config وهي (ai_agent_name, ai_tone, business_description, store_activity)
-        agent_name     = p.get("ai_agent_name") or company_name
-        tone           = p.get("ai_tone") or "احترافي ومهذب"
-        description    = p.get("business_description") or ""
-        store_activity = p.get("store_activity") or ""
-    except Exception as e:
-        print(f"Error fetching planning config: {e}")
-        company_name = "الشركة"
-        agent_name = "المساعد"
-        tone = "احترافي"
-        description = ""
+    if messages_used >= message_limit:
+        return "نعتذر منك، لقد انتهى الرصيد المخصص للرسائل لهذا المتجر حالياً."
 
-    # 2. جلب إعدادات النموذج النشط من خلال باقة العميل والتحقق من رصيد الرسائل
-    try:
-        # 1. جلب بيانات الاشتراك من جدول العملاء (العميل)
-        client_sub_res = supabase.table("clients").select("subscription_plan, subscription_ends_at, status, messages_used").eq("id", client_id).single().execute()
-        
-        if not client_sub_res.data:
-            return "عذراً، المتجر ليس لديه حساب نشط."
-            
-        sub_data = client_sub_res.data
-        if sub_data.get("status") != "active":
-            return "عذراً، المتجر غير نشط. يرجى التواصل مع الإدارة."
-            
-        from datetime import datetime
-        ends_at_str = sub_data.get("subscription_ends_at")
-        if not ends_at_str:
-            return "عذراً، المتجر ليس لديه اشتراك نشط. يرجى التواصل مع الإدارة."
-            
-        try:
-            if isinstance(ends_at_str, str):
-                # تنظيف الصيغة إذا كانت تحتوي على أجزاء ثانية زائدة
-                clean_date = ends_at_str.split('.')[0].replace('Z', '').replace(' ', 'T')
-                ends_at = datetime.fromisoformat(clean_date)
-                if ends_at < datetime.now():
-                    return "عذراً، لقد انتهى اشتراك المتجر. يرجى التواصل مع الإدارة لتجديده."
-        except Exception as e:
-            print(f"Error parsing date '{ends_at_str}': {e}")
-            pass
-            
-        client_plan = sub_data.get("subscription_plan", "free")
-        messages_used = sub_data.get("messages_used", 0)
-
-        # 2. جلب إعدادات الباقة (الخطة)
-        plan_res = supabase.table("subscription_plans").select("permissions").eq("name", client_plan).execute()
-        if not plan_res.data:
-            return "عذراً، إعدادات باقة المتجر غير صالحة."
-        
-        import json
-        perms = plan_res.data[0].get("permissions", {})
-        if isinstance(perms, str):
-            try: perms = json.loads(perms)
-            except: perms = {}
-
-        # 3. التحقق من رصيد الرسائل المتبقي
-        max_messages = perms.get("max_messages", 0)
-        if max_messages > 0 and messages_used >= max_messages:
-            return "عفواً، لقد استنفد المتجر رصيد الرسائل المخصص لباقته. يرجى التواصل مع الإدارة لشحن الرصيد لتتمكن من المتابعة."
-
-        # 4. جلب نموذج الذكاء المخصص للباقة من المكتبة العالمية
-        assigned_model_id = perms.get("assigned_model_id")
-        if not assigned_model_id:
-            return "عذراً، لم يتم تخصيص نموذج ذكاء اصطناعي لهذه الباقة. يرجى مراجعة الإدارة."
-
-        model_res = supabase.table("global_ai_models").select("*").eq("id", assigned_model_id).execute()
-        if not model_res.data:
-            return "عذراً، نموذج الذكاء الاصطناعي المخصص غير متوفر حالياً."
-
-        ai_cfg_data = model_res.data[0]
-        
-    except Exception as e:
-        print(f"Error fetching AI config: {e}")
-        ai_cfg_data = None
-
-    if not ai_cfg_data:
-        return "عذراً، حدث خطأ أثناء إعداد الذكاء الاصطناعي. يرجى المحاولة لاحقاً."
-
-    model_id  = ai_cfg_data["model_id"]
-    api_key   = ai_cfg_data["api_key"]
-    provider  = ai_cfg_data.get("provider", "openai")
-
-    # 3. جلب تعليمات الأعمدة مبكراً (لاستخدامها في فلترة البيانات فعلياً قبل إرسالها للنموذج)
-    column_training_prompt = ""
-    disabled_cols_norm = set()
-    try:
-        col_train_res = supabase.table("column_training").select("column_name, note, is_disabled").eq("client_id", client_id).execute()
-        if col_train_res.data:
-            train_notes = []
-            for ct in col_train_res.data:
-                col_name = (ct.get("column_name") or "").strip()
-                if not col_name:
-                    continue
-                if ct.get("is_disabled"):
-                    disabled_cols_norm.add(_normalize_col_name(col_name))
-                    status = "تجاهل هذا العمود تماماً ولا تذكره للعميل أبداً تحت أي ظرف"
-                else:
-                    status = (ct.get("note") or "").strip() or "استخدم هذا العمود عند الحاجة فقط."
-                train_notes.append(f"- العمود [{col_name}]: {status}")
-            if train_notes:
-                column_training_prompt = "\nتعليمات خاصة بأعمدة البيانات (يجب الالتزام بها حرفياً):\n" + "\n".join(train_notes) + "\n"
-    except Exception as e:
-        print(f"Warning: Could not fetch column training: {e}")
-
-    # 4. جلب بيانات المتجر للسياق (بعد فلترة الأعمدة المعطّلة فعلياً)
+    # 2. Fetch Merchant Data (Products/Knowledge Base)
     store_data = ""
     try:
-        # جلب إعدادات المزامنة
-        sync_cfg = supabase.table("sync_config").select("*").eq("client_id", client_id).single().execute()
-        
-        # محاولة جلب البيانات اليدوية (إكسيل) كخيار أول أو احتياطي
-        manual_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
-        if manual_res.data:
-            raw_data = manual_res.data[0]["data"]
-            if isinstance(raw_data, list) and len(raw_data) > 0:
-                filtered_rows = []
-                for row in raw_data[:300]:
-                    if not isinstance(row, dict):
-                        continue
-                    filtered_row = {}
-                    for k, v in row.items():
-                        if _normalize_col_name(str(k)) in disabled_cols_norm:
-                            continue
-                        filtered_row[k] = v
-                    if filtered_row:
-                        filtered_rows.append(filtered_row)
-
-                if not filtered_rows:
-                    store_data = "لا توجد بيانات عرض صالحة بعد تطبيق فلترة الأعمدة المعطلة."
-                else:
-                    columns = list(filtered_rows[0].keys())
-                    formatted_lines = [f"هيكل البيانات (الأعمدة المتاحة): {', '.join(columns)}"]
-                    formatted_lines.append("---")
-                    for item in filtered_rows:
-                        line = " | ".join([f"{k}: {v}" for k, v in item.items()])
-                        formatted_lines.append(f"- {line}")
-                    store_data = "\n".join(formatted_lines)
-            else:
-                store_data = json.dumps(raw_data, ensure_ascii=False)
-
-        # إذا كانت المزامنة Aiven أو غيرها، يمكن إضافة منطقها هنا مستقبلاً
+        data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
+        if data_res.data:
+            rows = data_res.data[0].get("data", [])
+            if rows:
+                formatted_lines = []
+                for item in rows:
+                    line = " | ".join([f"{k}: {v}" for k, v in item.items()])
+                    formatted_lines.append(f"- {line}")
+                store_data = "\n".join(formatted_lines)
     except Exception as e:
         print(f"Warning: Could not fetch store data: {e}")
 
-    # 3.5 جلب قواعد العمل (Business Rules)
+    # 3. Fetch Column Training / Field Rules
+    column_training_prompt = ""
+    try:
+        col_res = supabase.table("column_training").select("column_name, column_note").eq("client_id", client_id).execute()
+        if col_res.data:
+            notes = [f"- {c['column_name']}: {c['column_note']}" for c in col_res.data]
+            column_training_prompt = "تعليمات خاصة بأعمدة البيانات:\n" + "\n".join(notes)
+    except Exception as e:
+        print(f"Warning: Could not fetch column training: {e}")
+
+    # 4. Fetch Business Rules (Smart Policies)
     business_rules_prompt = ""
     try:
         rules_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
@@ -174,98 +59,28 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
             rd = rules_res.data["rules_data"]
             checkout = rd.get('checkout_type', 'store')
             
-            # Build checkout-specific instructions
             if checkout == 'chat':
-                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). يجب عليك أخذ بيانات العميل (الاسم، الجوال، العنوان) وتأكيد الطلب بالكامل داخل المحادثة. لا توجه العميل لأي متجر أو رابط خارجي أبداً."
-                payment_methods = []
-                if rd.get('chat_payment_cod'): payment_methods.append("الدفع عند الاستلام")
-                if rd.get('chat_payment_transfer'): payment_methods.append(f"تحويل بنكي ({rd.get('bank_accounts', '')})")
-                if rd.get('chat_payment_link'): payment_methods.append(f"رابط دفع ({rd.get('payment_links', '')})")
-                checkout_instructions += f"\n- طرق الدفع المتاحة: {', '.join(payment_methods) if payment_methods else 'حسب الاتفاق'}."
-                confirm = rd.get('chat_confirmation', 'summary')
-                if confirm == 'summary':
-                    checkout_instructions += "\n- طريقة التأكيد: أرسل ملخص الطلب واطلب موافقة العميل قبل الاعتماد."
-                else:
-                    checkout_instructions += "\n- طريقة التأكيد: اعتمد الطلب فوراً بعد استلام البيانات."
+                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). يجب عليك أخذ بيانات العميل (الاسم، الجوال، العنوان) وتأكيد الطلب بالكامل داخل المحادثة."
+                pm = []
+                if rd.get('chat_payment_cod'): pm.append("الدفع عند الاستلام")
+                if rd.get('chat_payment_transfer'): pm.append(f"تحويل بنكي ({rd.get('bank_accounts', '')})")
+                if rd.get('chat_payment_link'): pm.append(f"رابط دفع ({rd.get('payment_links', '')})")
+                checkout_instructions += f"\n- طرق الدفع المتاحة: {', '.join(pm) if pm else 'حسب الاتفاق'}."
             else:
-                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر لإتمام الشراء والدفع. لا تأخذ بيانات العميل يدوياً ولا تعتمد طلبات داخل المحادثة."
-                tech_issue = rd.get('store_tech_issue', 'retry')
-                if tech_issue == 'exception':
-                    checkout_instructions += "\n- إذا واجه العميل مشكلة تقنية في المتجر، يمكنك استثنائياً أخذ الطلب يدوياً لإنقاذ البيعة."
-                else:
-                    checkout_instructions += "\n- إذا واجه العميل مشكلة تقنية، اطلب منه المحاولة لاحقاً."
-
-            # Discount policy
-            discount_type = rd.get('discount_type', 'fixed')
-            if discount_type == 'fixed':
-                pct = rd.get('discount_percent', '')
-                thr = rd.get('discount_threshold', '')
-                discount_text = f"خصم {pct}% عند تجاوز {thr} ريال" if pct and thr else "حسب السياسة"
-            elif discount_type == 'code':
-                discount_text = f"وجه العميل لاستخدام كود الخصم: {rd.get('discount_code', '')}"
-            elif discount_type == 'custom':
-                discount_text = rd.get('discount_custom', 'حسب السياسة')
-            else:
-                discount_text = "حسب السياسة"
-
-            # Upsell
-            upsell = rd.get('upsell_type', 'none')
-            if upsell == 'none': upsell_text = "لا تقترح منتجات إضافية، أجب على طلب العميل فقط."
-            elif upsell == 'cross': upsell_text = "اقترح منتجاً مكملاً للطلب بلباقة."
-            else: upsell_text = "حاول ترقية العميل لمنتج أفضل بأسلوب لبق."
-
-            # Refund
-            refund = rd.get('refund_type', '7days')
-            if refund == '7days': refund_text = "الاسترجاع والاستبدال متاح خلال 7-14 يوم."
-            elif refund == 'exchange_only': refund_text = "استبدال فقط (لا استرجاع مالي)."
-            else: refund_text = "لا يوجد استرجاع أو استبدال."
+                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر."
 
             business_rules_prompt = f"""
 دستور عمل وقواعد العمل (يجب الالتزام بها قطعيًا):
 - {checkout_instructions}
-- سياسة الخصم: {discount_text}. {rd.get('discount_msg', '')}
-- الشحن: {rd.get('shipping_type', 'حسب السياسة')}. {rd.get('shipping_msg', '')}
+- سياسة الخصم: {rd.get('discount_type', 'حسب السياسة')}. {rd.get('discount_msg', '')}
 - عند نفاذ المخزون: {rd.get('stock_out_type', 'الاعتذار')}. {rd.get('stock_out_msg', '')}
-- معلومات إضافية للمنتجات: {rd.get('details_missing_type', '')}. {rd.get('details_static_info', '')}
-- استراتيجية البيع: {upsell_text}
-- سياسة الاسترجاع: {refund_text}
 - نبرة الصوت: {rd.get('tone_type', tone)}. {rd.get('complaint_msg', '')}
-- حواجز الحماية: يمنع منعاً باتاً الحديث في: { 'مقارنة الأسعار، ' if rd.get('ban_prices') else '' }{ 'مواعيد وصول دقيقة، ' if rd.get('ban_eta') else '' }{rd.get('ban_custom', '')}
-- سياسة المكاسرة: {rd.get('bargain_type', 'ممنوعة')}.
+- حواجز الحماية: {rd.get('ban_custom', '')}
 """
     except Exception as e:
         print(f"Warning: Could not fetch business rules: {e}")
 
-    # 5. جلب سجل المحادثة الفعلي (آخر 6 رسائل) لتمكين النموذج من فهم السياق
-    chat_history_prompt = ""
-    chat_history_messages = []
-    try:
-        history_res = supabase.table("message_logs") \
-            .select("message_text, ai_response, timestamp") \
-            .order("timestamp", desc=True) \
-            .eq("client_id", client_id) \
-            .eq("phone_number", phone_number) \
-            .limit(6) \
-            .execute()
-        
-        if history_res.data:
-            sorted_history = sorted(history_res.data, key=lambda x: x.get("timestamp", ""))
-            history_lines = []
-            for msg in sorted_history:
-                user_msg = (msg.get("message_text") or "").strip()
-                ai_msg = (msg.get("ai_response") or "").strip()
-                if user_msg:
-                    history_lines.append(f"العميل: {user_msg}")
-                    chat_history_messages.append({"role": "user", "content": user_msg})
-                if ai_msg:
-                    history_lines.append(f"أنت: {ai_msg}")
-                    chat_history_messages.append({"role": "assistant", "content": ai_msg})
-            if history_lines:
-                chat_history_prompt = "\nسجل المحادثة السابقة مع هذا العميل (اقرأه بدقة لفهم السياق):\n" + "\n".join(history_lines[-12:]) + "\nتنبيه: لا تكرر التحية. أكمل المحادثة بشكل طبيعي.\n"
-    except Exception as e:
-        print(f"Warning: Could not fetch chat history: {e}")
-
-    # 6. بناء System Prompt
+    # 5. Build Product Context with reference warning
     product_context = ""
     if store_data:
         product_context = f"""
@@ -274,266 +89,81 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
 {store_data}
 -------------------------------------------
 {column_training_prompt}
-ملاحظة هامة (القاعدة الذهبية لتفسير طلب العميل): 
-- **تحذير حرج**: إذا استخدم العميل كلمات إشارة مثل (الأول، الثاني، الأخير، هذا، اللي فوق)، يجب عليك **تجاهل قائمة المنتجات هذه تماماً** في البداية، والذهاب فوراً لقراءة **آخر رسالة أرسلتها أنت (أنت:) في سجل المحادثة**. المنتجات المقصودة هي الموجودة في رسالتك السابقة فقط!
-- استخدم البيانات أعلاه حصراً للإجابة عن الأسعار والمخزون في حال كان العميل يسأل عن منتج جديد بالاسم.
-- إذا لم تجد المنتج، لا تخترع تفاصيل أبداً، واعتذر بلباقة.
-- يمنع ذكر أي سعر أو معلومة لم تذكر في البيانات.
+ملاحظة هامة (تفسير طلب العميل): 
+- إذا استخدم العميل كلمات إشارة مثل (الأول، الثاني، الأخير، هذا، اللي فوق)، يجب عليك تجاهل القائمة أعلاه والذهاب فوراً لرسالتك السابقة في سجل المحادثة.
+- استخدم البيانات أعلاه حصراً للأسعار والمخزون الجديد.
 """
 
+    # 6. Build Core System Prompt (NO history here)
     system_prompt = f"""هويتك الشخصية:
-- اسمك هو "{agent_name}".
-- قواعد التعريف بالنفس (صارمة جداً):
-  1. إذا كانت هذه هي الرسالة الأولى في المحادثة (ترحيب)، يجب أن تعرف بنفسك وبالشركة: "مرحباً، أنا {agent_name} من {company_name}".
-  2. إذا كان هناك تاريخ محادثة سابق (حتى لو رسالة واحدة فقط)، يمنع منعاً باتاً تكرار التعريف بنفسك أو بالمتجر. ادخل في صلب الموضوع مباشرة وكأنك تكمل المحادثة.
-  3. كن طبيعياً ومختصراً؛ تحدث كبشر لا كآلة.
+- اسمك هو "{agent_name}" من "{company_name}".
+- قواعد التعريف بالنفس: عرف بنفسك في أول رسالة فقط. يمنع تكرار التعريف في حال وجود سجل محادثة.
+- وظيفتك: مساعدة العميل في الشراء من نشاط [{store_activity}].
 
-- نبرة صوتك (Tone): {tone}
-
-{chat_history_prompt}
-
-معلومات الشركة والخدمات العامة:
-{description}
+معلومات المتجر: {description}
 
 {product_context}
 
 {business_rules_prompt}
 
-قواعد صارمة جداً (دستور العمل):
-1. الالتزام بالنشاط: نشاط المتجر الأساسي هو: [{store_activity}].
-   - وظيفتك هي المساعدة في بيع المنتجات الموجودة في القائمة أعلاه.
-   - يُمنع الإجابة على أسئلة خارج نطاق التجارة أو تخصص المتجر.
-   - إذا سألك العميل عن شيء خارج النشاط تماماً، اعتذر بلطف وعد للموضوع التجاري.
-
-2. منع المعلومات المضللة (الهلوسة):
-   - لا تخترع منتجات غير موجودة.
-   - اعتمد حصراً على قائمة المنتجات أعلاه والتعليمات الخاصة بالأعمدة للإجابة.
-   - استخدم سياق المحادثة السابقة بذكاء لفهم ما يقصده العميل. قاعدة حرجة: إذا قال العميل "الأول" أو "رقم 1" أو "أعطني الأول"، فهو يقصد المنتج الأول من القائمة التي عرضتها أنت في ردك السابق حصرياً، وليس أي منتج آخر من قاعدة البيانات! ارجع لردك الأخير في سجل المحادثة واستخرج المنتج المقصود منه.
-
-3. الالتزام بتعليمات الأعمدة:
-   - يجب عليك تطبيق جميع الملاحظات والتعليمات المذكورة في "تعليمات خاصة بأعمدة البيانات" بحذافيرها!
-   - إذا كانت الملاحظة تقول (لا تعطي الكمية للعميل إلا عند الطلب)، فيمنع منعاً باتاً ذكر الكمية المخزنة إذا لم يسأل عنها العميل حرفياً بصيغة سؤال مباشر.
-   - إذا كان العمود معطلاً (تجاهل هذا العمود تماماً)، لا تقم بذكر أو استخدام أي بيانات من هذا العمود للعميل نهائياً.
-
-4. قواعد عامة وصارمة:
-- رد دائماً بالعربية الفصحى أو بلهجة العميل إذا كانت عربية، أو بالإنجليزية إذا تحدث بها.
-- يمنع منعاً باتاً استخدام أي رموز أو لغات غريبة في الرد.
-- كن مقنعاً ومحترماً وركز على دفع العميل نحو "إتمام الطلب".
-- الردود تكون مختصرة وجذابة (حد أقصى 3 فقرات).
-- لا تذكر أنك ذكاء اصطناعي.
+قواعد عامة:
+- تحدث بلهجة العميل.
+- لا تخترع منتجات.
+- كن مختصراً وودوداً.
 """
 
-    # 4. بناء الرسائل (دعم الرؤية Vision أو الصوت Native)
-    # ملاحظة: حالياً فقط Google Gemini يدعم إرسال ملفات الصوت مباشرة عبر الـ API
-    can_handle_audio = (provider == "google")
-    
-    if image_base64 or (audio_base64 and can_handle_audio):
-        content_parts = []
-        if user_message:
-            content_parts.append({"type": "text", "text": user_message})
-        elif image_base64:
-            content_parts.append({"type": "text", "text": "وصلتني صورة، يرجى تحليلها والرد."})
-        elif audio_base64:
-            content_parts.append({"type": "text", "text": "استمع للمقطع الصوتي ونفذ المطلوب."})
+    # 7. Fetch REAL Chat History Messages (Correct Role-based)
+    chat_history_messages = []
+    try:
+        history_res = supabase.table("message_logs") \
+            .select("message_text, ai_response, timestamp") \
+            .order("timestamp", desc=True) \
+            .eq("client_id", client_id) \
+            .eq("phone_number", phone_number) \
+            .limit(10) \
+            .execute()
+        
+        if history_res.data:
+            sorted_history = sorted(history_res.data, key=lambda x: x.get("timestamp", ""))
+            for msg in sorted_history:
+                u = (msg.get("message_text") or "").strip()
+                a = (msg.get("ai_response") or "").strip()
+                if u: chat_history_messages.append({"role": "user", "content": u})
+                if a: chat_history_messages.append({"role": "assistant", "content": a})
+    except Exception as e:
+        print(f"Warning: History fetch error: {e}")
 
-        if image_base64:
-            content_parts.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}
-            })
-            
-        messages = [
-            {"role": "system", "content": system_prompt},
-        ]
-        # Inject conversation history for context
-        if chat_history_messages:
-            messages.extend(chat_history_messages[-8:])
-        messages.append({"role": "user", "content": content_parts})
+    # 8. Construct final messages array
+    messages = [{"role": "system", "content": system_prompt}]
+    messages.extend(chat_history_messages[-8:]) # Last 8 turns
+
+    # Add current message
+    if image_base64:
+        content = [{"type": "text", "text": user_message or "حلل الصورة"}]
+        content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}})
+        messages.append({"role": "user", "content": content})
     else:
-        # إذا كان هناك صوت والنموذج لا يدعمه، ولم ننجح في التحويل لنص سابقاً
-        final_msg = user_message
-        if not final_msg and audio_base64:
-            final_msg = "وصلتني رسالة صوتية تعذر تحويلها لنص. يرجى الاعتذار للعميل بلطف وطلب الكتابة نصياً."
-            
-        messages = [
-            {"role": "system", "content": system_prompt},
-        ]
-        # Inject conversation history for context
-        if chat_history_messages:
-            messages.extend(chat_history_messages[-8:])
-        messages.append({"role": "user", "content": final_msg})
+        messages.append({"role": "user", "content": user_message})
 
-    # 5. استدعاء API حسب المزود
+    # 9. Call LLM
     try:
         if provider == "openai":
             response = await _call_openai(api_key, model_id, messages)
-        elif provider == "anthropic":
-            response = await _call_anthropic(api_key, model_id, messages, system_prompt)
+        elif provider == "google":
+            response = await _call_google(api_key, model_id, messages, system_prompt)
         elif provider == "groq":
             response = await _call_groq(api_key, model_id, messages)
-        elif provider == "google":
-            response = await _call_google(api_key, model_id, user_message, system_prompt, image_base64, audio_base64)
         elif provider == "openrouter":
             response = await _call_openrouter(api_key, model_id, messages)
         else:
             response = await _call_openai(api_key, model_id, messages)
 
-        # 6. تسجيل السجل وتحديث العداد
+        # Log and increment
         _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
-        try:
-            supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
-        except Exception as update_err:
-            print(f"Error updating messages count: {update_err}")
-            
-        return response
-
-    except Exception as e:
-        print(f"AI call error: {e}")
-        return "عذراً، حدث خطأ أثناء معالجة طلبك. يرجى المحاولة مرة أخرى."
-
-
-async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "choices" not in data:
-            print(f"[OpenAI API Error] Response: {data}")
-            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenAI). يرجى المحاولة بعد قليل."
-        return data["choices"][0]["message"]["content"].strip()
-
-
-async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
-    # Anthropic requires system as a top-level field
-    user_messages = [m for m in messages if m["role"] != "system"]
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json"
-            },
-            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "content" not in data:
-            print(f"[Anthropic API Error] Response: {data}")
-            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Anthropic). يرجى المحاولة بعد قليل."
-        return data["content"][0]["text"].strip()
-
-
-async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "choices" not in data:
-            print(f"[Groq API Error] Response: {data}")
-            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Groq Rate Limit). يرجى المحاولة بعد قليل."
-        return data["choices"][0]["message"]["content"].strip()
-
-
-async def _call_google(api_key: str, model_id: str, user_message: str, system: str, image_base64: str = None, audio_base64: str = None) -> str:
-    clean_model_id = model_id.strip().lower()
-    clean_api_key = api_key.strip()
-    
-    if not clean_model_id.startswith("models/"):
-        full_model_name = f"models/{clean_model_id}"
-    else:
-        full_model_name = clean_model_id
+        supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={clean_api_key}"
-    headers = {"Content-Type": "application/json"}
-    
-    parts = []
-    if user_message:
-        parts.append({"text": user_message})
-    elif image_base64:
-        parts.append({"text": "ماذا ترى في هذه الصورة؟"})
-    elif audio_base64:
-        parts.append({"text": "استمع لهذا المقطع الصوتي ونفذ المطلوب منه في سياق المتجر."})
-
-    if image_base64:
-        parts.append({
-            "inline_data": {
-                "mime_type": "image/jpeg",
-                "data": image_base64
-            }
-        })
-    
-    if audio_base64:
-        parts.append({
-            "inline_data": {
-                "mime_type": "audio/ogg",
-                "data": audio_base64
-            }
-        })
-
-    body = {
-        "systemInstruction": {
-            "parts": [{"text": system}]
-        },
-        "contents": [
-            {
-                "role": "user",
-                "parts": parts
-            }
-        ],
-        "generationConfig": {"maxOutputTokens": 500, "temperature": 0.1}
-    }
-    async with httpx.AsyncClient() as client:
-        res = await client.post(url, headers=headers, json=body, timeout=30)
-        data = res.json()
-        if res.status_code != 200:
-            error_msg = data.get("error", {}).get("message", "Unknown Google error")
-            raise Exception(f"Google API Error: {error_msg}")
-        try:
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except (KeyError, IndexError):
-            raise Exception("Unexpected Google API response format")
-
-async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "https://ai-sales-agent-dreu.onrender.com",
-                "X-Title": "AI Sales Agent"
-            },
-            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "choices" in data:
-            return data["choices"][0]["message"]["content"].strip()
-        else:
-            error_msg = data.get("error", {}).get("message", "Unknown OpenRouter error")
-            print(f"[OpenRouter API Error] Response: {data}")
-            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenRouter). يرجى المحاولة بعد قليل."
-
-
-def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution", message_id: str = None):
-    try:
-        supabase.table("message_logs").insert({
-            "client_id": client_id,
-            "channel": channel if channel != "unknown" else "whatsapp_evolution",
-            "direction": "in",
-            "phone_number": phone_number,
-            "message_text": user_message,
-            "ai_response": ai_response,
-            "message_id": message_id
-        }).execute()
+        return response
     except Exception as e:
-        print(f"Log error: {e}")
+        print(f"AI Error: {e}")
+        return "عذراً، واجهت مشكلة فنية بسيطة. يرجى إعادة المحاولة."
+\nasync def _call_openai(api_key: str, model_id: str, messages: list) -> str:\n    async with httpx.AsyncClient() as client:\n        res = await client.post(\n            "https://api.openai.com/v1/chat/completions",\n            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},\n            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},\n            timeout=30\n        )\n        data = res.json()\n        if "choices" not in data:\n            print(f"[OpenAI API Error] Response: {data}")\n            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenAI). يرجى المحاولة بعد قليل."\n        return data["choices"][0]["message"]["content"].strip()\n\n\nasync def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:\n    # Anthropic requires system as a top-level field\n    user_messages = [m for m in messages if m["role"] != "system"]\n    async with httpx.AsyncClient() as client:\n        res = await client.post(\n            "https://api.anthropic.com/v1/messages",\n            headers={\n                "x-api-key": api_key,\n                "anthropic-version": "2023-06-01",\n                "Content-Type": "application/json"\n            },\n            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500, "temperature": 0.1},\n            timeout=30\n        )\n        data = res.json()\n        if "content" not in data:\n            print(f"[Anthropic API Error] Response: {data}")\n            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Anthropic). يرجى المحاولة بعد قليل."\n        return data["content"][0]["text"].strip()\n\n\nasync def _call_groq(api_key: str, model_id: str, messages: list) -> str:\n    async with httpx.AsyncClient() as client:\n        res = await client.post(\n            "https://api.groq.com/openai/v1/chat/completions",\n            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},\n            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},\n            timeout=30\n        )\n        data = res.json()\n        if "choices" not in data:\n            print(f"[Groq API Error] Response: {data}")\n            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (Groq Rate Limit). يرجى المحاولة بعد قليل."\n        return data["choices"][0]["message"]["content"].strip()\n\n\nasync def _call_google(api_key: str, model_id: str, messages: list, system: str) -> str:\n    """\n    Fixed Google Gemini API call that correctly maps OpenAI-style messages to Gemini contents with history.\n    """\n    clean_model_id = model_id.strip().lower()\n    clean_api_key = api_key.strip()\n    \n    if not clean_model_id.startswith("models/"):\n        full_model_name = f"models/{clean_model_id}"\n    else:\n        full_model_name = clean_model_id\n        \n    url = f"https://generativelanguage.googleapis.com/v1beta/{full_model_name}:generateContent?key={clean_api_key}"\n    headers = {"Content-Type": "application/json"}\n    \n    # Map messages to Gemini contents\n    contents = []\n    for msg in messages:\n        if msg["role"] == "system": continue\n        \n        role = "user" if msg["role"] == "user" else "model"\n        \n        parts = []\n        if isinstance(msg["content"], str):\n            parts.append({"text": msg["content"]})\n        elif isinstance(msg["content"], list):\n            for part in msg["content"]:\n                if part["type"] == "text":\n                    parts.append({"text": part["text"]})\n                elif part["type"] == "image_url":\n                    # Extract base64 from data:image/jpeg;base64,...\n                    b64 = part["image_url"]["url"].split(",")[-1]\n                    parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64}})\n        \n        contents.append({"role": role, "parts": parts})\n\n    body = {\n        "systemInstruction": {\n            "parts": [{"text": system}]\n        },\n        "contents": contents,\n        "generationConfig": {"maxOutputTokens": 500, "temperature": 0.1}\n    }\n    async with httpx.AsyncClient() as client:\n        res = await client.post(url, headers=headers, json=body, timeout=30)\n        data = res.json()\n        if res.status_code != 200:\n            error_msg = data.get("error", {}).get("message", "Unknown Google error")\n            raise Exception(f"Google API Error: {error_msg}")\n        try:\n            return data["candidates"][0]["content"]["parts"][0]["text"].strip()\n        except (KeyError, IndexError):\n            raise Exception("Unexpected Google API response format")\n\nasync def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:\n    async with httpx.AsyncClient() as client:\n        res = await client.post(\n            "https://openrouter.ai/api/v1/chat/completions",\n            headers={\n                "Authorization": f"Bearer {api_key}",\n                "Content-Type": "application/json",\n                "HTTP-Referer": "https://ai-sales-agent-dreu.onrender.com",\n                "X-Title": "AI Sales Agent"\n            },\n            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},\n            timeout=30\n        )\n        data = res.json()\n        if "choices" in data:\n            return data["choices"][0]["message"]["content"].strip()\n        else:\n            error_msg = data.get("error", {}).get("message", "Unknown OpenRouter error")\n            print(f"[OpenRouter API Error] Response: {data}")\n            return "عذراً، يبدو أن هناك ضغطاً على خوادم الذكاء الاصطناعي (OpenRouter). يرجى المحاولة بعد قليل."\n\n\ndef _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp_evolution", message_id: str = None):\n    try:\n        supabase.table("message_logs").insert({\n            "client_id": client_id,\n            "channel": channel if channel != "unknown" else "whatsapp_evolution",\n            "direction": "in",\n            "phone_number": phone_number,\n            "message_text": user_message,\n            "ai_response": ai_response,\n            "message_id": message_id\n        }).execute()\n    except Exception as e:\n        print(f"Log error: {e}")
