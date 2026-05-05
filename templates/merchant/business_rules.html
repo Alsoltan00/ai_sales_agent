@@ -151,16 +151,26 @@
                     </div>
                     <div class="col-md-4">
                         <label class="radio-label bg-white mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
+                            <input class="form-check-input" type="checkbox" id="chat_payment_transfer" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
                             <span>تحويل بنكي</span>
                         </label>
                     </div>
                     <div class="col-md-4">
                         <label class="radio-label bg-white mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
+                            <input class="form-check-input" type="checkbox" id="chat_payment_link" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
                             <span>روابط دفع خارجية</span>
                         </label>
                     </div>
+                </div>
+
+                <div class="mt-3 ps-3" id="transfer_details" style="display: {% if rules.chat_payment_transfer %}block{% else %}none{% endif %}; border-right: 3px solid #25D366; background: #fff; padding: 10px; border-radius: 8px;">
+                    <label class="form-label fw-600 small text-muted">أرقام الحسابات البنكية المتاحة للتحويل:</label>
+                    <textarea name="bank_accounts" class="form-control form-control-sm" rows="2" placeholder="مثال: بنك الراجحي: SA1234567890123456789012">{{ rules.bank_accounts or '' }}</textarea>
+                </div>
+
+                <div class="mt-3 ps-3" id="link_details" style="display: {% if rules.chat_payment_link %}block{% else %}none{% endif %}; border-right: 3px solid #25D366; background: #fff; padding: 10px; border-radius: 8px;">
+                    <label class="form-label fw-600 small text-muted">روابط الدفع (مثال: سلة، فاتورة، Stripe):</label>
+                    <textarea name="payment_links" class="form-control form-control-sm" rows="2" placeholder="أدخل الروابط هنا...">{{ rules.payment_links or '' }}</textarea>
                 </div>
             </div>
 
@@ -537,6 +547,23 @@
     document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
         radio.addEventListener('change', toggleDynamicFlow);
     });
+
+    // Toggle Payment Method Details
+    const transferCheckbox = document.getElementById('chat_payment_transfer');
+    const transferDetails = document.getElementById('transfer_details');
+    if (transferCheckbox && transferDetails) {
+        transferCheckbox.addEventListener('change', function() {
+            transferDetails.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+
+    const linkCheckbox = document.getElementById('chat_payment_link');
+    const linkDetails = document.getElementById('link_details');
+    if (linkCheckbox && linkDetails) {
+        linkCheckbox.addEventListener('change', function() {
+            linkDetails.style.display = this.checked ? 'block' : 'none';
+        });
+    }
 
     // Run on init
     toggleDynamicFlow();
