@@ -107,14 +107,14 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             rd = rules_res.data["rules_data"]
             checkout = rd.get('checkout_type', 'store')
             if checkout == 'chat':
-                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). يجب عليك أخذ بيانات العميل (الاسم، الجوال، العنوان) وتأكيد الطلب بالكامل."
+                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). ملاحظة: لا تطلب بيانات العميل (الاسم، الجوال، العنوان) فوراً. انتظر حتى يختار العميل منتجاً ويؤكد رغبته في الشراء، ثم ابدأ بجمع البيانات بلطف."
                 pm = []
                 if rd.get('chat_payment_cod'): pm.append("الدفع عند الاستلام")
                 if rd.get('chat_payment_transfer'): pm.append(f"تحويل بنكي ({rd.get('bank_accounts', '')})")
                 if rd.get('chat_payment_link'): pm.append(f"رابط دفع ({rd.get('payment_links', '')})")
                 checkout_instructions += f"\n- طرق الدفع المتاحة: {', '.join(pm) if pm else 'حسب الاتفاق'}."
             else:
-                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر."
+                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر لإتمام الشراء."
 
             business_rules_prompt = f"""
 دستور عمل وقواعد العمل (يجب الالتزام بها قطعيًا):
