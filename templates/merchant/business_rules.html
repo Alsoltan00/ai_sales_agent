@@ -3,496 +3,613 @@
 {% block title %}قواعد العمل{% endblock %}
 
 {% block extra_css %}
-.step-card {
-    display: none;
-    animation: fadeIn 0.4s ease-out;
+/* Custom styles for professional UI */
+.rules-sidebar .nav-link {
+    border-radius: 12px;
+    padding: 14px 20px;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--bs-heading-color);
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
-.step-card.active { display: block; }
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
+.rules-sidebar .nav-link.active {
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    color: var(--bs-primary);
+    border-color: rgba(var(--bs-primary-rgb), 0.2);
 }
-.option-group {
-    border-right: 4px solid var(--bs-primary);
-    padding-right: 20px;
+.rules-sidebar .nav-link:hover:not(.active) {
+    background: var(--bs-secondary-bg);
+}
+.settings-card {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
     margin-bottom: 24px;
 }
-.radio-label {
-    display: flex;
-    align-items: center;
-    margin-bottom: 12px;
-    cursor: pointer;
-    padding: 12px 16px;
-    border-radius: 12px;
-    background: var(--bs-secondary-bg);
+.settings-group {
+    padding: 24px;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+.settings-group:last-child {
+    border-bottom: none;
+}
+.radio-card {
     border: 1px solid var(--bs-border-color);
-    transition: 0.2s;
+    border-radius: 12px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 100%;
+    position: relative;
+    background: var(--bs-body-bg);
 }
-.radio-label:hover {
-    border-color: var(--bs-primary);
-    background: rgba(var(--bs-primary-rgb), 0.05);
+.radio-card:hover {
+    border-color: var(--bs-primary-border-subtle);
+    background: var(--bs-secondary-bg);
 }
-.radio-label input[type="radio"], .radio-label input[type="checkbox"] {
+.radio-card input[type="radio"], .radio-card input[type="checkbox"] {
+    position: absolute;
+    top: 16px;
+    right: 16px;
     width: 20px;
     height: 20px;
-    margin-left: 12px;
     cursor: pointer;
 }
-.progress-container {
-    height: 8px;
-    background: var(--bs-secondary-bg);
-    border-radius: 10px;
-    margin-bottom: 30px;
-    overflow: hidden;
+.radio-card-content {
+    margin-right: 36px; /* Space for radio button */
 }
-.progress-fill {
-    height: 100%;
-    background: var(--bs-primary);
-    width: 20%;
-    transition: width 0.4s ease;
+/* Style when checked */
+.radio-card:has(input:checked) {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.03);
 }
-.business-model-card {
-    width: 100%;
-    cursor: pointer;
+.radio-card-title {
+    font-weight: 700;
+    margin-bottom: 4px;
     display: block;
 }
-.business-model-card input {
-    display: none;
+.radio-card-desc {
+    font-size: 0.85rem;
+    color: var(--bs-secondary-color);
+    margin: 0;
 }
-.business-model-card .card-content {
-    border: 2px solid var(--bs-border-color);
-    border-radius: 16px;
-    transition: all 0.3s ease;
+.floating-save {
+    position: sticky;
+    bottom: 24px;
+    z-index: 1000;
     background: var(--bs-body-bg);
-    height: 100%;
-}
-.business-model-card:hover .card-content {
-    border-color: var(--bs-primary-border-subtle);
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.05);
-}
-.business-model-card input:checked + .card-content {
-    border-color: var(--bs-primary);
-    background: rgba(var(--bs-primary-rgb), 0.05);
-    box-shadow: 0 0 0 4px rgba(var(--bs-primary-rgb), 0.1);
+    padding: 16px 24px;
+    border-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05), 0 4px 20px rgba(0,0,0,0.05);
+    border: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 {% endblock %}
 
 {% block content %}
-<!-- Page Header -->
 <div class="page-header mb-4">
-    <h1>دستور عمل الموظف الآلي</h1>
-    <p class="text-secondary mb-0 mt-1">صياغة القواعد والسياسات التي سيلتزم بها الذكاء الاصطناعي.</p>
-</div>
-
-<!-- Progress Bar -->
-<div class="progress-container">
-    <div class="progress-fill" id="progressBar"></div>
+    <h1 class="fw-bold">قواعد العمل والسياسات</h1>
+    <p class="text-secondary mt-2">خصص تجربة الموظف الآلي ليطابق سياسات متجرك وطريقة بيعك بدقة واحترافية.</p>
 </div>
 
 <form id="businessRulesForm">
-    <!-- Step 1: Business Model (NEW) -->
-    <div class="card card-lg step-card active" id="step1">
-        <div class="card-header border-bottom-0 pb-0 text-center">
-            <h4 class="mb-1 fw-bold text-primary">أولاً: أين سيتم إتمام الطلب والدفع؟</h4>
-            <p class="text-secondary small mb-0">اختر الطريقة التي تريد من الموظف الآلي توجيه عملائك لها.</p>
+    <div class="row g-4">
+        <!-- Sidebar Navigation -->
+        <div class="col-lg-3 col-md-4">
+            <div class="nav flex-column nav-pills rules-sidebar sticky-top" style="top: 20px;" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                <button class="nav-link active text-start" id="tab-model" data-bs-toggle="pill" data-bs-target="#pane-model" type="button" role="tab">
+                    <i class="ti ti-building-store me-2 fs-5"></i> 1. مسار الطلب
+                </button>
+                <button class="nav-link text-start" id="tab-finance" data-bs-toggle="pill" data-bs-target="#pane-finance" type="button" role="tab">
+                    <i class="ti ti-cash me-2 fs-5"></i> 2. السياسات المالية
+                </button>
+                <button class="nav-link text-start" id="tab-sales" data-bs-toggle="pill" data-bs-target="#pane-sales" type="button" role="tab">
+                    <i class="ti ti-chart-line me-2 fs-5"></i> 3. المبيعات والمخزون
+                </button>
+                <button class="nav-link text-start" id="tab-service" data-bs-toggle="pill" data-bs-target="#pane-service" type="button" role="tab">
+                    <i class="ti ti-headset me-2 fs-5"></i> 4. خدمة العملاء
+                </button>
+                <button class="nav-link text-start text-danger" id="tab-guardrails" data-bs-toggle="pill" data-bs-target="#pane-guardrails" type="button" role="tab">
+                    <i class="ti ti-shield-lock me-2 fs-5"></i> 5. حواجز الحماية
+                </button>
+            </div>
         </div>
-        <div class="card-body">
-            <div class="row g-4 mt-2 mb-4">
-                <div class="col-md-6">
-                    <label class="business-model-card">
-                        <input type="radio" name="checkout_type" value="store" {% if rules.checkout_type == 'store' or not rules.checkout_type %}checked{% endif %}>
-                        <div class="card-content text-center p-4">
-                            <i class="ti ti-shopping-cart" style="font-size: 3.5rem; color: var(--bs-primary);"></i>
-                            <h5 class="mt-3 fw-bold">عبر المتجر الإلكتروني</h5>
-                            <p class="text-muted small">سيوجه الموظف الآلي العميل لروابط المنتجات في متجرك لإتمام الشراء والدفع.</p>
+
+        <!-- Content Area -->
+        <div class="col-lg-9 col-md-8">
+            <div class="tab-content" id="v-pills-tabContent">
+                
+                <!-- 1. Business Model -->
+                <div class="tab-pane fade show active" id="pane-model" role="tabpanel">
+                    <div class="card settings-card">
+                        <div class="settings-group">
+                            <h4 class="fw-bold mb-1"><i class="ti ti-shopping-cart text-primary me-2"></i>أين سيتم إتمام الطلب والدفع؟</h4>
+                            <p class="text-secondary small mb-4">حدد مسار العميل النهائي، هل تريد من الموظف الآلي إتمام كل شيء داخل المحادثة أم توجيههم للمتجر؟</p>
+                            
+                            <div class="row g-3">
+                                <div class="col-sm-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="checkout_type" value="store" {% if rules.checkout_type == 'store' or not rules.checkout_type %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title text-primary"><i class="ti ti-world me-1"></i> عبر المتجر الإلكتروني</span>
+                                            <p class="radio-card-desc">سيوجه الموظف الآلي العميل لروابط المنتجات في متجرك لإتمام الشراء والدفع.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-sm-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="checkout_type" value="chat" {% if rules.checkout_type == 'chat' %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title text-success"><i class="ti ti-brand-whatsapp me-1"></i> داخل المحادثة (واتساب)</span>
+                                            <p class="radio-card-desc">سيقوم الموظف بأخذ بيانات العميل وتأكيد الطلب يدوياً بالكامل في المحادثة.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
                         </div>
-                    </label>
+                    </div>
                 </div>
-                <div class="col-md-6">
-                    <label class="business-model-card">
-                        <input type="radio" name="checkout_type" value="chat" {% if rules.checkout_type == 'chat' %}checked{% endif %}>
-                        <div class="card-content text-center p-4">
-                            <i class="ti ti-brand-whatsapp" style="font-size: 3.5rem; color: #25D366;"></i>
-                            <h5 class="mt-3 fw-bold">داخل المحادثة (واتساب)</h5>
-                            <p class="text-muted small">سيقوم الموظف بأخذ بيانات العميل (الاسم، العنوان، الهاتف) وتأكيد الطلب يدوياً في المحادثة.</p>
+
+                <!-- 2. Financial Logic -->
+                <div class="tab-pane fade" id="pane-finance" role="tabpanel">
+                    <div class="card settings-card">
+                        <!-- Payment Methods (Chat Only) -->
+                        <div class="settings-group chat-only" style="display:none; background: rgba(37, 211, 102, 0.03);">
+                            <h5 class="fw-bold text-success mb-3"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة</h5>
+                            <div class="row g-3">
+                                <div class="col-sm-4">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title"><i class="ti ti-truck-delivery me-1"></i> الدفع عند الاستلام</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" id="chat_payment_transfer" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title"><i class="ti ti-building-bank me-1"></i> تحويل بنكي</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" id="chat_payment_link" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title"><i class="ti ti-link me-1"></i> روابط دفع خارجية</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mt-3 p-3 bg-white rounded border" id="transfer_details" style="display: {% if rules.chat_payment_transfer %}block{% else %}none{% endif %}; border-right: 4px solid #25D366 !important;">
+                                <label class="form-label fw-bold small">أرقام الحسابات البنكية المتاحة:</label>
+                                <textarea name="bank_accounts" class="form-control" rows="2" placeholder="مثال: بنك الراجحي: SA1234567890123456789012">{{ rules.bank_accounts or '' }}</textarea>
+                            </div>
+
+                            <div class="mt-3 p-3 bg-white rounded border" id="link_details" style="display: {% if rules.chat_payment_link %}block{% else %}none{% endif %}; border-right: 4px solid #25D366 !important;">
+                                <label class="form-label fw-bold small">روابط الدفع (Stripe, MyFatoorah...):</label>
+                                <textarea name="payment_links" class="form-control" rows="2" placeholder="أدخل روابط الدفع هنا...">{{ rules.payment_links or '' }}</textarea>
+                            </div>
                         </div>
-                    </label>
-                </div>
-            </div>
 
-            <hr>
-            <div class="d-flex justify-content-end">
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(1)">
-                    التالي: السياسات المالية <i class="ti ti-arrow-left ms-2"></i>
-                </button>
-            </div>
-        </div>
-    </div>
+                        <!-- Store Guidance -->
+                        <div class="settings-group store-only" style="background: rgba(var(--bs-primary-rgb), 0.03);">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-primary text-white rounded p-3 me-3"><i class="ti ti-shopping-cart fs-3"></i></div>
+                                <div>
+                                    <h5 class="fw-bold mb-1 text-primary">إتمام الطلب في المتجر</h5>
+                                    <p class="small text-muted mb-0">سيقوم الموظف بتوجيه العملاء للمتجر، وكل طرق الدفع ستكون مدارة بالكامل هناك.</p>
+                                </div>
+                            </div>
+                        </div>
 
-    <!-- Step 2: Financial Logic -->
-    <div class="card card-lg step-card" id="step2">
-        <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">ثانياً: العمليات والسياسات المالية</h4>
-            <p class="text-secondary small mb-0">الهدف: منع الموظف من إعطاء أرقام أو خصومات خاطئة.</p>
-        </div>
-        <div class="card-body">
+                        <!-- Discount Policy -->
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-tags me-2"></i>سياسة الخصومات</h5>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="discount_type" value="fixed" {% if rules.discount_type == 'fixed' or not rules.discount_type %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">خصم تلقائي مشروط</span>
+                                        <p class="radio-card-desc d-flex align-items-center flex-wrap gap-2 mt-2">
+                                            خصم بنسبة <input type="number" name="discount_percent" class="form-control form-control-sm text-center bg-white" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % 
+                                            عند تجاوز الفاتورة لمبلغ <input type="number" name="discount_threshold" class="form-control form-control-sm text-center bg-white" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.
+                                        </p>
+                                    </div>
+                                </label>
+                                <label class="radio-card store-only">
+                                    <input type="radio" name="discount_type" value="code" {% if rules.discount_type == 'code' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">توجيه لاستخدام كود الخصم في السلة</span>
+                                        <p class="radio-card-desc d-flex align-items-center gap-2 mt-2">
+                                            الكود: <input type="text" name="discount_code" class="form-control form-control-sm bg-white" style="width: 150px;" value="{{ rules.discount_code or '' }}" placeholder="مثال: KS20">
+                                        </p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="discount_type" value="custom" {% if rules.discount_type == 'custom' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">إجابة مخصصة (حرّة)</span>
+                                        <p class="radio-card-desc mt-2">
+                                            <input type="text" name="discount_custom" class="form-control form-control-sm w-100 bg-white" value="{{ rules.discount_custom or '' }}" placeholder="اكتب كيف تريد أن يرد الموظف عند طلب خصم...">
+                                        </p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label fw-bold small text-muted">الرسالة المرفقة مع الخصم (اختياري):</label>
+                                <textarea name="discount_msg" class="form-control" rows="2" placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!">{{ rules.discount_msg or '' }}</textarea>
+                            </div>
+                        </div>
 
-            <!-- Chat Only: Payment Methods -->
-            <div class="chat-only option-group mt-3" style="border-color: #25D366; background: rgba(37, 211, 102, 0.05); padding: 15px; border-radius: 12px; display: none;">
-                <h6 class="mb-3 fw-bold text-success"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة:</h6>
-                <p class="small text-muted mb-3">حدد للعميل كيف يمكنه الدفع بعد تأكيد طلبه.</p>
-                <div class="row">
-                    <div class="col-md-4">
-                        <label class="radio-label bg-white mb-0">
-                            <input class="form-check-input" type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
-                            <span>الدفع عند الاستلام</span>
-                        </label>
+                        <!-- Shipping Policy -->
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-truck me-2"></i>سياسة الشحن المجاني</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="shipping_type" value="city" {% if rules.shipping_type == 'city' or not rules.shipping_type %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">شحن مجاني لمدينة محددة</span>
+                                            <p class="radio-card-desc mt-2">
+                                                المدينة: <input type="text" name="shipping_city" class="form-control form-control-sm d-inline-block bg-white" style="width: 120px;" value="{{ rules.shipping_city or '' }}" placeholder="الرياض">
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="shipping_type" value="amount" {% if rules.shipping_type == 'amount' %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">شحن مجاني بتجاوز مبلغ</span>
+                                            <p class="radio-card-desc mt-2">
+                                                المبلغ: <input type="number" name="shipping_threshold" class="form-control form-control-sm d-inline-block text-center bg-white" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label fw-bold small text-muted">تخصيص رسالة الشحن (اختياري):</label>
+                                <textarea name="shipping_msg" class="form-control" rows="2" placeholder="ماذا يقول الموظف لتشجيع العميل على الاستفادة من الشحن المجاني؟">{{ rules.shipping_msg or '' }}</textarea>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="radio-label bg-white mb-0">
-                            <input class="form-check-input" type="checkbox" id="chat_payment_transfer" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
-                            <span>تحويل بنكي</span>
-                        </label>
+                </div>
+
+                <!-- 3. Sales & Inventory -->
+                <div class="tab-pane fade" id="pane-sales" role="tabpanel">
+                    <div class="card settings-card">
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-trending-up text-primary me-2"></i>استراتيجية زيادة المبيعات (Upselling)</h5>
+                            <p class="text-secondary small mb-3">هل ترغب أن يقوم الموظف باقتراح منتجات أخرى لزيادة قيمة السلة؟</p>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="upsell_type" value="none" {% if rules.upsell_type == 'none' or not rules.upsell_type %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title text-muted"><i class="ti ti-ban me-1"></i> لا يقترح (البيع المباشر فقط)</span>
+                                        <p class="radio-card-desc">يجيب على طلب العميل المباشر فقط لتجنب الإزعاج أو الإطالة.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="upsell_type" value="cross" {% if rules.upsell_type == 'cross' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title text-primary"><i class="ti ti-arrows-right-left me-1"></i> الاقتراح التكميلي (Cross-sell)</span>
+                                        <p class="radio-card-desc">يقترح منتجاً مكملاً للطلب (مثال: إذا طلب العميل حذاء، يُعرض عليه جوارب متناسقة).</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="upsell_type" value="upgrade" {% if rules.upsell_type == 'upgrade' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title text-success"><i class="ti ti-arrow-up-circle me-1"></i> ترقية البيعة (Upsell)</span>
+                                        <p class="radio-card-desc">يحاول بأسلوب لبق إقناع العميل بمنتج ذو مواصفات أفضل وسعر أعلى.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-box-off text-danger me-2"></i>عند نفاذ المخزون</h5>
+                            <p class="text-secondary small mb-3">كيف يتصرف الموظف الآلي إذا طلب العميل منتجاً غير متوفر؟</p>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="stock_out_type" value="alternative" {% if rules.stock_out_type == 'alternative' or not rules.stock_out_type %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">الاعتذار وعرض منتج بديل</span>
+                                        <p class="radio-card-desc">يبحث في نفس الفئة عن منتجات مشابهة ويعرضها كبديل لإنقاذ البيعة.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="stock_out_type" value="collect_info" {% if rules.stock_out_type == 'collect_info' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">أخذ بيانات العميل للانتظار</span>
+                                        <p class="radio-card-desc">يأخذ رقم الهاتف ويعد العميل بإبلاغه فور توفر المنتج.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="stock_out_type" value="custom_only" {% if rules.stock_out_type == 'custom_only' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">الاكتفاء بالرسالة المخصصة فقط</span>
+                                        <p class="radio-card-desc">بدون أي محاولات إضافية لعرض بديل أو طلب بيانات.</p>
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label fw-bold small text-muted">تخصيص الرسالة:</label>
+                                <textarea name="stock_out_msg" class="form-control" rows="2" placeholder="مثال: نعتذر منك، الكمية نفذت. هل ترغب برؤية موديلات مشابهة؟">{{ rules.stock_out_msg or '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-file-unknown text-warning me-2"></i>نقص تفاصيل المنتجات</h5>
+                            <p class="text-secondary small mb-3">إذا سأل العميل عن تفصيل دقيق غير موجود في ملف البيانات (مثل نوعية القماش، الكفالة):</p>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="details_missing_type" value="static" {% if rules.details_missing_type == 'static' or not rules.details_missing_type %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">استخدام إجابة موحدة للجميع</span>
+                                            <p class="radio-card-desc mt-2">
+                                                <input type="text" name="details_static_info" class="form-control form-control-sm bg-white" value="{{ rules.details_static_info or '' }}" placeholder="مثال: جميع منتجاتنا أصلية 100%">
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="details_missing_type" value="human" {% if rules.details_missing_type == 'human' %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">تحويل لموظف بشري</span>
+                                            <p class="radio-card-desc">يعتذر بلباقة ويحيل السؤال للمختصين.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-md-4">
-                        <label class="radio-label bg-white mb-0">
-                            <input class="form-check-input" type="checkbox" id="chat_payment_link" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
-                            <span>روابط دفع خارجية</span>
-                        </label>
+                </div>
+
+                <!-- 4. Customer Service -->
+                <div class="tab-pane fade" id="pane-service" role="tabpanel">
+                    <div class="card settings-card">
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-messages text-primary me-2"></i>أسلوب الرد والترحيب (Tone)</h5>
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="radio-card text-center h-100">
+                                        <input type="radio" name="tone_type" value="formal" {% if rules.tone_type == 'formal' or not rules.tone_type %}checked{% endif %}>
+                                        <div class="radio-card-content m-0 mt-3">
+                                            <div class="mb-2"><i class="ti ti-user-tie fs-2 text-primary"></i></div>
+                                            <span class="fw-bold d-block mb-1">رسمي ومباشر</span>
+                                            <p class="small text-muted mb-0">"أهلاً بك سيدي، كيف يمكنني مساعدتك؟"</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="radio-card text-center h-100">
+                                        <input type="radio" name="tone_type" value="friendly" {% if rules.tone_type == 'friendly' %}checked{% endif %}>
+                                        <div class="radio-card-content m-0 mt-3">
+                                            <div class="mb-2"><i class="ti ti-mood-smile fs-2 text-success"></i></div>
+                                            <span class="fw-bold d-block mb-1">ودي وعامي</span>
+                                            <p class="small text-muted mb-0">"يا هلا فيك، نورتنا! أمرني وش بغيت؟"</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="radio-card text-center h-100">
+                                        <input type="radio" name="tone_type" value="promotional" {% if rules.tone_type == 'promotional' %}checked{% endif %}>
+                                        <div class="radio-card-content m-0 mt-3">
+                                            <div class="mb-2"><i class="ti ti-speakerphone fs-2 text-warning"></i></div>
+                                            <span class="fw-bold d-block mb-1">ترويجي</span>
+                                            <p class="small text-muted mb-0">"أهلاً بك! هل تعلم عن عروضنا الحالية؟"</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-refresh-alert text-info me-2"></i>سياسة الاسترجاع والاستبدال</h5>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="refund_type" value="7days" {% if rules.refund_type == '7days' or not rules.refund_type %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">متاح (شائع: خلال 7-14 يوم)</span>
+                                        <p class="radio-card-desc">استرجاع واستبدال متاح بشرط عدم الاستخدام ووجود الفاتورة.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="refund_type" value="exchange_only" {% if rules.refund_type == 'exchange_only' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">استبدال فقط</span>
+                                        <p class="radio-card-desc">يُسمح بتغيير المقاس أو اللون فقط، ولا يوجد استرجاع للمبالغ النقدية.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="refund_type" value="none" {% if rules.refund_type == 'none' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title text-danger">غير متاح نهائياً</span>
+                                        <p class="radio-card-desc">لا يوجد استرجاع أو استبدال للمنتجات المباعة.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Chat Confirm -->
+                        <div class="settings-group chat-only" style="display:none;">
+                            <h5 class="fw-bold text-success mb-3"><i class="ti ti-check me-2"></i>كيف يعتمد الموظف طلب العميل بالمحادثة؟</h5>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="chat_confirmation" value="summary" {% if rules.chat_confirmation == 'summary' or not rules.chat_confirmation %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">ملخص وتأكيد صريح</span>
+                                        <p class="radio-card-desc">إرسال ملخص الفاتورة النهائي وطلب الموافقة بـ (نعم/لا) قبل الاعتماد.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="chat_confirmation" value="direct" {% if rules.chat_confirmation == 'direct' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">اعتماد فوري وسريع</span>
+                                        <p class="radio-card-desc">الاعتماد فوراً بمجرد أن يقدم العميل بياناته لتقليل خطوات البيع.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Store Tech Issues -->
+                        <div class="settings-group store-only">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-alert-triangle text-warning me-2"></i>المشاكل التقنية بالمتجر</h5>
+                            <div class="d-flex flex-column gap-3">
+                                <label class="radio-card">
+                                    <input type="radio" name="store_tech_issue" value="retry" {% if rules.store_tech_issue == 'retry' or not rules.store_tech_issue %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">الطلب بالمحاولة لاحقاً</span>
+                                        <p class="radio-card-desc">الاعتذار وتوجيهه للمحاولة لاحقاً أو تغيير المتصفح.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="store_tech_issue" value="exception" {% if rules.store_tech_issue == 'exception' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title text-success">استثناء ذكي (إنقاذ البيعة)</span>
+                                        <p class="radio-card-desc">أن يأخذ منه الطلب يدوياً داخل المحادثة بشكل استثنائي إذا فشل المتجر.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-users text-purple me-2"></i>التعامل مع الشكاوى والعملاء الغاضبين</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="complaint_type" value="discount" {% if rules.complaint_type == 'discount' or not rules.complaint_type %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">امتصاص الغضب وتقديم خصم ترضية</span>
+                                            <p class="radio-card-desc mt-2">
+                                                الكود: <input type="text" name="complaint_code" class="form-control form-control-sm d-inline-block bg-white" style="width: 100px;" value="{{ rules.complaint_code or '' }}" placeholder="SORRY10">
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="complaint_type" value="human" {% if rules.complaint_type == 'human' %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">التحويل فوراً للقسم المختص</span>
+                                            <p class="radio-card-desc mt-2 text-muted">إحالة المحادثة لموظف بشري مختص.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label class="form-label fw-bold small text-muted">رسالة التهدئة الافتتاحية:</label>
+                                <textarea name="complaint_msg" class="form-control" rows="2" placeholder="نعتذر جداً عن هذه التجربة السيئة، حقك علينا...">{{ rules.complaint_msg or '' }}</textarea>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="mt-3 ps-3" id="transfer_details" style="display: {% if rules.chat_payment_transfer %}block{% else %}none{% endif %}; border-right: 3px solid #25D366; background: #fff; padding: 10px; border-radius: 8px;">
-                    <label class="form-label fw-600 small text-muted">أرقام الحسابات البنكية المتاحة للتحويل:</label>
-                    <textarea name="bank_accounts" class="form-control form-control-sm" rows="2" placeholder="مثال: بنك الراجحي: SA1234567890123456789012">{{ rules.bank_accounts or '' }}</textarea>
+                <!-- 5. Guardrails -->
+                <div class="tab-pane fade" id="pane-guardrails" role="tabpanel">
+                    <div class="card settings-card border-danger border-opacity-25 shadow-sm">
+                        <div class="settings-group">
+                            <h5 class="fw-bold text-danger mb-3"><i class="ti ti-barrier-block me-2"></i>المواضيع الممنوع التحدث فيها قطعيًا (الخطوط الحمراء)</h5>
+                            <p class="text-secondary small mb-3">حدد الأمور التي سيتم منع الذكاء الاصطناعي من مناقشتها تماماً.</p>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" name="ban_prices" {% if rules.ban_prices %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">مقارنة الأسعار والمنافسين</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" name="ban_eta" {% if rules.ban_eta %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">إعطاء وعود دقيقة بمواعيد الوصول</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" name="ban_general_chat" {% if rules.ban_general_chat %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">الأسئلة العامة والشخصية</span>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card bg-white">
+                                        <input type="checkbox" name="ban_ai_admission" {% if rules.ban_ai_admission %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">الاعتراف بأنه "ذكاء اصطناعي"</span>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4 p-3 rounded border" style="background: rgba(var(--bs-danger-rgb), 0.03); border-color: rgba(var(--bs-danger-rgb), 0.2) !important;">
+                                <label class="form-label fw-bold text-danger">إضافات مخصصة:</label>
+                                <p class="small text-muted mb-2">اكتب أي مواضيع أخرى تود منع الحديث عنها (مثلاً: السياسة، الدين، إلخ).</p>
+                                <textarea name="ban_custom" class="form-control" rows="2" placeholder="السياسة، أديان، شتم، إلخ...">{{ rules.ban_custom or '' }}</textarea>
+                            </div>
+                        </div>
+
+                        <div class="settings-group">
+                            <h5 class="fw-bold mb-3"><i class="ti ti-scale text-primary me-2"></i>صلاحية "المكاسرة" والتفاوض على السعر</h5>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="bargain_type" value="refuse" {% if rules.bargain_type == 'refuse' or not rules.bargain_type %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">الرفض التام وبشكل مهذب</span>
+                                            <p class="radio-card-desc">يُوضح أن الأسعار نهائية.</p>
+                                        </div>
+                                    </label>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="radio-card">
+                                        <input type="radio" name="bargain_type" value="qty" {% if rules.bargain_type == 'qty' %}checked{% endif %}>
+                                        <div class="radio-card-content">
+                                            <span class="radio-card-title">إعطاء خصم للكميات فقط</span>
+                                            <p class="radio-card-desc mt-2">
+                                                الموافقة إذا تجاوزت الطلبية: <input type="number" name="bargain_qty" class="form-control form-control-sm d-inline-block text-center bg-white" style="width: 70px;" value="{{ rules.bargain_qty or '' }}"> قطع.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="mt-3 ps-3" id="link_details" style="display: {% if rules.chat_payment_link %}block{% else %}none{% endif %}; border-right: 3px solid #25D366; background: #fff; padding: 10px; border-radius: 8px;">
-                    <label class="form-label fw-600 small text-muted">روابط الدفع (مثال: سلة، فاتورة، Stripe):</label>
-                    <textarea name="payment_links" class="form-control form-control-sm" rows="2" placeholder="أدخل الروابط هنا...">{{ rules.payment_links or '' }}</textarea>
-                </div>
-            </div>
+            </div> <!-- end tab-content -->
+        </div> <!-- end col-9 -->
+    </div> <!-- end row -->
 
-            <!-- Store Only: Checkout Guidance -->
-            <div class="store-only option-group mt-3" style="border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.05); padding: 15px; border-radius: 12px;">
-                <h6 class="mb-2 fw-bold text-primary"><i class="ti ti-shopping-cart me-2"></i>إتمام الطلب في المتجر:</h6>
-                <p class="small text-muted mb-0">سيقوم الموظف بتوجيه العملاء للمتجر، وكل طرق الدفع وعمليات الشراء ستكون مدارة بالكامل من خلال منصة متجرك الإلكتروني.</p>
-            </div>
-
-            <div class="option-group mt-4">
-                <h6 class="mb-3 fw-bold">سياسة الخصومات: 
-                    <span class="store-only text-primary">"كيف يستخدم العميل الخصم في المتجر؟"</span>
-                    <span class="chat-only text-success" style="display:none;">"كيف نطبق الخصم للعميل في المحادثة؟"</span>
-                </h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="discount_type" value="fixed" {% if rules.discount_type == 'fixed' or not rules.discount_type %}checked{% endif %}>
-                    <span>خصم ثابت بنسبة 
-                        <input type="number" name="discount_percent" class="form-control form-control-sm d-inline-block mx-2" style="width: 70px;" value="{{ rules.discount_percent or '' }}"> % 
-                        عند تجاوز مبلغ 
-                        <input type="number" name="discount_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.discount_threshold or '' }}"> ريال.
-                    </span>
-                </label>
-                <label class="radio-label store-only">
-                    <input class="form-check-input" type="radio" name="discount_type" value="code" {% if rules.discount_type == 'code' %}checked{% endif %}>
-                    <span>توجيه العميل لاستخدام كود الخصم في سلة المتجر: 
-                        <input type="text" name="discount_code" class="form-control form-control-sm d-inline-block mx-2" style="width: 130px;" value="{{ rules.discount_code or '' }}" placeholder="COUPON20">.
-                    </span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="discount_type" value="custom" {% if rules.discount_type == 'custom' %}checked{% endif %}>
-                    <span>إجابة مخصصة: 
-                        <input type="text" name="discount_custom" class="form-control form-control-sm d-inline-block mx-2" style="width: 250px;" value="{{ rules.discount_custom or '' }}">
-                    </span>
-                </label>
-            </div>
-
-            <div class="mb-4 ps-4">
-                <label class="form-label fw-600">تخصيص الرسالة:</label>
-                <textarea name="discount_msg" class="form-control" rows="2" placeholder="مثال: أبشر، لأن طلبك تجاوز 500 ريال، فعلت لك خصم الـ 10% تلقائياً!">{{ rules.discount_msg or '' }}</textarea>
-            </div>
-
-            <div class="option-group">
-                <h6 class="mb-3 fw-bold">سياسة الشحن: 
-                    <span class="store-only text-primary">"متى يتم إعفاء العميل من الشحن في المتجر؟"</span>
-                    <span class="chat-only text-success" style="display:none;">"كيف نخبر العميل عن الشحن في الفاتورة اليدوية؟"</span>
-                </h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="shipping_type" value="city" {% if rules.shipping_type == 'city' or not rules.shipping_type %}checked{% endif %}>
-                    <span>شحن مجاني داخل مدينة 
-                        <input type="text" name="shipping_city" class="form-control form-control-sm d-inline-block mx-2" style="width: 120px;" value="{{ rules.shipping_city or '' }}">.
-                    </span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="shipping_type" value="amount" {% if rules.shipping_type == 'amount' %}checked{% endif %}>
-                    <span>شحن مجاني عند وصول الفاتورة/السلة لمبلغ 
-                        <input type="number" name="shipping_threshold" class="form-control form-control-sm d-inline-block mx-2" style="width: 90px;" value="{{ rules.shipping_threshold or '' }}"> ريال.
-                    </span>
-                </label>
-            </div>
-
-            <div class="mb-4 ps-4">
-                <label class="form-label fw-600">تخصيص الرسالة: "ماذا يقول الموظف عن تكلفة الشحن؟"</label>
-                <textarea name="shipping_msg" class="form-control" rows="2">{{ rules.shipping_msg or '' }}</textarea>
-            </div>
-            
-            <hr>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(2)">
-                    <i class="ti ti-arrow-right me-2"></i> السابق
-                </button>
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(2)">
-                    التالي: إدارة المخزون <i class="ti ti-arrow-left ms-2"></i>
-                </button>
-            </div>
+    <!-- Floating Save Button -->
+    <div class="floating-save mt-3">
+        <div>
+            <h5 class="mb-1 fw-bold">تحديث الإعدادات</h5>
+            <span class="small text-muted">سيتم تطبيق هذه القواعد فوراً على المحادثات القادمة.</span>
         </div>
-    </div>
-
-    <!-- Step 3: Product & Sales Management -->
-    <div class="card card-lg step-card" id="step3">
-        <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">ثالثاً: إدارة المنتجات والمبيعات</h4>
-            <p class="text-secondary small mb-0">كيف يتعامل الموظف مع المنتجات واستراتيجيات زيادة المبيعات.</p>
-        </div>
-        <div class="card-body">
-            
-            <div class="option-group mt-3">
-                <h6 class="mb-3 fw-bold">استراتيجية زيادة المبيعات (Upselling): "هل يقترح الموظف منتجات إضافية؟"</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="upsell_type" value="none" {% if rules.upsell_type == 'none' or not rules.upsell_type %}checked{% endif %}>
-                    <span>لا يقترح أبداً، يجيب على طلب العميل المباشر فقط (تجنب الإزعاج).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="upsell_type" value="cross" {% if rules.upsell_type == 'cross' %}checked{% endif %}>
-                    <span>اقتراح ذكي (Cross-sell): يقترح منتجاً مكملاً (مثال: إذا طلب حذاء، يعرض عليه جوارب).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="upsell_type" value="upgrade" {% if rules.upsell_type == 'upgrade' %}checked{% endif %}>
-                    <span>ترقية البيعة (Upsell): يحاول إقناع العميل بمنتج ذو مواصفات أعلى وسعر أعلى بأسلوب لبق.</span>
-                </label>
-            </div>
-
-            <div class="option-group">
-                <h6 class="mb-3 fw-bold">عند نفاذ المخزون: 
-                    <span class="store-only text-primary">"ماذا يفعل إذا انتهت الكمية في المتجر؟"</span>
-                    <span class="chat-only text-success" style="display:none;">"كيف يتصرف في المحادثة؟"</span>
-                </h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="stock_out_type" value="alternative" {% if rules.stock_out_type == 'alternative' or not rules.stock_out_type %}checked{% endif %}>
-                    <span>الاعتذار وعرض منتج بديل متوفر من نفس الفئة.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="stock_out_type" value="collect_info" {% if rules.stock_out_type == 'collect_info' %}checked{% endif %}>
-                    <span>الاعتذار وأخذ رقم العميل لإبلاغه فور توفر المنتج مرة أخرى.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="stock_out_type" value="custom_only" {% if rules.stock_out_type == 'custom_only' %}checked{% endif %}>
-                    <span>الاكتفاء بالرسالة المخصصة (بدون اقتراح بديل أو أخذ بيانات).</span>
-                </label>
-            </div>
-
-            <div class="mb-4 ps-4">
-                <label class="form-label fw-600">تخصيص الرسالة (عند نفاذ الكمية):</label>
-                <textarea name="stock_out_msg" class="form-control" rows="2" placeholder="للأسف هالمقاس مخلص حالياً، تحب أرشح لك موديل مشابه متوفر؟">{{ rules.stock_out_msg or '' }}</textarea>
-            </div>
-
-            <div class="option-group">
-                <h6 class="mb-3 fw-bold">تفاصيل المنتجات: "إذا سأل العميل عن تفاصيل غير موجودة؟"</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="details_missing_type" value="static" checked>
-                    <span>استخدم هذه المعلومات العامة: 
-                        <input type="text" name="details_static_info" class="form-control form-control-sm d-inline-block mx-2" style="width: 250px;" value="{{ rules.details_static_info or '' }}" placeholder="قطن بارد، صناعة وطنية...">
-                    </span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="details_missing_type" value="human">
-                    <span>الاعتذار وإحالة السؤال لموظف بشري.</span>
-                </label>
-            </div>
-            
-            <hr>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(3)">
-                    <i class="ti ti-arrow-right me-2"></i> السابق
-                </button>
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(3)">
-                    التالي: خدمة العملاء <i class="ti ti-arrow-left ms-2"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 4: Customer Service Tone -->
-    <div class="card card-lg step-card" id="step4">
-        <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">رابعاً: خدمة العملاء والسياسات</h4>
-            <p class="text-secondary small mb-0">التحكم الدقيق بأسلوب الرد وطرق التأكيد.</p>
-        </div>
-        <div class="card-body">
-            <div class="option-group mt-3">
-                <h6 class="mb-3 fw-bold">أسلوب الرد والترحيب (Tone):</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="tone_type" value="formal" {% if rules.tone_type == 'formal' or not rules.tone_type %}checked{% endif %}>
-                    <span>رسمي جداً ومباشر (أهلاً بك سيدي/سيدتي، كيف يمكنني مساعدتك؟).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="tone_type" value="friendly" {% if rules.tone_type == 'friendly' %}checked{% endif %}>
-                    <span>ودي وعامي (يا هلا فيك، نورتنا! أمرني وش بغيت؟).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="tone_type" value="promotional" {% if rules.tone_type == 'promotional' %}checked{% endif %}>
-                    <span>ترويجي (أهلاً بك! هل تعلم عن عروضنا الحالية؟ كيف يمكنني خدمتك؟).</span>
-                </label>
-            </div>
-
-            <div class="option-group">
-                <h6 class="mb-3 fw-bold">سياسة الاسترجاع والاستبدال:</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="refund_type" value="7days" {% if rules.refund_type == '7days' or not rules.refund_type %}checked{% endif %}>
-                    <span>استرجاع واستبدال خلال 7 أيام بشرط عدم استخدام المنتج.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="refund_type" value="exchange_only" {% if rules.refund_type == 'exchange_only' %}checked{% endif %}>
-                    <span>استبدال فقط (للمقاس أو اللون)، ولا يوجد استرجاع للمبالغ.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="refund_type" value="none" {% if rules.refund_type == 'none' %}checked{% endif %}>
-                    <span>لا يوجد استرجاع أو استبدال نهائياً.</span>
-                </label>
-            </div>
-
-            <!-- Chat Only: Order Confirmation -->
-            <div class="chat-only option-group mt-4" style="border-color: #25D366; background: rgba(37, 211, 102, 0.05); padding: 15px; border-radius: 12px; display: none;">
-                <h6 class="mb-3 fw-bold text-success"><i class="ti ti-check me-2"></i>تأكيد الطلب اليدوي: "كيف يعتمد الموظف طلب العميل بالمحادثة؟"</h6>
-                <label class="radio-label bg-white">
-                    <input class="form-check-input" type="radio" name="chat_confirmation" value="summary" {% if rules.chat_confirmation == 'summary' or not rules.chat_confirmation %}checked{% endif %}>
-                    <span>إرسال ملخص الفاتورة النهائي وطلب الموافقة الصريحة (نعم/لا) قبل الاعتماد.</span>
-                </label>
-                <label class="radio-label bg-white">
-                    <input class="form-check-input" type="radio" name="chat_confirmation" value="direct" {% if rules.chat_confirmation == 'direct' %}checked{% endif %}>
-                    <span>الاعتماد فوراً وبسرعة بمجرد أن يقدم العميل بياناته (لتسريع البيع).</span>
-                </label>
-            </div>
-
-            <!-- Store Only: Tech Issues -->
-            <div class="store-only option-group mt-4" style="border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.05); padding: 15px; border-radius: 12px;">
-                <h6 class="mb-3 fw-bold text-primary"><i class="ti ti-alert-circle me-2"></i>المشاكل التقنية: "إذا اشتكى العميل من عطل بالمتجر؟"</h6>
-                <label class="radio-label bg-white">
-                    <input class="form-check-input" type="radio" name="store_tech_issue" value="retry" {% if rules.store_tech_issue == 'retry' or not rules.store_tech_issue %}checked{% endif %}>
-                    <span>الاعتذار وتوجيهه للمحاولة لاحقاً أو تغيير المتصفح.</span>
-                </label>
-                <label class="radio-label bg-white">
-                    <input class="form-check-input" type="radio" name="store_tech_issue" value="exception" {% if rules.store_tech_issue == 'exception' %}checked{% endif %}>
-                    <span>(استثناء ذكي): أن يأخذ منه الطلب يدوياً داخل المحادثة لإنقاذ البيعة!</span>
-                </label>
-            </div>
-
-            <div class="option-group mt-4">
-                <h6 class="mb-3 fw-bold">التعامل مع الشكاوى:</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="complaint_type" value="discount" {% if rules.complaint_type == 'discount' or not rules.complaint_type %}checked{% endif %}>
-                    <span>امتصاص الغضب وتقديم كود خصم للترضية: 
-                        <input type="text" name="complaint_code" class="form-control form-control-sm d-inline-block mx-2" style="width: 100px;" value="{{ rules.complaint_code or '' }}">
-                    </span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="complaint_type" value="human" {% if rules.complaint_type == 'human' %}checked{% endif %}>
-                    <span>تحويل المحادثة للمدير أو قسم العناية بالعملاء فوراً.</span>
-                </label>
-            </div>
-
-            <div class="mb-4 ps-4">
-                <label class="form-label fw-600">رسالة التهدئة للعميل الغاضب:</label>
-                <textarea name="complaint_msg" class="form-control" rows="2">{{ rules.complaint_msg or '' }}</textarea>
-            </div>
-
-            <hr>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(4)">
-                    <i class="ti ti-arrow-right me-2"></i> السابق
-                </button>
-                <button type="button" class="btn btn-primary px-4" onclick="nextStep(4)">
-                    التالي: الحماية <i class="ti ti-arrow-left ms-2"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Step 5: Guardrails -->
-    <div class="card card-lg step-card" id="step5">
-        <div class="card-header border-bottom-0 pb-0">
-            <h4 class="mb-1 fw-bold text-primary">خامساً: حواجز الحماية (Guardrails)</h4>
-        </div>
-        <div class="card-body">
-            <div class="option-group mt-3">
-                <h6 class="mb-3 fw-bold text-danger">المواضيع الممنوع التحدث فيها قطعيًا:</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="checkbox" name="ban_prices" {% if rules.ban_prices %}checked{% endif %}>
-                    <span>مقارنة الأسعار مع المنافسين أو ذكر أي متجر آخر.</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="checkbox" name="ban_eta" {% if rules.ban_eta %}checked{% endif %}>
-                    <span>إعطاء وعود دقيقة بمواعيد وصول الشحنة (الاكتفاء بـ "خلال أيام العمل").</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="checkbox" name="ban_general_chat" {% if rules.ban_general_chat %}checked{% endif %}>
-                    <span>الرد على الأسئلة العامة والشخصية (سيرفض بلباقة ويعود للمنتجات).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="checkbox" name="ban_ai_admission" {% if rules.ban_ai_admission %}checked{% endif %}>
-                    <span>الاعتراف بأنه "ذكاء اصطناعي" (سيتصرف وكأنه موظف بشري حقيقي دائماً).</span>
-                </label>
-                <label class="radio-label">
-                    <span>إضافات مخصصة (اكتب ما تريد منعه): 
-                        <input type="text" name="ban_custom" class="form-control form-control-sm d-inline-block mx-2" style="width: 300px;" value="{{ rules.ban_custom or '' }}" placeholder="مثل: الحديث عن السياسة، أو الدين...">
-                    </span>
-                </label>
-            </div>
-
-            <div class="option-group">
-                <h6 class="mb-3 fw-bold">صلاحية "المكاسرة" والتفاوض على السعر:</h6>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="bargain_type" value="refuse" {% if rules.bargain_type == 'refuse' or not rules.bargain_type %}checked{% endif %}>
-                    <span>الرفض التام وبشكل مهذب (أسعارنا نهائية).</span>
-                </label>
-                <label class="radio-label">
-                    <input class="form-check-input" type="radio" name="bargain_type" value="qty" {% if rules.bargain_type == 'qty' %}checked{% endif %}>
-                    <span>الموافقة وإعطاء خصم بسيط فقط إذا تجاوزت الطلبية: 
-                        <input type="number" name="bargain_qty" class="form-control form-control-sm d-inline-block mx-2" style="width: 70px;" value="{{ rules.bargain_qty or '' }}"> قطع.
-                    </span>
-                </label>
-            </div>
-
-            <hr>
-            <div class="d-flex justify-content-between">
-                <button type="button" class="btn btn-outline-secondary" onclick="prevStep(5)">
-                    <i class="ti ti-arrow-right me-2"></i> السابق
-                </button>
-                <button type="submit" class="btn btn-success px-4" id="saveBtn">
-                    حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>
-                </button>
-            </div>
-        </div>
+        <button type="submit" class="btn btn-primary btn-lg px-4 shadow" id="saveBtn">
+            حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>
+        </button>
     </div>
 </form>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-    function nextStep(current) {
-        document.getElementById(`step${current}`).classList.remove('active');
-        document.getElementById(`step${current + 1}`).classList.add('active');
-        document.getElementById('progressBar').style.width = ((current + 1) * 20) + '%';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function prevStep(current) {
-        document.getElementById(`step${current}`).classList.remove('active');
-        document.getElementById(`step${current - 1}`).classList.add('active');
-        document.getElementById('progressBar').style.width = ((current - 1) * 20) + '%';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
     document.getElementById('businessRulesForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('saveBtn');
@@ -515,8 +632,8 @@
             });
             const result = await response.json();
             if (result.status === 'success') {
-                alert('تم حفظ دستور العمل بنجاح! سيتم تطبيقه على جميع المحادثات.');
-                window.location.href = '/merchant/home';
+                // Show success toast or alert
+                alert('تم حفظ قواعد العمل بنجاح!');
             } else {
                 alert('حدث خطأ: ' + result.message);
             }
@@ -532,16 +649,13 @@
     function toggleDynamicFlow() {
         const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value || 'store';
         
-        // Show/Hide store specific elements
         document.querySelectorAll('.store-only').forEach(el => {
             el.style.display = selectedType === 'store' ? '' : 'none';
         });
         
-        // Show/Hide chat specific elements
         document.querySelectorAll('.chat-only').forEach(el => {
             if (selectedType === 'chat') {
                 el.style.display = '';
-                el.style.animation = 'fadeIn 0.4s ease-out';
             } else {
                 el.style.display = 'none';
             }
