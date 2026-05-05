@@ -13,6 +13,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                          message_id: str = None, channel: str = "whatsapp"):
     """
     Main orchestrator for AI logic. Fetches context, builds prompt, and calls LLM.
+    Professional Version 2.0 - Fully Structured and Anti-Hallucination
     """
     supabase = get_supabase_client()
     
@@ -30,36 +31,32 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     messages_used = client.get("messages_used", 0)
     message_limit = client.get("message_limit", 1000)
 
-    # Fetch AI Model Config (Default or Plan-based)
+    # 2. AI Model Source Resolution (Priority: Plan > Merchant Config)
     api_key = None
     model_id = "gpt-3.5-turbo"
     provider = "openai"
     
     try:
-        # 1. Check if the client has a plan-specific model override
+        # Check Plan Override
         plan_res = supabase.table("clients").select("subscription_plan").eq("id", client_id).single().execute()
         if plan_res.data and plan_res.data.get("subscription_plan"):
             plan_name = plan_res.data["subscription_plan"]
-            
-            # Fetch plan details to see if it has a specific model
             plan_details = supabase.table("subscription_plans").select("permissions").eq("name", plan_name).single().execute()
             if plan_details.data:
                 perms = plan_details.data.get("permissions", {})
                 if isinstance(perms, str):
-                    import json
                     try: perms = json.loads(perms)
                     except: perms = {}
                 
                 assigned_model_id = perms.get("assigned_model_id")
                 if assigned_model_id:
-                    # Fetch global model details
                     g_model = supabase.table("global_ai_models").select("*").eq("id", assigned_model_id).single().execute()
                     if g_model.data:
                         api_key = g_model.data.get("api_key")
                         model_id = g_model.data.get("model_id")
                         provider = g_model.data.get("provider", "openai").lower()
 
-        # 2. If no plan model found, use the merchant's active config
+        # Fallback to Merchant Config
         if not api_key:
             model_res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
             if model_res.data:
@@ -67,255 +64,203 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                 api_key = m_cfg.get("api_key")
                 model_id = m_cfg.get("model_id")
                 provider = m_cfg.get("provider", "openai").lower()
-            
     except Exception as e:
-        print(f"Warning: Could not fetch AI config: {e}")
+        print(f"Warning: AI config resolution failed: {e}")
 
     if messages_used >= message_limit:
         return "نعتذر منك، لقد انتهى الرصيد المخصص للرسائل لهذا المتجر حالياً."
 
-    # 2. Fetch Merchant Data
+    # 3. Data Context Preparation (Markdown Structured)
     store_data = ""
     try:
         data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
         if data_res.data:
             rows = data_res.data[0].get("data", [])
             if rows:
-                formatted_lines = []
+                lines = []
                 for item in rows:
-                    line = " | ".join([f"{k}: {v}" for k, v in item.items()])
-                    formatted_lines.append(f"- {line}")
-                store_data = "\n".join(formatted_lines)
+                    lines.append(" | ".join([f"{k}: {v}" for k, v in item.items()]))
+                store_data = "\n".join([f"- {l}" for l in lines])
     except Exception as e:
-        print(f"Warning: Could not fetch store data: {e}")
+        print(f"Warning: Data fetch failed: {e}")
 
-    # 3. Column Training
-    column_training_prompt = ""
-    try:
-        col_res = supabase.table("column_training").select("column_name, note").eq("client_id", client_id).execute()
-        if col_res.data:
-            notes = [f"- {c['column_name']}: {c['note']}" for c in col_res.data]
-            column_training_prompt = "تعليمات خاصة بأعمدة البيانات:\n" + "\n".join(notes)
-    except Exception as e:
-        print(f"Warning: Could not fetch column training: {e}")
-
-    # 4. Business Rules
-    business_rules_prompt = ""
+    # 4. Business Rules Logic
+    checkout_instructions = "إتمام الطلب عبر المتجر الإلكتروني."
+    business_rules_text = ""
     try:
         rules_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
         if rules_res.data and rules_res.data.get("rules_data"):
             rd = rules_res.data["rules_data"]
-            checkout = rd.get('checkout_type', 'store')
-            if checkout == 'chat':
-                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). ملاحظة: لا تطلب بيانات العميل (الاسم، الجوال، العنوان) فوراً. انتظر حتى يختار العميل منتجاً ويؤكد رغبته في الشراء، ثم ابدأ بجمع البيانات بلطف."
+            if rd.get('checkout_type') == 'chat':
                 pm = []
                 if rd.get('chat_payment_cod'): pm.append("الدفع عند الاستلام")
                 if rd.get('chat_payment_transfer'): pm.append(f"تحويل بنكي ({rd.get('bank_accounts', '')})")
                 if rd.get('chat_payment_link'): pm.append(f"رابط دفع ({rd.get('payment_links', '')})")
-                checkout_instructions += f"\n- طرق الدفع المتاحة: {', '.join(pm) if pm else 'حسب الاتفاق'}."
-            else:
-                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر لإتمام الشراء."
-
-            business_rules_prompt = f"""
-دستور عمل وقواعد العمل (يجب الالتزام بها قطعيًا):
-- {checkout_instructions}
-- سياسة الخصم: {rd.get('discount_type', 'حسب السياسة')}. {rd.get('discount_msg', '')}
-- نبرة الصوت: {rd.get('tone_type', tone)}. {rd.get('complaint_msg', '')}
+                checkout_instructions = f"إتمام الطلب داخل المحادثة. طرق الدفع: {', '.join(pm)}. اطلب بيانات العميل (الاسم، العنوان، الجوال) فقط عند التأكيد النهائي للشراء."
+            
+            business_rules_text = f"""
+### قواعد العمل الصارمة:
+- **مسار الطلب:** {checkout_instructions}
+- **سياسة الخصم:** {rd.get('discount_type', 'حسب السياسة')}. {rd.get('discount_msg', '')}
+- **نبرة الصوت:** {rd.get('tone_type', tone)}.
+- **الشكاوى:** {rd.get('complaint_msg', 'سيتم التعامل مع شكواك فوراً.')}
 """
-    except Exception as e:
-        print(f"Warning: Could not fetch business rules: {e}")
+    except Exception: pass
 
-    # 5. Build Product Context
-    product_context = ""
-    if store_data:
-        product_context = f"""
-بيانات المنتجات والمخزون المتاحة حالياً:
--------------------------------------------
-{store_data}
--------------------------------------------
-{column_training_prompt}
-ملاحظة هامة جداً للذكاء الاصطناعي: 
-- إذا قال العميل "الأول" أو "أعطني هذا" أو أي إشارة لمنتج، فيجب عليك تجاهل القائمة أعلاه تماماً والبحث في رسالتك السابقة فوراً لتعرف ما هو المنتج المقصود.
-"""
+    # 5. Professional System Prompt (The Brain)
+    final_system_prompt = f"""# الهوية والوظيفة
+أنت المساعد الذكي "{agent_name}" من "{company_name}".
+نشاطنا: {store_activity}.
+وصف المتجر: {description}.
 
-    system_prompt = f"""هويتك: أنت "{agent_name}" من "{company_name}". 
-- وظيفتك بيع منتجات [{store_activity}].
-- تحدث بلهجة العميل وكن مختصراً.
-- لا تكرر التعريف بنفسك إذا كان هناك سابق محادثة.
+# قواعد الحوار
+- تحدث بلهجة العميل (عربي/عامي) بأسلوب مهني وودود.
+- كن مختصراً وواضحاً في ردودك.
+- لا تكرر التحية والتعريف بنفسك إذا كانت هناك رسائل سابقة.
 
-{product_context}
-{business_rules_prompt}
+# قائمة المنتجات المتوفرة (المصدر الوحيد للحقيقة)
+{store_data if store_data else "لا توجد منتجات مسجلة حالياً."}
+
+# تعليمات منع الهلوسة والذاكرة
+- **القاعدة الذهبية:** لا تقم باختراع أي منتج أو سعر غير موجود في القائمة أعلاه. إذا سأل العميل عن شيء غير متوفر، اعتذر بلباقة.
+- **حل الإشارات:** إذا قال العميل "الأول" أو "أعطني هذا"، انظر فوراً لآخر رسالة أرسلتها أنت لتعرف المنتج الذي كنت تتحدث عنه.
+- **الخصوصية:** لا تطلب بيانات العميل الشخصية (الاسم/الجوال) إلا في نهاية عملية البيع لتأكيد الطلب.
+
+{business_rules_text}
 """
 
-    # 6. Fetch REAL Chat History
-    chat_history_messages = []
-    # Normalize phone for search (remove whatsapp suffix if exists)
+    # 6. History Management with Normalization
+    chat_history = []
     search_phone = phone_number.split("@")[0]
-    
     try:
-        # Search using both formats to be safe
-        history_res = supabase.table("message_logs") \
+        h_res = supabase.table("message_logs") \
             .select("message_text, ai_response, timestamp") \
             .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
             .eq("client_id", client_id) \
             .order("timestamp", desc=True) \
-            .limit(10) \
+            .limit(8) \
             .execute()
         
-        if history_res.data:
-            sorted_history = sorted(history_res.data, key=lambda x: x.get("timestamp", ""))
-            for msg in sorted_history:
-                u = (msg.get("message_text") or "").strip()
-                a = (msg.get("ai_response") or "").strip()
-                if u: chat_history_messages.append({"role": "user", "content": u})
-                if a: chat_history_messages.append({"role": "assistant", "content": a})
-    except Exception as e:
-        print(f"Warning: History fetch error: {e}")
+        if h_res.data:
+            # Sort chronologically
+            sorted_h = sorted(h_res.data, key=lambda x: x.get("timestamp", ""))
+            for m in sorted_h:
+                u_txt = (m.get("message_text") or "").strip()
+                a_txt = (m.get("ai_response") or "").strip()
+                if u_txt: chat_history.append({"role": "user", "content": u_txt})
+                if a_txt: chat_history.append({"role": "assistant", "content": a_txt})
+    except Exception: pass
 
-    # 7. Construct final messages
-    messages = [{"role": "system", "content": system_prompt}]
+    # Build Messages Payload
+    final_messages = [{"role": "system", "content": final_system_prompt}]
+    final_messages.extend(chat_history)
     
-    # Ensure messages are added in correct user/assistant order
-    messages.extend(chat_history_messages[-8:])
-
-    print(f"DEBUG: History found for {search_phone}: {len(chat_history_messages)} messages")
-
     if image_base64:
-        content = [{"type": "text", "text": user_message or "حلل الصورة"}]
+        content = [{"type": "text", "text": user_message or "حلل هذه الصورة"}]
         content.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}})
-        messages.append({"role": "user", "content": content})
+        final_messages.append({"role": "user", "content": content})
     else:
-        messages.append({"role": "user", "content": user_message})
+        final_messages.append({"role": "user", "content": user_message})
 
-    # 8. Call LLM
+    # 7. Execution and Logging
     try:
-        if not api_key:
-            raise Exception(f"مفتاح الـ API الخاص بـ {provider} غير موجود في الإعدادات.")
-
+        if not api_key: raise Exception("API Key missing")
+        
+        # Universal Provider Routing
         if provider == "openai":
-            response = await _call_openai(api_key, model_id, messages)
+            response = await _call_openai(api_key, model_id, final_messages)
         elif provider == "google":
-            response = await _call_google(api_key, model_id, messages, system_prompt)
+            response = await _call_google(api_key, model_id, final_messages, final_system_prompt)
         elif provider == "groq":
-            response = await _call_groq(api_key, model_id, messages)
+            response = await _call_groq(api_key, model_id, final_messages)
         elif provider == "anthropic":
-            response = await _call_anthropic(api_key, model_id, messages, system_prompt)
+            response = await _call_anthropic(api_key, model_id, final_messages, final_system_prompt)
         elif provider == "openrouter":
-            response = await _call_openrouter(api_key, model_id, messages)
+            response = await _call_openrouter(api_key, model_id, final_messages)
         else:
-            # Fallback to OpenRouter as it's the user's primary choice
-            response = await _call_openrouter(api_key, model_id, messages)
+            response = await _call_openrouter(api_key, model_id, final_messages)
 
+        # Update and Log
         _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
         supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         return response
-    except Exception as e:
-        print(f"AI Error for client {client_id}: {e}")
-        return f"عذراً، {str(e)[:100]}"
 
-async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
-    user_messages = [m for m in messages if m["role"] != "system"]
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json"
-            },
-            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "content" not in data:
-            raise Exception(f"Anthropic: {data.get('error', {}).get('message', 'Unknown')}")
-        return data["content"][0]["text"].strip()
+    except Exception as e:
+        print(f"CRITICAL AI ERROR [{client_id}]: {e}")
+        return f"عذراً، واجهت مشكلة تقنية (ERR_AI_{provider.upper()}). يرجى التحقق من إعدادات النموذج."
 
 async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
     async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.openai.com/v1/chat/completions",
+        res = await client.post("https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
+            timeout=30)
         data = res.json()
-        if "choices" not in data:
-            raise Exception(f"OpenAI: {data.get('error', {}).get('message', 'Unknown')}")
-        return data["choices"][0]["message"]["content"].strip()
-
-async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
-    async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "max_tokens": 500, "temperature": 0.1},
-            timeout=30
-        )
-        data = res.json()
-        if "choices" not in data:
-            raise Exception(f"Groq: {data.get('error', {}).get('message', 'Unknown')}")
+        if "choices" not in data: raise Exception(f"OpenAI: {data.get('error', {}).get('message', 'Error')}")
         return data["choices"][0]["message"]["content"].strip()
 
 async def _call_google(api_key: str, model_id: str, messages: list, system: str) -> str:
-    # Normalize model_id
     m_id = model_id.strip()
-    if not m_id.startswith("models/"):
-        m_id = f"models/{m_id}"
-        
+    if not m_id.startswith("models/"): m_id = f"models/{m_id}"
     url = f"https://generativelanguage.googleapis.com/v1beta/{m_id}:generateContent?key={api_key}"
     contents = []
     for msg in messages:
         if msg["role"] == "system": continue
         role = "user" if msg["role"] == "user" else "model"
         parts = []
-        if isinstance(msg["content"], str):
-            parts.append({"text": msg["content"]})
+        if isinstance(msg["content"], str): parts.append({"text": msg["content"]})
         elif isinstance(msg["content"], list):
-            for part in msg["content"]:
-                if part["type"] == "text": parts.append({"text": part["text"]})
-                elif part["type"] == "image_url":
-                    b64 = part["image_url"]["url"].split(",")[-1]
+            for p in msg["content"]:
+                if p["type"] == "text": parts.append({"text": p["text"]})
+                elif p["type"] == "image_url":
+                    b64 = p["image_url"]["url"].split(",")[-1]
                     parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64}})
         contents.append({"role": role, "parts": parts})
     
-    body = {
-        "systemInstruction": {"parts": [{"text": system}]},
-        "contents": contents,
-        "generationConfig": {"maxOutputTokens": 500, "temperature": 0.1}
-    }
+    body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "generationConfig": {"maxOutputTokens": 500, "temperature": 0.1}}
     async with httpx.AsyncClient() as client:
         res = await client.post(url, json=body, timeout=30)
         data = res.json()
-        if res.status_code != 200:
-            err = data.get("error", {}).get("message", "Unknown Google Error")
-            raise Exception(f"Google: {err}")
-        try:
-            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
-        except Exception:
-            raise Exception("Google: Unexpected format")
+        if res.status_code != 200: raise Exception(f"Google: {data.get('error', {}).get('message', 'Error')}")
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+
+async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
+    async with httpx.AsyncClient() as client:
+        res = await client.post("https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"model": model_id, "messages": messages, "temperature": 0.1},
+            timeout=30)
+        data = res.json()
+        if "choices" not in data: raise Exception(f"Groq: {data.get('error', {}).get('message', 'Error')}")
+        return data["choices"][0]["message"]["content"].strip()
+
+async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
+    u_msgs = [m for m in messages if m["role"] != "system"]
+    async with httpx.AsyncClient() as client:
+        res = await client.post("https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"},
+            json={"model": model_id, "system": system, "messages": u_msgs, "max_tokens": 500},
+            timeout=30)
+        data = res.json()
+        if "content" not in data: raise Exception(f"Anthropic: {data.get('error', {}).get('message', 'Error')}")
+        return data["content"][0]["text"].strip()
 
 async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
     async with httpx.AsyncClient() as client:
-        res = await client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
+        res = await client.post("https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
             json={"model": model_id, "messages": messages},
-            timeout=30
-        )
+            timeout=30)
         data = res.json()
+        if "choices" not in data: raise Exception(f"OpenRouter: {data.get('error', {}).get('message', 'Error')}")
         return data["choices"][0]["message"]["content"].strip()
 
 def _log_message(supabase, client_id: str, user_message: str, ai_response: str, phone_number: str, channel: str = "whatsapp", message_id: str = None):
     try:
         supabase.table("message_logs").insert({
-            "client_id": client_id,
-            "channel": channel,
-            "direction": "in",
-            "phone_number": phone_number,
-            "message_text": user_message,
-            "ai_response": ai_response,
-            "message_id": message_id
+            "client_id": client_id, "channel": channel, "direction": "in",
+            "phone_number": phone_number, "message_text": user_message,
+            "ai_response": ai_response, "message_id": message_id
         }).execute()
     except Exception as e:
         print(f"Log error: {e}")
