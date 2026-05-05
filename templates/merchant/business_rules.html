@@ -649,17 +649,35 @@
     function toggleDynamicFlow() {
         const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value || 'store';
         
+        // Handle Store Only elements
         document.querySelectorAll('.store-only').forEach(el => {
             el.style.display = selectedType === 'store' ? '' : 'none';
-        });
-        
-        document.querySelectorAll('.chat-only').forEach(el => {
-            if (selectedType === 'chat') {
-                el.style.display = '';
-            } else {
-                el.style.display = 'none';
+            el.querySelectorAll('input, textarea, select').forEach(input => {
+                input.disabled = selectedType !== 'store';
+            });
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
+                el.disabled = selectedType !== 'store';
             }
         });
+        
+        // Handle Chat Only elements
+        document.querySelectorAll('.chat-only').forEach(el => {
+            el.style.display = selectedType === 'chat' ? '' : 'none';
+            el.querySelectorAll('input, textarea, select').forEach(input => {
+                input.disabled = selectedType !== 'chat';
+            });
+            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
+                el.disabled = selectedType !== 'chat';
+            }
+        });
+
+        // Fallback for discount_type if 'code' was selected but we switch to 'chat'
+        if (selectedType === 'chat') {
+            const discountCodeInput = document.querySelector('input[name="discount_type"][value="code"]');
+            if (discountCodeInput && discountCodeInput.checked) {
+                document.querySelector('input[name="discount_type"][value="fixed"]').checked = true;
+            }
+        }
     }
 
     document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
