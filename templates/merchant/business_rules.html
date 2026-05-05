@@ -74,6 +74,34 @@
     color: var(--bs-secondary-color);
     margin: 0;
 }
+/* Locked checkout card */
+.radio-card.locked-choice {
+    opacity: 0.4;
+    pointer-events: none;
+    border-color: var(--bs-border-color);
+    background: var(--bs-secondary-bg);
+    position: relative;
+}
+.radio-card.locked-choice::after {
+    content: '\e28f'; /* ti-lock icon */
+    font-family: 'tabler-icons';
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    font-size: 1.2rem;
+    color: var(--bs-secondary-color);
+}
+/* Selected checkout confirmation badge */
+.checkout-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-top: 8px;
+}
+.checkout-badge.store { background: rgba(var(--bs-primary-rgb), 0.1); color: var(--bs-primary); }
+.checkout-badge.chat { background: rgba(37, 211, 102, 0.1); color: #25D366; }
 .floating-save {
     position: sticky;
     bottom: 24px;
@@ -649,6 +677,31 @@
     function toggleDynamicFlow() {
         const selectedType = document.querySelector('input[name="checkout_type"]:checked')?.value || 'store';
         
+        // Lock the unselected checkout card visually
+        document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
+            const card = radio.closest('.radio-card');
+            if (radio.value !== selectedType) {
+                card.classList.add('locked-choice');
+            } else {
+                card.classList.remove('locked-choice');
+            }
+            // Remove old badges
+            const oldBadge = card.querySelector('.checkout-badge');
+            if (oldBadge) oldBadge.remove();
+        });
+
+        // Add confirmation badge to selected card
+        const selectedRadio = document.querySelector('input[name="checkout_type"]:checked');
+        if (selectedRadio) {
+            const selectedCard = selectedRadio.closest('.radio-card');
+            const badge = document.createElement('span');
+            badge.className = `checkout-badge ${selectedType}`;
+            badge.innerHTML = selectedType === 'store' 
+                ? '<i class="ti ti-check me-1"></i>المسار المعتمد' 
+                : '<i class="ti ti-check me-1"></i>المسار المعتمد';
+            selectedCard.querySelector('.radio-card-content').appendChild(badge);
+        }
+
         // Handle Store Only elements
         document.querySelectorAll('.store-only').forEach(el => {
             el.style.display = selectedType === 'store' ? '' : 'none';
@@ -680,7 +733,22 @@
         }
     }
 
+    // Allow unlocking by clicking the locked card
     document.querySelectorAll('input[name="checkout_type"]').forEach(radio => {
+        const card = radio.closest('.radio-card');
+        // Override pointer-events on the card itself to allow re-selection
+        card.addEventListener('click', function(e) {
+            if (this.classList.contains('locked-choice')) {
+                e.stopPropagation();
+                if (confirm('هل تريد تغيير مسار الطلب؟ سيتم إعادة ضبط الإعدادات الخاصة بالمسار الحالي.')) {
+                    this.classList.remove('locked-choice');
+                    this.style.pointerEvents = '';
+                    this.style.opacity = '';
+                    radio.checked = true;
+                    toggleDynamicFlow();
+                }
+            }
+        });
         radio.addEventListener('change', toggleDynamicFlow);
     });
 

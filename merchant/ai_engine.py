@@ -172,16 +172,64 @@ async def get_ai_response(client_id: str, user_message: str, phone_number: str, 
         rules_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
         if rules_res.data and rules_res.data.get("rules_data"):
             rd = rules_res.data["rules_data"]
+            checkout = rd.get('checkout_type', 'store')
+            
+            # Build checkout-specific instructions
+            if checkout == 'chat':
+                checkout_instructions = "مسار إتمام الطلب: داخل المحادثة (واتساب). يجب عليك أخذ بيانات العميل (الاسم، الجوال، العنوان) وتأكيد الطلب بالكامل داخل المحادثة. لا توجه العميل لأي متجر أو رابط خارجي أبداً."
+                payment_methods = []
+                if rd.get('chat_payment_cod'): payment_methods.append("الدفع عند الاستلام")
+                if rd.get('chat_payment_transfer'): payment_methods.append(f"تحويل بنكي ({rd.get('bank_accounts', '')})")
+                if rd.get('chat_payment_link'): payment_methods.append(f"رابط دفع ({rd.get('payment_links', '')})")
+                checkout_instructions += f"\n- طرق الدفع المتاحة: {', '.join(payment_methods) if payment_methods else 'حسب الاتفاق'}."
+                confirm = rd.get('chat_confirmation', 'summary')
+                if confirm == 'summary':
+                    checkout_instructions += "\n- طريقة التأكيد: أرسل ملخص الطلب واطلب موافقة العميل قبل الاعتماد."
+                else:
+                    checkout_instructions += "\n- طريقة التأكيد: اعتمد الطلب فوراً بعد استلام البيانات."
+            else:
+                checkout_instructions = "مسار إتمام الطلب: عبر المتجر الإلكتروني. وجه العميل لرابط المنتج في المتجر لإتمام الشراء والدفع. لا تأخذ بيانات العميل يدوياً ولا تعتمد طلبات داخل المحادثة."
+                tech_issue = rd.get('store_tech_issue', 'retry')
+                if tech_issue == 'exception':
+                    checkout_instructions += "\n- إذا واجه العميل مشكلة تقنية في المتجر، يمكنك استثنائياً أخذ الطلب يدوياً لإنقاذ البيعة."
+                else:
+                    checkout_instructions += "\n- إذا واجه العميل مشكلة تقنية، اطلب منه المحاولة لاحقاً."
+
+            # Discount policy
+            discount_type = rd.get('discount_type', 'fixed')
+            if discount_type == 'fixed':
+                pct = rd.get('discount_percent', '')
+                thr = rd.get('discount_threshold', '')
+                discount_text = f"خصم {pct}% عند تجاوز {thr} ريال" if pct and thr else "حسب السياسة"
+            elif discount_type == 'code':
+                discount_text = f"وجه العميل لاستخدام كود الخصم: {rd.get('discount_code', '')}"
+            elif discount_type == 'custom':
+                discount_text = rd.get('discount_custom', 'حسب السياسة')
+            else:
+                discount_text = "حسب السياسة"
+
+            # Upsell
+            upsell = rd.get('upsell_type', 'none')
+            if upsell == 'none': upsell_text = "لا تقترح منتجات إضافية، أجب على طلب العميل فقط."
+            elif upsell == 'cross': upsell_text = "اقترح منتجاً مكملاً للطلب بلباقة."
+            else: upsell_text = "حاول ترقية العميل لمنتج أفضل بأسلوب لبق."
+
+            # Refund
+            refund = rd.get('refund_type', '7days')
+            if refund == '7days': refund_text = "الاسترجاع والاستبدال متاح خلال 7-14 يوم."
+            elif refund == 'exchange_only': refund_text = "استبدال فقط (لا استرجاع مالي)."
+            else: refund_text = "لا يوجد استرجاع أو استبدال."
+
             business_rules_prompt = f"""
 دستور عمل وقواعد العمل (يجب الالتزام بها قطعيًا):
-- سياسة الخصم: {rd.get('discount_type', 'حسب الحاجة')}. {rd.get('discount_msg', '')}
+- {checkout_instructions}
+- سياسة الخصم: {discount_text}. {rd.get('discount_msg', '')}
 - الشحن: {rd.get('shipping_type', 'حسب السياسة')}. {rd.get('shipping_msg', '')}
-- الدفع: {rd.get('payment_type', 'متاح بكافة الوسائل')}.
 - عند نفاذ المخزون: {rd.get('stock_out_type', 'الاعتذار')}. {rd.get('stock_out_msg', '')}
 - معلومات إضافية للمنتجات: {rd.get('details_missing_type', '')}. {rd.get('details_static_info', '')}
+- استراتيجية البيع: {upsell_text}
+- سياسة الاسترجاع: {refund_text}
 - نبرة الصوت: {rd.get('tone_type', tone)}. {rd.get('complaint_msg', '')}
-- خارج أوقات العمل: {rd.get('afterhours_type', 'الرد غداً')}.
-- إتمام البيع: {rd.get('checkout_type', 'رابط مباشر')}.
 - حواجز الحماية: يمنع منعاً باتاً الحديث في: { 'مقارنة الأسعار، ' if rd.get('ban_prices') else '' }{ 'مواعيد وصول دقيقة، ' if rd.get('ban_eta') else '' }{rd.get('ban_custom', '')}
 - سياسة المكاسرة: {rd.get('bargain_type', 'ممنوعة')}.
 """
