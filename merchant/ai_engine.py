@@ -149,12 +149,16 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # 6. Fetch REAL Chat History
     chat_history_messages = []
+    # Normalize phone for search (remove whatsapp suffix if exists)
+    search_phone = phone_number.split("@")[0]
+    
     try:
+        # Search using both formats to be safe
         history_res = supabase.table("message_logs") \
             .select("message_text, ai_response, timestamp") \
-            .order("timestamp", desc=True) \
+            .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
             .eq("client_id", client_id) \
-            .eq("phone_number", phone_number) \
+            .order("timestamp", desc=True) \
             .limit(10) \
             .execute()
         
@@ -170,7 +174,11 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # 7. Construct final messages
     messages = [{"role": "system", "content": system_prompt}]
+    
+    # Ensure messages are added in correct user/assistant order
     messages.extend(chat_history_messages[-8:])
+
+    print(f"DEBUG: History found for {search_phone}: {len(chat_history_messages)} messages")
 
     if image_base64:
         content = [{"type": "text", "text": user_message or "حلل الصورة"}]
