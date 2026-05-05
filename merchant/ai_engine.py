@@ -158,8 +158,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         return response
     except Exception as e:
-        print(f"AI Error: {e}")
-        return "عذراً، واجهت مشكلة فنية بسيطة. يرجى إعادة المحاولة."
+        print(f"AI Error for client {client_id}: {e}")
+        return f"عذراً، واجهت مشكلة فنية بسيطة: {str(e)[:50]}..."
 
 async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
     async with httpx.AsyncClient() as client:
@@ -170,6 +170,8 @@ async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
             timeout=30
         )
         data = res.json()
+        if "choices" not in data:
+            raise Exception(f"OpenAI: {data.get('error', {}).get('message', 'Unknown')}")
         return data["choices"][0]["message"]["content"].strip()
 
 async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
@@ -181,10 +183,17 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
             timeout=30
         )
         data = res.json()
+        if "choices" not in data:
+            raise Exception(f"Groq: {data.get('error', {}).get('message', 'Unknown')}")
         return data["choices"][0]["message"]["content"].strip()
 
 async def _call_google(api_key: str, model_id: str, messages: list, system: str) -> str:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={api_key}"
+    # Normalize model_id
+    m_id = model_id.strip()
+    if not m_id.startswith("models/"):
+        m_id = f"models/{m_id}"
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/{m_id}:generateContent?key={api_key}"
     contents = []
     for msg in messages:
         if msg["role"] == "system": continue
@@ -208,7 +217,13 @@ async def _call_google(api_key: str, model_id: str, messages: list, system: str)
     async with httpx.AsyncClient() as client:
         res = await client.post(url, json=body, timeout=30)
         data = res.json()
-        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        if res.status_code != 200:
+            err = data.get("error", {}).get("message", "Unknown Google Error")
+            raise Exception(f"Google: {err}")
+        try:
+            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception:
+            raise Exception("Google: Unexpected format")
 
 async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
     async with httpx.AsyncClient() as client:
