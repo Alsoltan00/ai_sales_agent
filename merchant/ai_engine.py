@@ -30,17 +30,44 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     messages_used = client.get("messages_used", 0)
     message_limit = client.get("message_limit", 1000)
 
-    # Fetch AI Model Config
+    # Fetch AI Model Config (Default or Plan-based)
     api_key = None
     model_id = "gpt-3.5-turbo"
     provider = "openai"
+    
     try:
-        model_res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
-        if model_res.data:
-            m_cfg = model_res.data[0]
-            api_key = m_cfg.get("api_key")
-            model_id = m_cfg.get("model_id")
-            provider = m_cfg.get("provider", "openai").lower()
+        # 1. Check if the client has a plan-specific model override
+        plan_res = supabase.table("clients").select("subscription_plan").eq("id", client_id).single().execute()
+        if plan_res.data and plan_res.data.get("subscription_plan"):
+            plan_name = plan_res.data["subscription_plan"]
+            
+            # Fetch plan details to see if it has a specific model
+            plan_details = supabase.table("subscription_plans").select("permissions").eq("name", plan_name).single().execute()
+            if plan_details.data:
+                perms = plan_details.data.get("permissions", {})
+                if isinstance(perms, str):
+                    import json
+                    try: perms = json.loads(perms)
+                    except: perms = {}
+                
+                assigned_model_id = perms.get("assigned_model_id")
+                if assigned_model_id:
+                    # Fetch global model details
+                    g_model = supabase.table("global_ai_models").select("*").eq("id", assigned_model_id).single().execute()
+                    if g_model.data:
+                        api_key = g_model.data.get("api_key")
+                        model_id = g_model.data.get("model_id")
+                        provider = g_model.data.get("provider", "openai").lower()
+
+        # 2. If no plan model found, use the merchant's active config
+        if not api_key:
+            model_res = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
+            if model_res.data:
+                m_cfg = model_res.data[0]
+                api_key = m_cfg.get("api_key")
+                model_id = m_cfg.get("model_id")
+                provider = m_cfg.get("provider", "openai").lower()
+            
     except Exception as e:
         print(f"Warning: Could not fetch AI config: {e}")
 
