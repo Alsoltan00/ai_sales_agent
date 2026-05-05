@@ -103,7 +103,7 @@ async def handle_incoming_message(payload: dict):
         history = conversation_history[remote_jid]
 
         # 3. Process Intent (The Intelligent Dispatcher)
-        intent_data = classify_intent_and_extract_keywords(text, history, store_name, custom_prompt)
+        intent_data = classify_intent_and_extract_keywords(text, history, store_name, store_id, custom_prompt)
         
         if intent_data.get("action") in ["clarify", "chat"]:
             final_response_text = intent_data.get("reply", "أهلاً بك! كيف يمكنني مساعدتك اليوم؟")
