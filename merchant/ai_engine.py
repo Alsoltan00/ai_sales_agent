@@ -56,20 +56,41 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             col_dict = "\n".join([f"- **{i['column_name']}**: {i['note']}" for i in col_res.data])
     except Exception: pass
 
-    # 4. MERCHANT MANUAL DATA (Product Context)
+    # 4. MERCHANT MANUAL DATA (Smart Product Search)
     product_data = ""
     try:
         data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
         if data_res.data and data_res.data[0].get("data"):
-            rows = data_res.data[0]["data"]
-            # Formatting data as a clean list for the AI
+            all_rows = data_res.data[0]["data"]
+            
+            # Smart Filtering: Find products that match keywords in the user message
+            keywords = [k.strip() for k in user_message.lower().split() if len(k) > 2]
+            matched_rows = []
+            
+            if keywords:
+                for r in all_rows:
+                    r_text = " ".join([str(v).lower() for v in r.values()]).lower()
+                    if any(kw in r_text for kw in keywords):
+                        matched_rows.append(r)
+            
+            # Combine matched rows + some general rows for variety
+            final_rows = matched_rows[:40] # Priority to matches
+            if len(final_rows) < 20:
+                # Add some non-matched rows to fill the context
+                remaining = [r for r in all_rows if r not in final_rows]
+                final_rows.extend(remaining[:(20 - len(final_rows))])
+            
             items_list = []
-            for r in rows[:50]: # Limit to 50 items for context window
-                # Skip internal technical columns like Unix timestamps
+            for r in final_rows:
+                # Skip technical columns (long digits)
                 clean_r = {k: v for k, v in r.items() if not str(v).isdigit() or len(str(v)) < 12}
                 items_list.append(" | ".join([f"{k}: {v}" for k, v in clean_r.items()]))
+            
             product_data = "\n".join([f"• {l}" for l in items_list])
-    except Exception: pass
+            if matched_rows:
+                product_data = f"تم العثور على نتائج مطابقة لطلبك:\n{product_data}"
+    except Exception as e:
+        print(f"Warning: Data fetch failed: {e}")
 
     # 5. BUSINESS RULES (Operational Logic)
     rules_prompt = ""
