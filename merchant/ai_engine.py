@@ -143,23 +143,47 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # 8. Call LLM
     try:
+        if not api_key:
+            raise Exception(f"مفتاح الـ API الخاص بـ {provider} غير موجود في الإعدادات.")
+
         if provider == "openai":
             response = await _call_openai(api_key, model_id, messages)
         elif provider == "google":
             response = await _call_google(api_key, model_id, messages, system_prompt)
         elif provider == "groq":
             response = await _call_groq(api_key, model_id, messages)
+        elif provider == "anthropic":
+            response = await _call_anthropic(api_key, model_id, messages, system_prompt)
         elif provider == "openrouter":
             response = await _call_openrouter(api_key, model_id, messages)
         else:
-            response = await _call_openai(api_key, model_id, messages)
+            # Fallback to OpenRouter as it's the user's primary choice
+            response = await _call_openrouter(api_key, model_id, messages)
 
         _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
         supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
         return response
     except Exception as e:
         print(f"AI Error for client {client_id}: {e}")
-        return f"عذراً، واجهت مشكلة فنية بسيطة: {str(e)[:50]}..."
+        return f"عذراً، {str(e)[:100]}"
+
+async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
+    user_messages = [m for m in messages if m["role"] != "system"]
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json"
+            },
+            json={"model": model_id, "system": system, "messages": user_messages, "max_tokens": 500, "temperature": 0.1},
+            timeout=30
+        )
+        data = res.json()
+        if "content" not in data:
+            raise Exception(f"Anthropic: {data.get('error', {}).get('message', 'Unknown')}")
+        return data["content"][0]["text"].strip()
 
 async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
     async with httpx.AsyncClient() as client:
