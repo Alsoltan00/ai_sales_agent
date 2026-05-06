@@ -70,27 +70,47 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Model resolution error: {e}")
 
-    # ─── 3. COLUMN TRAINING → STRICT BEHAVIORAL RULES ────────────────────────
+    # ─── 3. COLUMN TRAINING → BEHAVIORAL RULES + DATA FILTERS ────────────────
     col_behavior_rules = ""
-    col_display_map = ""
+    hidden_columns     = set()   # أعمدة يجب إخفاؤها تماماً من البيانات
+    restricted_columns = set()   # أعمدة لا تُعرض إلا بطلب صريح من العميل
+
+    # كلمات تدل على "لا تظهر إلا بطلب"
+    HIDE_KEYWORDS = ["لا تخبر", "لا تذكر", "لا تظهر", "إلا إذا طلب", "الا اذا طلب",
+                     "إلا إذا طلبها", "الا اذا طلبها", "عند الطلب", "بطلب"]
+
     try:
-        col_res = supabase.table("column_training").select("column_name, note").eq("client_id", client_id).execute()
+        col_res = supabase.table("column_training") \
+            .select("column_name, note") \
+            .eq("client_id", client_id).execute()
+
         if col_res.data:
             rules_list = []
-            display_list = []
             for item in col_res.data:
-                col  = item.get("column_name", "")
+                col  = item.get("column_name", "").strip()
                 note = (item.get("note") or "").strip()
-                if not note:
+                if not col:
                     continue
-                # Any note is a behavioral instruction, not just a label
-                rules_list.append(f"- بخصوص عمود [{col}]: {note}")
-                display_list.append(f"  • {col} = {note[:60]}")
-            
+
+                if note:
+                    # فحص إذا كانت الملاحظة تحتوي على تعليمة إخفاء
+                    note_lower = note.lower()
+                    is_hidden  = any(kw in note_lower for kw in HIDE_KEYWORDS)
+
+                    if is_hidden:
+                        restricted_columns.add(col)
+                        rules_list.append(
+                            f"- [{col}]: هذا الحقل سري. لا تذكره في ردك أبداً ما لم يطلبه العميل صراحةً."
+                        )
+                    else:
+                        rules_list.append(f"- [{col}]: {note}")
+
             if rules_list:
-                col_behavior_rules = "## تعليمات سلوكية إلزامية مستخرجة من إعدادات التاجر:\n" + "\n".join(rules_list)
-                col_display_map = "\n".join(display_list)
-                print(f"[ENGINE] Column behavioral rules: {len(rules_list)} rules loaded")
+                col_behavior_rules = (
+                    "## تعليمات إلزامية لكل حقل من حقول البيانات:\n"
+                    + "\n".join(rules_list)
+                )
+                print(f"[ENGINE] Column rules: {len(rules_list)} | Restricted: {restricted_columns}")
     except Exception as e:
         print(f"[ENGINE] Column training error: {e}")
 
@@ -123,14 +143,17 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
             print(f"[ENGINE] Matched rows: {len(relevant)} | General fill: {len(general)}")
 
-            # Build clean readable lines
+            # Build clean readable lines — apply column filters
             lines = []
             for row in final_rows:
                 parts = []
                 for k, v in row.items():
-                    # Skip Unix timestamps (13-digit numbers)
                     v_str = str(v)
+                    # 1. حذف الطوابع الزمنية (Unix timestamps — 13 رقماً)
                     if v_str.isdigit() and len(v_str) >= 13:
+                        continue
+                    # 2. حذف الأعمدة المقيّدة بتعليمات التاجر تماماً
+                    if k in restricted_columns:
                         continue
                     parts.append(f"{k}: {v}")
                 if parts:
@@ -139,6 +162,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             if lines:
                 tag = "✅ نتائج مطابقة لطلبك:\n" if relevant else ""
                 product_section = tag + "\n".join(lines)
+                print(f"[ENGINE] Restricted columns hidden from AI: {restricted_columns}")
             else:
                 product_section = "لا توجد منتجات مسجلة."
         else:
