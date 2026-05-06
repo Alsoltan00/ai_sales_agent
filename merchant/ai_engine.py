@@ -70,14 +70,27 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Model resolution error: {e}")
 
-    # ─── 3. COLUMN TRAINING NOTES ─────────────────────────────────────────────
-    col_notes = ""
+    # ─── 3. COLUMN TRAINING → STRICT BEHAVIORAL RULES ────────────────────────
+    col_behavior_rules = ""
+    col_display_map = ""
     try:
         col_res = supabase.table("column_training").select("column_name, note").eq("client_id", client_id).execute()
         if col_res.data:
-            active = [i for i in col_res.data if i.get("note")]
-            col_notes = "\n".join([f"- عمود '{i['column_name']}': {i['note']}" for i in active])
-            print(f"[ENGINE] Column notes loaded: {len(active)} entries")
+            rules_list = []
+            display_list = []
+            for item in col_res.data:
+                col  = item.get("column_name", "")
+                note = (item.get("note") or "").strip()
+                if not note:
+                    continue
+                # Any note is a behavioral instruction, not just a label
+                rules_list.append(f"- بخصوص عمود [{col}]: {note}")
+                display_list.append(f"  • {col} = {note[:60]}")
+            
+            if rules_list:
+                col_behavior_rules = "## تعليمات سلوكية إلزامية مستخرجة من إعدادات التاجر:\n" + "\n".join(rules_list)
+                col_display_map = "\n".join(display_list)
+                print(f"[ENGINE] Column behavioral rules: {len(rules_list)} rules loaded")
     except Exception as e:
         print(f"[ENGINE] Column training error: {e}")
 
@@ -170,24 +183,23 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 {f'نبذة: {description}' if description else ''}
 نبرة الصوت: {base_tone}.
 
-## قواعد الحوار (صارمة جداً):
-1. تحدث كإنسان طبيعي. لا تذكر "قاعدة بيانات" أو "نظام" أو أي مصطلح تقني.
-2. لا تكرر التعريف بنفسك إذا وُجدت رسائل سابقة في المحادثة.
+## قواعد الحوار (صارمة):
+1. تحدث كإنسان طبيعي. لا تذكر مصطلحات تقنية (قاعدة بيانات، نظام، رقم جوال).
+2. لا تكرر التعريف بنفسك إذا وُجدت رسائل سابقة.
 3. لا تستخدم قوائم نقطية في رسالة الترحيب الأولى.
-4. لا تطلب رقم الجوال أو البيانات الشخصية إلا عند تأكيد الطلب النهائي.
+4. لا تطلب بيانات العميل الشخصية إلا عند تأكيد الطلب النهائي.
 
-## دليل قراءة البيانات:
-{col_notes if col_notes else 'لا توجد ملاحظات مخصصة على الأعمدة.'}
+{col_behavior_rules}
 
-## قائمة المنتجات المتوفرة (المصدر الوحيد للحقيقة — لا تخترع منتجات):
+## قائمة المنتجات المتوفرة (المصدر الوحيد للحقيقة):
 {product_section}
 
 {rules_section}
 
-## قانون منع الهلوسة:
-- إذا سأل العميل عن منتج غير موجود في القائمة أعلاه، قل له بوضوح: "هذا المنتج غير متوفر لدينا حالياً."
+## قانون منع الهلوسة (غير قابل للكسر):
+- لا تذكر أي منتج غير موجود في القائمة أعلاه. إذا لم يُطلب، قل: "غير متوفر حالياً."
+- لا تذكر أي ماركة (Garnier, L'Oreal, إلخ) إلا إذا كانت مكتوبة صراحةً في القائمة.
 - إذا قال العميل "الأول" أو "هذا"، راجع آخر منتج ذكرته أنت في ردك السابق مباشرة.
-- لا تذكر أسماء ماركات (مثل Garnier, L'Oreal) إلا إذا كانت مكتوبة صراحةً في قائمة المنتجات أعلاه.
 """
 
     # ─── 7. CONVERSATION HISTORY ──────────────────────────────────────────────

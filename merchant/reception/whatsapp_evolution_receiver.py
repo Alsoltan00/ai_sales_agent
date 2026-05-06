@@ -1,6 +1,6 @@
 """
 merchant/reception/whatsapp_evolution_receiver.py
-استقبال الرسائل من واتساب عبر Evolution API - تحديث روابط v2
+استقبال الرسائل من واتساب عبر Evolution API
 """
 import httpx
 from fastapi import APIRouter, Request, Response
@@ -9,6 +9,8 @@ from merchant.ai_engine import get_ai_response
 
 router = APIRouter(tags=["WhatsApp Evolution Webhook"])
 
+# In-memory lock to prevent duplicate processing of the same message
+_processing_ids: set = set()
 
 def _find_client_by_instance(instance_name: str) -> dict | None:
     supabase = get_supabase_client()
@@ -111,17 +113,22 @@ async def evolution_webhook(instance_name: str, request: Request):
         msg_id      = key.get("id")
         msg_content = data.get("message", {})
 
-        # 1. منع تكرار الرد على نفس الرسالة (Deduplication)
+        # 1. منع التكرار - المستوى الأول: ذاكرة داخلية (سريعة جداً)
         if msg_id:
+            if msg_id in _processing_ids:
+                print(f"[DEDUP] In-memory block: {msg_id}")
+                return Response(status_code=200)
+            _processing_ids.add(msg_id)
+            
+            # المستوى الثاني: فحص قاعدة البيانات (للتأكد بعد إعادة التشغيل)
             try:
                 check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
                 if check_dup.data and len(check_dup.data) > 0:
-                    print(f"[DEBUG] Skipping duplicate message: {msg_id}")
+                    print(f"[DEDUP] DB block: {msg_id}")
+                    _processing_ids.discard(msg_id)
                     return Response(status_code=200)
             except Exception as dup_err:
-                print(f"[DEBUG] Deduplication check failed (maybe column missing?): {dup_err}")
-                # نفضل الرد حتى لو فشل التحقق من التكرار
-                pass
+                print(f"[DEDUP] DB check error: {dup_err}")
 
         # التحقق من نوع الرسالة
         msg_type = "text"
@@ -261,5 +268,9 @@ async def evolution_webhook(instance_name: str, request: Request):
         import traceback
         traceback.print_exc()
         print(f"[CRITICAL ERROR] Evolution webhook error: {e}")
+    finally:
+        # تنظيف الذاكرة بعد معالجة الرسالة (نجاح أو فشل)
+        if msg_id:
+            _processing_ids.discard(msg_id)
 
     return Response(status_code=200)
