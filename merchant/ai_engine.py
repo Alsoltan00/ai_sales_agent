@@ -113,7 +113,38 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Column training error: {e}")
 
-    # ─── 4. PRODUCT DATA (Smart Keyword Search) ───────────────────────────────
+    # ─── 4. CONVERSATION HISTORY (Context Extraction) ───────────────────────────
+    history = []
+    search_phone = phone_number.split("@")[0]
+    recent_context_text = ""
+    try:
+        # Fetch last 8 exchanges ordered by time ascending
+        h_res = supabase.table("message_logs") \
+            .select("message_text, ai_response") \
+            .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
+            .eq("client_id", client_id) \
+            .order("timestamp", desc=True) \
+            .limit(8) \
+            .execute()
+
+        if h_res.data:
+            # Enrich keywords from the most recent 2 exchanges
+            recent_exchanges = h_res.data[:2]
+            for msg in recent_exchanges:
+                recent_context_text += f" {msg.get('message_text', '')} {msg.get('ai_response', '')}"
+                
+            for m in reversed(h_res.data):
+                u = (m.get("message_text") or "").strip()
+                a = (m.get("ai_response") or "").strip()
+                if u: history.append({"role": "user",      "content": u})
+                if a: history.append({"role": "assistant", "content": a})
+            print(f"[ENGINE] History loaded: {len(history)} messages")
+        else:
+            print(f"[ENGINE] No history for {search_phone}")
+    except Exception as e:
+        print(f"[ENGINE] History error: {e}")
+
+    # ─── 5. PRODUCT DATA (Smart Context-Aware Search) ─────────────────────────
     product_section = ""
     try:
         data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
@@ -122,8 +153,12 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             total = len(all_rows)
             print(f"[ENGINE] Total products in DB: {total}")
 
-            # Extract keywords from user message (≥2 chars)
-            keywords = [k.strip() for k in user_message.replace("؟","").replace("?","").split() if len(k.strip()) >= 2]
+            # Extract keywords from user message AND recent context (≥2 chars)
+            combined_text = recent_context_text + " " + user_message
+            keywords = [k.strip() for k in combined_text.replace("؟","").replace("?","").split() if len(k.strip()) >= 2]
+            
+            # Remove duplicate keywords
+            keywords = list(set(keywords))
 
             # Score rows by keyword relevance
             scored = []
@@ -174,7 +209,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         print(f"[ENGINE] Product data error: {e}")
         product_section = "تعذّر تحميل قائمة المنتجات."
 
-    # ─── 5. BUSINESS RULES ────────────────────────────────────────────────────
+    # ─── 6. BUSINESS RULES ────────────────────────────────────────────────────
     rules_section = ""
     item_term = "العناصر"
     single_item_term = "العنصر"
@@ -248,7 +283,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
-    # ─── 6. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
+    # ─── 7. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
     system_prompt = f"""أنت "{agent_name}"، موظف مبيعات في "{company_name}".
 نشاط المتجر: {store_activity}.
 {f'نبذة: {description}' if description else ''}
@@ -304,31 +339,6 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 أخبره بلطف أنه غير متوفر حالياً، وأضف أنه **سيتم توفيره أو إتاحته في أقرب وقت**.
 مثال: "أهلاً بك! بخصوص [الطلب]، للأسف غير متاح لدينا حالياً ولكن سيتم توفيره بأقرب وقت إن شاء الله. هل تبحث عن شيء آخر من {item_term} في الوقت الحالي؟ 🌟"
 """
-
-    # ─── 7. CONVERSATION HISTORY ──────────────────────────────────────────────
-    history = []
-    search_phone = phone_number.split("@")[0]
-    try:
-        # Fetch last 8 exchanges ordered by time ascending
-        h_res = supabase.table("message_logs") \
-            .select("message_text, ai_response") \
-            .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
-            .eq("client_id", client_id) \
-            .order("timestamp", desc=True) \
-            .limit(8) \
-            .execute()
-
-        if h_res.data:
-            for m in reversed(h_res.data):
-                u = (m.get("message_text") or "").strip()
-                a = (m.get("ai_response") or "").strip()
-                if u: history.append({"role": "user",      "content": u})
-                if a: history.append({"role": "assistant", "content": a})
-            print(f"[ENGINE] History loaded: {len(history)} messages")
-        else:
-            print(f"[ENGINE] No history for {search_phone}")
-    except Exception as e:
-        print(f"[ENGINE] History error: {e}")
 
     # ─── 8. BUILD MESSAGE PAYLOAD ─────────────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
