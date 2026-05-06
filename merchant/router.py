@@ -382,6 +382,26 @@ async def api_update_authorized_settings(payload: dict, user: dict = Depends(ver
         
     return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
 
+class ClearMemoryRequest(BaseModel):
+    phone_number: str
+
+@router.post("/api/clear-memory")
+async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
+    """مسح سجل المحادثات لعميل محدد (تصفير الذاكرة)"""
+    supabase = get_supabase_client()
+    try:
+        phone = payload.phone_number.strip().replace("+", "")
+        # Remove any whatsapp suffixes just in case
+        phone = phone.split("@")[0]
+        
+        # Delete rows for this client_id and phone_number
+        res = supabase.table("message_logs").delete().eq("client_id", user["id"]).or_(f"phone_number.eq.{phone},phone_number.eq.{phone}@s.whatsapp.net").execute()
+        
+        return {"status": "success", "message": f"تم مسح ذاكرة العميل ({phone}) بنجاح!"}
+    except Exception as e:
+        print(f"Error clearing memory: {e}")
+        return {"status": "error", "message": "حدث خطأ أثناء محاولة مسح الذاكرة"}
+
 # --- Data Display View ---
 
 @router.get("/data-view", response_class=HTMLResponse)
