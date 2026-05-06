@@ -188,7 +188,18 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                 if rd.get("chat_payment_transfer"): payments.append(f"تحويل بنكي — {rd.get('bank_accounts','')}")
                 if rd.get("chat_payment_link"):     payments.append(f"رابط دفع — {rd.get('payment_links','')}")
                 checkout_rule = f"إتمام الطلب داخل الواتساب. طرق الدفع: {', '.join(payments) or 'حسب الاتفاق'}."
-                order_rule    = "اطلب (الاسم + العنوان + الكمية) فقط بعد أن يؤكد العميل رغبته في الشراء."
+                
+                # إعدادات إكمال الطلب (Cart Behavior)
+                cart_behavior = rd.get("chat_cart_behavior", "ask_more")
+                confirm_type  = rd.get("chat_confirmation", "summary")
+                
+                if cart_behavior == "close_fast":
+                    order_rule = "بمجرد أن يختار العميل منتجاً (أول منتج يختاره)، أغلق الطلب فوراً واطلب بياناته (الاسم والعنوان) لتأكيد الإرسال."
+                else:
+                    order_rule = "بعد أن يختار العميل منتجاً، اسأله بلباقة: 'هل ترغب بإضافة شيء آخر؟' قبل أن تطلب بياناته (الاسم والعنوان)."
+                
+                if confirm_type == "summary":
+                    order_rule += " في النهاية، أرسل ملخصاً واضحاً للفاتورة واطلب موافقته بـ(نعم)."
             else:
                 checkout_rule = "وجّه العميل لإتمام الشراء عبر رابط المتجر الإلكتروني."
                 order_rule    = "لا تطلب بيانات العميل، فقط أرسل رابط المنتج."

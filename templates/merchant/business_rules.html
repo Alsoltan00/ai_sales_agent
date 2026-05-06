@@ -470,6 +470,24 @@
 
                         <!-- Chat Confirm -->
                         <div class="settings-group chat-only" style="display:none;">
+                            <h5 class="fw-bold text-success mb-3"><i class="ti ti-shopping-cart-plus me-2"></i>سياسة استكمال الطلب</h5>
+                            <div class="d-flex flex-column gap-3 mb-4">
+                                <label class="radio-card">
+                                    <input type="radio" name="chat_cart_behavior" value="ask_more" {% if rules.chat_cart_behavior == 'ask_more' or not rules.chat_cart_behavior %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">السؤال عن منتجات إضافية</span>
+                                        <p class="radio-card-desc">بعد اختيار المنتج الأول، يسأل العميل: "هل ترغب بإضافة شيء آخر للطلب؟" قبل إتمام الطلب.</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="chat_cart_behavior" value="close_fast" {% if rules.chat_cart_behavior == 'close_fast' %}checked{% endif %}>
+                                    <div class="radio-card-content">
+                                        <span class="radio-card-title">إغلاق الطلب مباشرة</span>
+                                        <p class="radio-card-desc">بمجرد اختيار العميل للمنتج الأول وتأكيده، ينتقل فوراً لطلب بيانات الشحن أو الدفع لإنهاء الطلب بسرعة.</p>
+                                    </div>
+                                </label>
+                            </div>
+
                             <h5 class="fw-bold text-success mb-3"><i class="ti ti-check me-2"></i>كيف يعتمد الموظف طلب العميل بالمحادثة؟</h5>
                             <div class="d-flex flex-column gap-3">
                                 <label class="radio-card">
