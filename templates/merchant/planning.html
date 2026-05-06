@@ -130,6 +130,15 @@
 }
 .toggle input:checked + .slider { background: #ef4444; border-color: #ef4444; }
 .toggle input:checked + .slider::before { background: white; transform: translateX(17px); }
+/* عند الطلب toggle — amber */
+.toggle.on-request input:checked + .slider { background: #f59e0b; border-color: #f59e0b; }
+.toggle.on-request input:checked + .slider::before { background: white; transform: translateX(17px); }
+.badge-on-request {
+    display: inline-block; font-size: 0.7rem; font-weight: 700;
+    background: rgba(245,158,11,0.15); color: #f59e0b;
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 6px; padding: 1px 7px; margin-right: 6px;
+}
 .col-empty { text-align: center; padding: 40px; color: var(--bs-secondary-color); font-size: 0.9rem; }
 .col-empty i { font-size: 2.2rem; display: block; margin-bottom: 12px; opacity: 0.35; }
 
@@ -552,13 +561,25 @@ async function loadColumns() {
             <div class="column-card ${col.is_disabled ? 'disabled' : ''}" id="card_${col.name}">
                 <div class="col-name text-truncate" title="${col.name}">${col.name}</div>
                 <div class="col-body">
-                    <div class="toggle-wrap">
-                        <label class="toggle">
-                            <input type="checkbox" id="dis_${col.name}" ${col.is_disabled ? 'checked' : ''}
-                                onchange="toggleCard('${col.name}', this.checked)">
-                            <span class="slider"></span>
-                        </label>
-                        إيقاف هذا العمود (لن يفكر به النموذج)
+                    <div class="d-flex align-items-center gap-3 flex-wrap">
+                        <!-- إيقاف -->
+                        <div class="toggle-wrap">
+                            <label class="toggle">
+                                <input type="checkbox" id="dis_${col.name}" ${col.is_disabled ? 'checked' : ''}
+                                    onchange="toggleCard('${col.name}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <span>إيقاف هذا العمود (لن يفكر به النموذج)</span>
+                        </div>
+                        <!-- عند الطلب -->
+                        <div class="toggle-wrap" title="عند الطلب: يرى النموذج هذا الحقل فقط إذا طلبه العميل صراحةً">
+                            <label class="toggle on-request">
+                                <input type="checkbox" id="req_${col.name}" ${col.on_request ? 'checked' : ''}
+                                    onchange="toggleOnRequest('${col.name}', this.checked)">
+                                <span class="slider"></span>
+                            </label>
+                            <span>عند الطلب <span class="badge-on-request">🔒 يُخفى</span></span>
+                        </div>
                     </div>
                     <textarea class="col-note" id="note_${col.name}" rows="2"
                         placeholder="اكتب تعليمات للنموذج حول هذا العمود...">${col.note || ''}</textarea>
@@ -572,6 +593,14 @@ async function loadColumns() {
 
 function toggleCard(name, disabled) {
     document.getElementById('card_' + name).classList.toggle('disabled', disabled);
+    // إذا تم الإيقاف الكامل، ألغِ on_request تلقائياً
+    if (disabled) document.getElementById('req_' + name).checked = false;
+}
+
+function toggleOnRequest(name, checked) {
+    // إذا تم تفعيل عند الطلب، تأكد أن الإيقاف الكامل مُلغى
+    if (checked) document.getElementById('dis_' + name).checked = false;
+    document.getElementById('card_' + name).classList.remove('disabled');
 }
 
 async function saveCols() {
@@ -587,7 +616,8 @@ async function saveCols() {
             body: JSON.stringify({ columns: currentCols.map(col => ({
                 column_name: col.name,
                 note: document.getElementById('note_' + col.name)?.value || '',
-                is_disabled: document.getElementById('dis_' + col.name)?.checked || false
+                is_disabled: document.getElementById('dis_' + col.name)?.checked || false,
+                on_request: document.getElementById('req_' + col.name)?.checked || false
             }))})
         });
         const data = await res.json();

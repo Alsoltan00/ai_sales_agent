@@ -116,7 +116,8 @@ async def api_get_columns(user: dict = Depends(verify_merchant)):
         columns = [{
             "name": c,
             "note": saved_map.get(c, {}).get("note", ""),
-            "is_disabled": saved_map.get(c, {}).get("is_disabled", False)
+            "is_disabled": saved_map.get(c, {}).get("is_disabled", False),
+            "on_request": saved_map.get(c, {}).get("on_request", False)
         } for c in col_names]
         return {"columns": columns}
     except Exception as e:
@@ -126,6 +127,7 @@ class ColumnTrainingItem(BaseModel):
     column_name: str
     note: str = ""
     is_disabled: bool = False
+    on_request: bool = False
 
 class ColumnTrainingRequest(BaseModel):
     columns: list[ColumnTrainingItem]
@@ -141,14 +143,16 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
             if existing.data:
                 supabase.table("column_training").update({
                     "note": col.note,
-                    "is_disabled": col.is_disabled
+                    "is_disabled": col.is_disabled,
+                    "on_request": col.on_request
                 }).eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
             else:
                 supabase.table("column_training").insert({
                     "client_id": user["id"],
                     "column_name": col.column_name,
                     "note": col.note,
-                    "is_disabled": col.is_disabled
+                    "is_disabled": col.is_disabled,
+                    "on_request": col.on_request
                 }).execute()
         return {"status": "success", "message": "تم حفظ إعدادات الأعمدة بنجاح"}
     except Exception as e:

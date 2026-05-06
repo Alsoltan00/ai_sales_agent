@@ -72,45 +72,44 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 3. COLUMN TRAINING → BEHAVIORAL RULES + DATA FILTERS ────────────────
     col_behavior_rules = ""
-    hidden_columns     = set()   # أعمدة يجب إخفاؤها تماماً من البيانات
-    restricted_columns = set()   # أعمدة لا تُعرض إلا بطلب صريح من العميل
-
-    # كلمات تدل على "لا تظهر إلا بطلب"
-    HIDE_KEYWORDS = ["لا تخبر", "لا تذكر", "لا تظهر", "إلا إذا طلب", "الا اذا طلب",
-                     "إلا إذا طلبها", "الا اذا طلبها", "عند الطلب", "بطلب"]
+    restricted_columns = set()   # أعمدة "عند الطلب" — تُخفى من البيانات
+    disabled_columns   = set()   # أعمدة "إيقاف" — يتجاهلها النموذج كلياً
 
     try:
         col_res = supabase.table("column_training") \
-            .select("column_name, note") \
+            .select("column_name, note, is_disabled, on_request") \
             .eq("client_id", client_id).execute()
 
         if col_res.data:
             rules_list = []
             for item in col_res.data:
-                col  = item.get("column_name", "").strip()
-                note = (item.get("note") or "").strip()
+                col        = item.get("column_name", "").strip()
+                note       = (item.get("note") or "").strip()
+                is_disabled = item.get("is_disabled", False)
+                on_request  = item.get("on_request", False)
+
                 if not col:
                     continue
 
-                if note:
-                    # فحص إذا كانت الملاحظة تحتوي على تعليمة إخفاء
-                    note_lower = note.lower()
-                    is_hidden  = any(kw in note_lower for kw in HIDE_KEYWORDS)
+                if is_disabled:
+                    disabled_columns.add(col)
+                    # لا نُضيف للـ rules — النموذج لن يراها أصلاً
 
-                    if is_hidden:
-                        restricted_columns.add(col)
-                        rules_list.append(
-                            f"- [{col}]: هذا الحقل سري. لا تذكره في ردك أبداً ما لم يطلبه العميل صراحةً."
-                        )
-                    else:
-                        rules_list.append(f"- [{col}]: {note}")
+                elif on_request:
+                    restricted_columns.add(col)
+                    rules_list.append(
+                        f"- [{col}]: هذا الحقل سري ويُعطى فقط إذا طلبه العميل صراحةً بكلمات واضحة."
+                    )
+
+                elif note:
+                    rules_list.append(f"- [{col}]: {note}")
 
             if rules_list:
                 col_behavior_rules = (
                     "## تعليمات إلزامية لكل حقل من حقول البيانات:\n"
                     + "\n".join(rules_list)
                 )
-                print(f"[ENGINE] Column rules: {len(rules_list)} | Restricted: {restricted_columns}")
+            print(f"[ENGINE] Disabled cols: {disabled_columns} | On-request cols: {restricted_columns}")
     except Exception as e:
         print(f"[ENGINE] Column training error: {e}")
 
@@ -152,7 +151,10 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                     # 1. حذف الطوابع الزمنية (Unix timestamps — 13 رقماً)
                     if v_str.isdigit() and len(v_str) >= 13:
                         continue
-                    # 2. حذف الأعمدة المقيّدة بتعليمات التاجر تماماً
+                    # 2. حذف الأعمدة الموقوفة (is_disabled) كلياً
+                    if k in disabled_columns:
+                        continue
+                    # 3. حذف الأعمدة "عند الطلب" — لا يراها النموذج إلا عند الطلب
                     if k in restricted_columns:
                         continue
                     parts.append(f"{k}: {v}")
