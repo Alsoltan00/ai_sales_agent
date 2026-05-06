@@ -228,9 +228,17 @@ async def evolution_webhook(instance_name: str, request: Request):
             print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
             return Response(status_code=200)
 
-        # توليد الرد
-        print(f"[AI] Calling AI for client {client_id}...")
-        ai_reply = await get_ai_response(client_id, text, phone, channel="whatsapp_evolution", image_base64=image_base64, audio_base64=audio_base64, message_id=msg_id)
+        # توليد الرد — ترتيب الوسائط: (client_id, phone_number, user_message, ...)
+        print(f"[AI] Calling AI for client {client_id}, phone={phone}, text={text[:40]}...")
+        ai_reply = await get_ai_response(
+            client_id=client_id,
+            phone_number=phone,
+            user_message=text,
+            image_base64=image_base64,
+            audio_base64=audio_base64,
+            message_id=msg_id,
+            channel="whatsapp_evolution"
+        )
         print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد
