@@ -127,25 +127,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
             # Score rows by keyword relevance
             scored = []
-            
-            # Keywords to identify a quantity/stock column
-            out_of_stock_keywords = ["كمية", "كميه", "مخزون", "متوفر", "stock", "quantity", "qty"]
-
             for row in all_rows:
-                # 1. Skip out-of-stock products completely so AI never sees them
-                is_out_of_stock = False
-                for k, v in row.items():
-                    k_lower = str(k).lower()
-                    if any(kw in k_lower for kw in out_of_stock_keywords):
-                        v_str = str(v).strip()
-                        if v_str in ("0", "0.0", "0.00", "نفذ", "نفدت", "غير متوفر", "لا يوجد", "out of stock"):
-                            is_out_of_stock = True
-                            break
-                
-                if is_out_of_stock:
-                    continue
-
-                # 2. Score remaining products
                 row_text = " ".join(str(v) for v in row.values()).lower()
                 score = sum(1 for kw in keywords if kw.lower() in row_text)
                 scored.append((score, row))
@@ -270,6 +252,11 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
 **الخطوة 3 — إذا كانت الخيارات المتبقية تتشابه فقط بتفصيل بسيط (لون / رائحة / نكهة):**
 في هذه الحالة فقط يمكنك سردها معاً ليختار العميل.
+
+## خطوات الفحص الإلزامية قبل اقتراح أي منتج:
+1. ابحث في (قائمة المنتجات المتوفرة) عن طلب العميل.
+2. إذا وجدت المنتج، **يجب عليك أولاً مراجعة (تعليمات حقول البيانات) وتطبيقها حرفياً على هذا المنتج.**
+3. إذا كانت التعليمات تطلب منك اعتبار المنتج "غير متوفر" بسبب قيمة معينة (مثل الكمية 0)، فيجب عليك إخفاء المنتج تماماً والرد كأنه غير موجود في القائمة أبداً، وتطبيق (قواعد تصنيف الأسئلة - الحالة 2).
 
 {col_behavior_rules}
 
