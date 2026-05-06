@@ -153,6 +153,54 @@
                 <!-- 1. Business Model -->
                 <div class="tab-pane fade show active" id="pane-model" role="tabpanel">
                     <div class="card settings-card">
+                            <div class="settings-group border-bottom pb-4 mb-4">
+                                <h4 class="fw-bold mb-1"><i class="ti ti-briefcase text-primary me-2"></i>نوع المبيعات / النشاط</h4>
+                                <p class="text-secondary small mb-4">حدد طبيعة ما تقدمه لعملائك ليتمكن الموظف الآلي من استخدام المصطلحات الصحيحة (مثل: منتج، خدمة، موعد).</p>
+                                
+                                <div class="row g-3">
+                                    <div class="col-sm-6 col-md-3">
+                                        <label class="radio-card p-3">
+                                            <input type="radio" name="activity_type" value="products" {% if rules.activity_type == 'products' or not rules.activity_type %}checked{% endif %} onchange="document.getElementById('custom_activity_wrapper').style.display='none'">
+                                            <div class="radio-card-content text-center m-0">
+                                                <i class="ti ti-packages fs-3 text-primary mb-2 d-block"></i>
+                                                <span class="fw-bold">منتجات</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <label class="radio-card p-3">
+                                            <input type="radio" name="activity_type" value="services" {% if rules.activity_type == 'services' %}checked{% endif %} onchange="document.getElementById('custom_activity_wrapper').style.display='none'">
+                                            <div class="radio-card-content text-center m-0">
+                                                <i class="ti ti-tools fs-3 text-success mb-2 d-block"></i>
+                                                <span class="fw-bold">خدمات</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <label class="radio-card p-3">
+                                            <input type="radio" name="activity_type" value="bookings" {% if rules.activity_type == 'bookings' %}checked{% endif %} onchange="document.getElementById('custom_activity_wrapper').style.display='none'">
+                                            <div class="radio-card-content text-center m-0">
+                                                <i class="ti ti-calendar-event fs-3 text-warning mb-2 d-block"></i>
+                                                <span class="fw-bold">حجوزات</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div class="col-sm-6 col-md-3">
+                                        <label class="radio-card p-3">
+                                            <input type="radio" name="activity_type" value="other" {% if rules.activity_type == 'other' %}checked{% endif %} onchange="document.getElementById('custom_activity_wrapper').style.display='block'">
+                                            <div class="radio-card-content text-center m-0">
+                                                <i class="ti ti-dots fs-3 text-secondary mb-2 d-block"></i>
+                                                <span class="fw-bold">أخرى</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-3" id="custom_activity_wrapper" style="display: {% if rules.activity_type == 'other' %}block{% else %}none{% endif %};">
+                                    <label class="form-label text-muted small">اكتب نوع النشاط بدقة (مثال: عقارات، استشارات طبية، دورات تدريبية)</label>
+                                    <input type="text" name="custom_activity_type" class="form-control bg-light border-0" placeholder="ماذا تقدم لعملائك؟" value="{{ rules.custom_activity_type or '' }}">
+                                </div>
+                            </div>
+
                         <div class="settings-group">
                             <h4 class="fw-bold mb-1"><i class="ti ti-shopping-cart text-primary me-2"></i>أين سيتم إتمام الطلب والدفع؟</h4>
                             <p class="text-secondary small mb-4">حدد مسار العميل النهائي، هل تريد من الموظف الآلي إتمام كل شيء داخل المحادثة أم توجيههم للمتجر؟</p>
