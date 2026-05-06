@@ -3,198 +3,359 @@ import json
 import httpx
 from database.db_client import get_supabase_client
 
-async def get_ai_response(client_id: str, phone_number: str, user_message: str, 
-                         image_base64: str = None, audio_base64: str = None, 
-                         message_id: str = None, channel: str = "whatsapp"):
+
+async def get_ai_response(client_id: str, phone_number: str, user_message: str,
+                          image_base64: str = None, audio_base64: str = None,
+                          message_id: str = None, channel: str = "whatsapp"):
     """
-    High-Precision AI Engine v3.0 (Dashboard-Synced)
-    Fully aligned with Merchant Dashboard interfaces.
+    High-Precision AI Engine v4.0
+    - Strict data injection from DB (no hallucination)
+    - Full error logging for diagnosis
+    - Correct OR query support
     """
     supabase = get_supabase_client()
-    
-    # 1. PRIMARY DATA FETCH (Store Identity)
+
+    # ─── 1. MERCHANT IDENTITY ────────────────────────────────────────────────
     client_res = supabase.table("clients").select("*").eq("id", client_id).single().execute()
-    if not client_res.data: return "عذراً، المتجر غير موجود."
-    
+    if not client_res.data:
+        print(f"[ENGINE] ERROR: Client {client_id} not found.")
+        return "عذراً، المتجر غير موجود."
+
     c = client_res.data
-    agent_name = c.get("agent_name", "نوره")
-    company_name = c.get("company_name", "متجر أصيل")
+    agent_name  = c.get("agent_name", "نوره")
+    company_name = c.get("company_name", "المتجر")
     store_activity = c.get("store_activity", "تجارة")
     description = c.get("description", "")
-    base_tone = c.get("ai_tone", "حماسي وتسويقي")
+    base_tone   = c.get("ai_tone", "حماسي وتسويقي")
+    messages_used = c.get("messages_used", 0)
+    message_limit = c.get("message_limit", 1000)
 
-    # 2. MODEL RESOLUTION (Plan vs Config)
+    if messages_used >= message_limit:
+        return "نعتذر، انتهى رصيد الرسائل للمتجر."
+
+    print(f"[ENGINE] Client: {company_name} | Agent: {agent_name} | Provider TBD")
+
+    # ─── 2. AI MODEL RESOLUTION (Plan → Config) ──────────────────────────────
     api_key, model_id, provider = None, "gpt-3.5-turbo", "openai"
     try:
-        plan_res = supabase.table("clients").select("subscription_plan").eq("id", client_id).single().execute()
-        if plan_res.data:
-            p_name = plan_res.data["subscription_plan"]
-            p_det = supabase.table("subscription_plans").select("permissions").eq("name", p_name).single().execute()
+        # Check plan-assigned model first
+        plan_name = c.get("subscription_plan")
+        if plan_name:
+            p_det = supabase.table("subscription_plans").select("permissions").eq("name", plan_name).single().execute()
             if p_det.data:
                 perms = p_det.data.get("permissions", {})
-                if isinstance(perms, str): perms = json.loads(perms)
+                if isinstance(perms, str):
+                    perms = json.loads(perms)
                 mid = perms.get("assigned_model_id")
                 if mid:
                     gm = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
                     if gm.data:
-                        api_key, model_id, provider = gm.data["api_key"], gm.data["model_id"], gm.data["provider"].lower()
+                        api_key  = gm.data["api_key"]
+                        model_id = gm.data["model_id"]
+                        provider = gm.data["provider"].lower()
+                        print(f"[ENGINE] Model from PLAN: {model_id} via {provider}")
 
+        # Fallback: merchant's own active config
         if not api_key:
             m_cfg = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
             if m_cfg.data:
-                api_key, model_id, provider = m_cfg.data[0]["api_key"], m_cfg.data[0]["model_id"], m_cfg.data[0]["provider"].lower()
-    except Exception: pass
+                api_key  = m_cfg.data[0]["api_key"]
+                model_id = m_cfg.data[0]["model_id"]
+                provider = m_cfg.data[0]["provider"].lower()
+                print(f"[ENGINE] Model from CONFIG: {model_id} via {provider}")
 
-    if c.get("messages_used", 0) >= c.get("message_limit", 1000):
-        return "انتهى رصيد الرسائل للمتجر."
+        if not api_key:
+            print(f"[ENGINE] ERROR: No API key found for client {client_id}")
 
-    # 3. COLUMN TRAINING (High Precision Dictionary)
-    col_dict = ""
+    except Exception as e:
+        print(f"[ENGINE] Model resolution error: {e}")
+
+    # ─── 3. COLUMN TRAINING NOTES ─────────────────────────────────────────────
+    col_notes = ""
     try:
         col_res = supabase.table("column_training").select("column_name, note").eq("client_id", client_id).execute()
         if col_res.data:
-            col_dict = "\n".join([f"- **{i['column_name']}**: {i['note']}" for i in col_res.data])
-    except Exception: pass
+            active = [i for i in col_res.data if i.get("note")]
+            col_notes = "\n".join([f"- عمود '{i['column_name']}': {i['note']}" for i in active])
+            print(f"[ENGINE] Column notes loaded: {len(active)} entries")
+    except Exception as e:
+        print(f"[ENGINE] Column training error: {e}")
 
-    # 4. MERCHANT MANUAL DATA (Smart Product Search)
-    product_data = ""
+    # ─── 4. PRODUCT DATA (Smart Keyword Search) ───────────────────────────────
+    product_section = ""
     try:
         data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
         if data_res.data and data_res.data[0].get("data"):
             all_rows = data_res.data[0]["data"]
-            
-            # Smart Filtering: Find products that match keywords in the user message
-            keywords = [k.strip() for k in user_message.lower().split() if len(k) > 2]
-            matched_rows = []
-            
-            if keywords:
-                for r in all_rows:
-                    r_text = " ".join([str(v).lower() for v in r.values()]).lower()
-                    if any(kw in r_text for kw in keywords):
-                        matched_rows.append(r)
-            
-            # Combine matched rows + some general rows for variety
-            final_rows = matched_rows[:40] # Priority to matches
-            if len(final_rows) < 20:
-                # Add some non-matched rows to fill the context
-                remaining = [r for r in all_rows if r not in final_rows]
-                final_rows.extend(remaining[:(20 - len(final_rows))])
-            
-            items_list = []
-            for r in final_rows:
-                # Skip technical columns (long digits)
-                clean_r = {k: v for k, v in r.items() if not str(v).isdigit() or len(str(v)) < 12}
-                items_list.append(" | ".join([f"{k}: {v}" for k, v in clean_r.items()]))
-            
-            product_data = "\n".join([f"• {l}" for l in items_list])
-            if matched_rows:
-                product_data = f"تم العثور على نتائج مطابقة لطلبك:\n{product_data}"
-    except Exception as e:
-        print(f"Warning: Data fetch failed: {e}")
+            total = len(all_rows)
+            print(f"[ENGINE] Total products in DB: {total}")
 
-    # 5. BUSINESS RULES (Operational Logic)
-    rules_prompt = ""
+            # Extract keywords from user message (≥2 chars)
+            keywords = [k.strip() for k in user_message.replace("؟","").replace("?","").split() if len(k.strip()) >= 2]
+
+            # Score rows by keyword relevance
+            scored = []
+            for row in all_rows:
+                row_text = " ".join(str(v) for v in row.values()).lower()
+                score = sum(1 for kw in keywords if kw.lower() in row_text)
+                scored.append((score, row))
+
+            # Sort: matched rows first, then rest
+            scored.sort(key=lambda x: x[0], reverse=True)
+
+            # Take top 30 relevant + up to 10 general
+            relevant = [r for s, r in scored if s > 0][:30]
+            general  = [r for s, r in scored if s == 0][:10]
+            final_rows = relevant + general
+
+            print(f"[ENGINE] Matched rows: {len(relevant)} | General fill: {len(general)}")
+
+            # Build clean readable lines
+            lines = []
+            for row in final_rows:
+                parts = []
+                for k, v in row.items():
+                    # Skip Unix timestamps (13-digit numbers)
+                    v_str = str(v)
+                    if v_str.isdigit() and len(v_str) >= 13:
+                        continue
+                    parts.append(f"{k}: {v}")
+                if parts:
+                    lines.append("• " + " | ".join(parts))
+
+            if lines:
+                tag = "✅ نتائج مطابقة لطلبك:\n" if relevant else ""
+                product_section = tag + "\n".join(lines)
+            else:
+                product_section = "لا توجد منتجات مسجلة."
+        else:
+            print(f"[ENGINE] No product data found for client {client_id}")
+            product_section = "لا توجد منتجات مسجلة حالياً."
+    except Exception as e:
+        print(f"[ENGINE] Product data error: {e}")
+        product_section = "تعذّر تحميل قائمة المنتجات."
+
+    # ─── 5. BUSINESS RULES ────────────────────────────────────────────────────
+    rules_section = ""
     try:
         r_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
-        if r_res.data:
+        if r_res.data and r_res.data.get("rules_data"):
             rd = r_res.data["rules_data"]
-            checkout = "إتمام الطلب يدوياً داخل المحادثة." if rd.get("checkout_type") == "chat" else "توجيه العميل للمتجر الإلكتروني."
-            payments = []
-            if rd.get("chat_payment_cod"): payments.append("الدفع عند الاستلام")
-            if rd.get("chat_payment_transfer"): payments.append(f"تحويل بنكي ({rd.get('bank_accounts','')})")
-            
-            rules_prompt = f"""
-### دستور العمل (يجب الالتزام به):
-1. **مسار الطلب:** {checkout}
-2. **طرق الدفع:** {', '.join(payments) if payments else 'حسب الاتفاق'}.
-3. **الخصومات:** {rd.get('discount_msg', 'لا توجد خصومات حالية')}.
-4. **الشكاوى:** {rd.get('complaint_msg', 'سيتم التصعيد للإدارة')}.
-"""
-    except Exception: pass
+            checkout_type = rd.get("checkout_type", "store")
 
-    # 6. ULTIMATE SYSTEM PROMPT
-    final_prompt = f"""# الهوية المهنية
-أنت "{agent_name}"، موظف مبيعات محترف في "{company_name}".
+            if checkout_type == "chat":
+                payments = []
+                if rd.get("chat_payment_cod"):      payments.append("الدفع عند الاستلام (COD)")
+                if rd.get("chat_payment_transfer"): payments.append(f"تحويل بنكي — {rd.get('bank_accounts','')}")
+                if rd.get("chat_payment_link"):     payments.append(f"رابط دفع — {rd.get('payment_links','')}")
+                checkout_rule = f"إتمام الطلب داخل الواتساب. طرق الدفع: {', '.join(payments) or 'حسب الاتفاق'}."
+                order_rule    = "اطلب (الاسم + العنوان + الكمية) فقط بعد أن يؤكد العميل رغبته في الشراء."
+            else:
+                checkout_rule = "وجّه العميل لإتمام الشراء عبر رابط المتجر الإلكتروني."
+                order_rule    = "لا تطلب بيانات العميل، فقط أرسل رابط المنتج."
+
+            rules_section = f"""
+## دستور العمل (التزم به حرفياً):
+- **مسار الطلب:** {checkout_rule}
+- **إتمام البيع:** {order_rule}
+- **الخصومات:** {rd.get('discount_msg', 'لا توجد خصومات حالية.')}
+- **الشكاوى:** {rd.get('complaint_msg', 'أبدِ تعاطفاً وأبلغ الإدارة.')}
+"""
+    except Exception as e:
+        print(f"[ENGINE] Business rules error: {e}")
+
+    # ─── 6. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
+    system_prompt = f"""أنت "{agent_name}"، موظف مبيعات في "{company_name}".
 نشاط المتجر: {store_activity}.
-نبرة الصوت المطلوبة: {base_tone}.
+{f'نبذة: {description}' if description else ''}
+نبرة الصوت: {base_tone}.
 
-# دليل البيانات (قاموس الأعمدة)
-{col_dict}
+## قواعد الحوار (صارمة جداً):
+1. تحدث كإنسان طبيعي. لا تذكر "قاعدة بيانات" أو "نظام" أو أي مصطلح تقني.
+2. لا تكرر التعريف بنفسك إذا وُجدت رسائل سابقة في المحادثة.
+3. لا تستخدم قوائم نقطية في رسالة الترحيب الأولى.
+4. لا تطلب رقم الجوال أو البيانات الشخصية إلا عند تأكيد الطلب النهائي.
 
-# المنتجات المتوفرة (المصدر الرسمي)
-{product_data if product_data else "يتم تحديث القائمة حالياً، اعتذر للعميل."}
+## دليل قراءة البيانات:
+{col_notes if col_notes else 'لا توجد ملاحظات مخصصة على الأعمدة.'}
 
-{rules_prompt}
+## قائمة المنتجات المتوفرة (المصدر الوحيد للحقيقة — لا تخترع منتجات):
+{product_section}
 
-# قوانين المبيعات الصارمة:
-- **الثقة والدقة:** لا تبع منتجاً غير موجود في القائمة أعلاه. إذا لم تجد الصنف، قل للعميل "غير متوفر حالياً".
-- **الذكاء الاجتماعي:** ممنوع ذكر أي أمور تقنية (رقم الجوال، قاعدة البيانات، استلام الرقم). تحدث كإنسان.
-- **إغلاق البيع:** إذا طلب العميل منتجاً، شجعه وأكد له الجودة، ثم اطلب بياناته (الاسم، العنوان) لإتمام الطلب يدوياً.
-- **تفسير الإشارات:** إذا قال العميل "هذا" أو "الأول"، راجع فوراً آخر منتج ذكرته أنت في ردك السابق.
+{rules_section}
+
+## قانون منع الهلوسة:
+- إذا سأل العميل عن منتج غير موجود في القائمة أعلاه، قل له بوضوح: "هذا المنتج غير متوفر لدينا حالياً."
+- إذا قال العميل "الأول" أو "هذا"، راجع آخر منتج ذكرته أنت في ردك السابق مباشرة.
+- لا تذكر أسماء ماركات (مثل Garnier, L'Oreal) إلا إذا كانت مكتوبة صراحةً في قائمة المنتجات أعلاه.
 """
 
-    # 7. HISTORY & EXECUTION
+    # ─── 7. CONVERSATION HISTORY ──────────────────────────────────────────────
     history = []
     search_phone = phone_number.split("@")[0]
     try:
-        h = supabase.table("message_logs").select("message_text, ai_response").or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}").eq("client_id", client_id).order("timestamp", desc=True).limit(8).execute()
-        if h.data:
-            for m in reversed(h.data):
-                if m.get("message_text"): history.append({"role": "user", "content": m["message_text"]})
-                if m.get("ai_response"): history.append({"role": "assistant", "content": m["ai_response"]})
-    except Exception: pass
+        # Fetch last 8 exchanges ordered by time ascending
+        h_res = supabase.table("message_logs") \
+            .select("message_text, ai_response") \
+            .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
+            .eq("client_id", client_id) \
+            .order("timestamp", desc=True) \
+            .limit(8) \
+            .execute()
 
-    messages = [{"role": "system", "content": final_prompt}]
+        if h_res.data:
+            for m in reversed(h_res.data):
+                u = (m.get("message_text") or "").strip()
+                a = (m.get("ai_response") or "").strip()
+                if u: history.append({"role": "user",      "content": u})
+                if a: history.append({"role": "assistant", "content": a})
+            print(f"[ENGINE] History loaded: {len(history)} messages")
+        else:
+            print(f"[ENGINE] No history for {search_phone}")
+    except Exception as e:
+        print(f"[ENGINE] History error: {e}")
+
+    # ─── 8. BUILD MESSAGE PAYLOAD ─────────────────────────────────────────────
+    messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
-    
+
     if image_base64:
-        messages.append({"role": "user", "content": [{"type": "text", "text": user_message or "حلل الصورة"}, {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}]})
+        messages.append({"role": "user", "content": [
+            {"type": "text",      "text": user_message or "حلل هذه الصورة"},
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_base64}"}}
+        ]})
     else:
         messages.append({"role": "user", "content": user_message})
 
-    # Call LLM based on provider
-    try:
-        if provider == "openai": res = await _call_openai(api_key, model_id, messages)
-        elif provider == "google": res = await _call_google(api_key, model_id, messages, final_prompt)
-        elif provider == "openrouter": res = await _call_openrouter(api_key, model_id, messages)
-        else: res = await _call_openrouter(api_key, model_id, messages)
+    print(f"[ENGINE] Sending {len(messages)} messages to {provider}/{model_id}")
 
-        _log_message(supabase, client_id, user_message, res, phone_number, channel, message_id)
-        supabase.table("clients").update({"messages_used": c.get("messages_used",0)+1}).eq("id", client_id).execute()
-        return res
+    # ─── 9. LLM CALL ──────────────────────────────────────────────────────────
+    try:
+        if not api_key:
+            raise ValueError(f"No API key for provider '{provider}'. Check ai_models_config.")
+
+        if   provider == "openai":     response = await _call_openai(api_key, model_id, messages)
+        elif provider == "google":     response = await _call_google(api_key, model_id, messages, system_prompt)
+        elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages)
+        elif provider == "groq":       response = await _call_groq(api_key, model_id, messages)
+        elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt)
+        else:
+            print(f"[ENGINE] Unknown provider '{provider}', falling back to openrouter")
+            response = await _call_openrouter(api_key, model_id, messages)
+
+        _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
+        supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
+        print(f"[ENGINE] Response OK ({len(response)} chars)")
+        return response
+
     except Exception as e:
-        return f"عذراً، حدث خطأ تقني في الاتصال بمزود الذكاء ({provider})."
+        print(f"[ENGINE] CRITICAL LLM ERROR [{provider}]: {e}")
+        return f"عذراً، واجهت مشكلة تقنية. يرجى التواصل مع المتجر مباشرة."
 
-# Helper Functions (Keep original implementations but optimize for speed)
-async def _call_openai(api_key, model, msgs):
-    async with httpx.AsyncClient() as c:
-        r = await c.post("https://api.openai.com/v1/chat/completions", headers={"Authorization": f"Bearer {api_key}"}, json={"model": model, "messages": msgs, "temperature": 0.1}, timeout=30)
-        return r.json()["choices"][0]["message"]["content"].strip()
 
-async def _call_google(api_key, model, msgs, system):
-    m_id = model.strip() if model.startswith("models/") else f"models/{model.strip()}"
+# ─── PROVIDER IMPLEMENTATIONS ─────────────────────────────────────────────────
+
+async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+        )
+        data = r.json()
+        if "choices" not in data:
+            raise Exception(f"OpenAI error: {data.get('error', {}).get('message', str(data))}")
+        return data["choices"][0]["message"]["content"].strip()
+
+
+async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+        )
+        data = r.json()
+        if "choices" not in data:
+            raise Exception(f"OpenRouter error: {data.get('error', {}).get('message', str(data))}")
+        return data["choices"][0]["message"]["content"].strip()
+
+
+async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
+    async with httpx.AsyncClient(timeout=30) as c:
+        r = await c.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+        )
+        data = r.json()
+        if "choices" not in data:
+            raise Exception(f"Groq error: {data.get('error', {}).get('message', str(data))}")
+        return data["choices"][0]["message"]["content"].strip()
+
+
+async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
+    user_msgs = [m for m in messages if m["role"] != "system"]
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            json={"model": model_id, "system": system, "messages": user_msgs, "max_tokens": 600}
+        )
+        data = r.json()
+        if "content" not in data:
+            raise Exception(f"Anthropic error: {data.get('error', {}).get('message', str(data))}")
+        return data["content"][0]["text"].strip()
+
+
+async def _call_google(api_key: str, model_id: str, messages: list, system: str) -> str:
+    m_id = model_id.strip()
+    if not m_id.startswith("models/"):
+        m_id = f"models/{m_id}"
     url = f"https://generativelanguage.googleapis.com/v1beta/{m_id}:generateContent?key={api_key}"
+
     contents = []
-    for m in msgs:
-        if m["role"] == "system": continue
-        role = "user" if m["role"] == "user" else "model"
-        parts = [{"text": m["content"]}] if isinstance(m["content"], str) else []
-        if isinstance(m["content"], list):
-            for p in m["content"]:
-                if p["type"] == "text": parts.append({"text": p["text"]})
-                elif p["type"] == "image_url": parts.append({"inline_data": {"mime_type": "image/jpeg", "data": p["image_url"]["url"].split(",")[-1]}})
+    for msg in messages:
+        if msg["role"] == "system":
+            continue
+        role = "user" if msg["role"] == "user" else "model"
+        parts = []
+        if isinstance(msg["content"], str):
+            parts = [{"text": msg["content"]}]
+        elif isinstance(msg["content"], list):
+            for p in msg["content"]:
+                if p["type"] == "text":
+                    parts.append({"text": p["text"]})
+                elif p["type"] == "image_url":
+                    b64 = p["image_url"]["url"].split(",")[-1]
+                    parts.append({"inline_data": {"mime_type": "image/jpeg", "data": b64}})
         contents.append({"role": role, "parts": parts})
-    body = {"systemInstruction": {"parts": [{"text": system}]}, "contents": contents, "generationConfig": {"temperature": 0.1}}
-    async with httpx.AsyncClient() as c:
-        r = await c.post(url, json=body, timeout=30)
-        return r.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
 
-async def _call_openrouter(api_key, model, msgs):
-    async with httpx.AsyncClient() as c:
-        r = await c.post("https://openrouter.ai/api/v1/chat/completions", headers={"Authorization": f"Bearer {api_key}"}, json={"model": model, "messages": msgs}, timeout=30)
-        return r.json()["choices"][0]["message"]["content"].strip()
+    body = {
+        "systemInstruction": {"parts": [{"text": system}]},
+        "contents": contents,
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
+    }
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(url, json=body)
+        data = r.json()
+        if r.status_code != 200:
+            raise Exception(f"Google error: {data.get('error', {}).get('message', str(data))}")
+        return data["candidates"][0]["content"]["parts"][0]["text"].strip()
 
-def _log_message(supabase, client_id, user_msg, ai_res, phone, channel, msg_id):
+
+# ─── LOGGING ──────────────────────────────────────────────────────────────────
+
+def _log_message(supabase, client_id: str, user_msg: str, ai_res: str,
+                 phone: str, channel: str, msg_id: str):
     try:
-        supabase.table("message_logs").insert({"client_id": client_id, "phone_number": phone, "message_text": user_msg, "ai_response": ai_res, "channel": channel, "message_id": msg_id}).execute()
-    except Exception: pass
+        supabase.table("message_logs").insert({
+            "client_id":    client_id,
+            "phone_number": phone,
+            "message_text": user_msg,
+            "ai_response":  ai_res,
+            "channel":      channel,
+            "message_id":   msg_id
+        }).execute()
+    except Exception as e:
+        print(f"[ENGINE] Log error: {e}")

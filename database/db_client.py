@@ -28,6 +28,7 @@ class QueryBuilder:
         self._action = None
         self._select_cols = "*"
         self._where = []
+        self._or_raw = None
         self._data = None
         self._limit = None
         self._single = False
@@ -71,6 +72,11 @@ class QueryBuilder:
         self._where.append((col, '!=', val))
         return self
 
+    def or_(self, raw_filter: str):
+        """Supports simple OR filter: 'col.eq.val,col.eq.val' format"""
+        self._or_raw = raw_filter
+        return self
+
     def limit(self, limit_val):
         self._limit = limit_val
         return self
@@ -92,7 +98,25 @@ class QueryBuilder:
                 p_name = f"p_where_{i}"
                 where_clauses.append(f"{col} {op} :{p_name}")
                 params[p_name] = val
-                
+
+            # Handle .or_() filter (format: "col.eq.val,col.eq.val")
+            if self._or_raw:
+                or_parts = []
+                for part in self._or_raw.split(","):
+                    segments = part.strip().split(".")
+                    if len(segments) >= 3:
+                        or_col = segments[0]
+                        or_op = segments[1]
+                        or_val = ".".join(segments[2:])
+                        op_map = {"eq": "=", "neq": "!=", "like": "LIKE", "ilike": "ILIKE"}
+                        sql_op = op_map.get(or_op, "=")
+                        p_name = f"p_or_{len(or_parts)}"
+                        or_parts.append(f"{or_col} {sql_op} :{p_name}")
+                        params[p_name] = or_val
+                if or_parts:
+                    or_clause = "(" + " OR ".join(or_parts) + ")"
+                    where_clauses.append(or_clause)
+
             where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
             if self._action == "SELECT":
