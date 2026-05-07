@@ -1,4 +1,4 @@
-﻿"""
+"""
 merchant/reception/whatsapp_official_receiver.py
 ط§ط³طھظ‚ط¨ط§ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ط¹ط¨ط± WhatsApp Cloud API ط§ظ„ط±ط³ظ…ظٹ ظ…ظ† Meta
 """
@@ -108,10 +108,46 @@ async def official_webhook(request: Request):
                     if not _is_authorized(client_id, from_phone):
                         continue
 
-                    # طھظˆظ„ظٹط¯ ط§ظ„ط±ط¯
-                    ai_reply = await get_ai_response(client_id, text, from_phone)
+                    # توليد الرد
+                    ai_reply = await get_ai_response(
+                        client_id=client_id,
+                        phone_number=from_phone,
+                        user_message=text,
+                        channel="whatsapp_official"
+                    )
 
-                    # ط¥ط±ط³ط§ظ„ ط§ظ„ط±ط¯
+                    # --- تفعيل الحفظ التلقائي للطلبات ---
+                    import re
+                    import json as py_json
+                    import random
+                    from datetime import datetime
+                    supabase = get_supabase_client()
+                    
+                    order_match = re.search(r'\[ORDER_DATA:\s*({.*?})\]', ai_reply, re.DOTALL)
+                    if order_match:
+                        try:
+                            order_data = py_json.loads(order_match.group(1))
+                            order_num = f"WA-{datetime.now().strftime('%y%m%d')}-{random.randint(1000,9999)}"
+                            final_order = {
+                                "client_id": client_id,
+                                "order_number": order_num,
+                                "order_type": order_data.get("order_type", "purchase"),
+                                "customer_name": order_data.get("customer_name"),
+                                "customer_phone": order_data.get("customer_phone") or from_phone,
+                                "customer_address": order_data.get("customer_address"),
+                                "items": order_data.get("items", []),
+                                "total_amount": float(order_data.get("total_amount", 0)),
+                                "payment_method": order_data.get("payment_method"),
+                                "channel": "whatsapp",
+                                "conversation_phone": from_phone,
+                                "ai_summary": "تم تسجيله تلقائياً من واتساب الرسمي"
+                            }
+                            supabase.table("orders").insert(final_order).execute()
+                            ai_reply = ai_reply.replace(order_match.group(0), "").strip()
+                        except: pass
+                    # ----------------------------------
+
+                    # إرسال الرد
                     await _send_official_message(access_token, phone_number_id, from_phone, ai_reply)
 
     except Exception as e:

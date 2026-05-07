@@ -246,6 +246,50 @@ async def evolution_webhook(instance_name: str, request: Request):
             message_id=msg_id,
             channel="whatsapp_evolution"
         )
+
+        # --- تفعيل الحفظ التلقائي للطلبات ---
+        import re
+        import json as py_json
+        import random
+        from datetime import datetime
+        
+        # البحث عن وسم [ORDER_DATA: ...]
+        order_match = re.search(r'\[ORDER_DATA:\s*({.*?})\]', ai_reply, re.DOTALL)
+        if order_match:
+            try:
+                order_json_str = order_match.group(1)
+                order_data = py_json.loads(order_json_str)
+                
+                # توليد رقم طلب
+                order_num = f"AI-{datetime.now().strftime('%y%m%d')}-{random.randint(1000,9999)}"
+                
+                # تجهيز البيانات للحفظ
+                final_order = {
+                    "client_id": client_id,
+                    "order_number": order_num,
+                    "order_type": order_data.get("order_type", "purchase"),
+                    "customer_name": order_data.get("customer_name"),
+                    "customer_phone": order_data.get("customer_phone") or phone.split("@")[0],
+                    "customer_address": order_data.get("customer_address"),
+                    "items": order_data.get("items", []),
+                    "total_amount": float(order_data.get("total_amount", 0)),
+                    "payment_method": order_data.get("payment_method"),
+                    "channel": "whatsapp",
+                    "conversation_phone": phone,
+                    "ai_summary": "تم تسجيله تلقائياً بواسطة الذكاء الاصطناعي"
+                }
+                
+                # الحفظ في قاعدة البيانات
+                supabase.table("orders").insert(final_order).execute()
+                print(f"[AUTO-ORDER] Order {order_num} saved successfully for client {client_id}")
+                
+                # مسح الوسام من الرسالة لكي لا يراه العميل
+                ai_reply = ai_reply.replace(order_match.group(0), "").strip()
+                
+            except Exception as e:
+                print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
+        # ----------------------------------
+
         print(f"[AI] Reply: {ai_reply}")
 
         # إرسال الرد
