@@ -161,9 +161,14 @@
                             <span class="text-secondary small">{{ num.label if num.label else 'بدون وصف' }}</span>
                         </div>
                     </div>
-                    <button class="btn btn-outline-danger btn-sm" onclick="deleteNumber('{{ num.id }}')">
-                        <i class="ti ti-trash me-1"></i> حذف
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-warning btn-sm" onclick="clearRowMemory('{{ num.phone_number }}', this)">
+                            <i class="ti ti-eraser me-1"></i> مسح الذاكرة
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteNumber('{{ num.id }}')">
+                            <i class="ti ti-trash me-1"></i> حذف
+                        </button>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
@@ -337,6 +342,41 @@
             btn.disabled = false;
             btn.innerHTML = 'مسح الذاكرة فوراً <i class="ti ti-trash"></i>';
             setTimeout(() => { alertMsg.classList.add('d-none'); }, 5000);
+        }
+    }
+    async function clearRowMemory(phone, btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+
+        try {
+            const res = await fetch('/merchant/api/clear-memory', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ phone_number: phone })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                btn.innerHTML = '<i class="ti ti-check"></i> تم!';
+                btn.className = 'btn btn-success btn-sm';
+            } else {
+                alert(data.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        } catch (err) {
+            alert('فشل الاتصال');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        } finally {
+            setTimeout(() => {
+                if (btn.className.includes('btn-success')) {
+                    btn.innerHTML = originalHtml;
+                    btn.className = 'btn btn-outline-warning btn-sm';
+                    btn.disabled = false;
+                }
+            }, 3000);
         }
     }
 </script>
