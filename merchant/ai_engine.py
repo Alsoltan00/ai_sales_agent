@@ -430,18 +430,27 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
 
 async def _call_cerebras(api_key: str, model_id: str, messages: list) -> str:
     """استدعاء نماذج Cerebras السريعة جداً"""
-    async with httpx.AsyncClient(timeout=30) as c:
+    async with httpx.AsyncClient(timeout=45) as c:
         try:
             r = await c.post(
                 "https://api.cerebras.ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
             )
+            
+            # إذا فشل الطلب، نطبع السبب بالتفصيل في الكونسول للمطور
+            if r.status_code != 200:
+                print(f"[CEREBRAS ERROR] Status: {r.status_code}, Body: {r.text}")
+                data = r.json() if "application/json" in r.headers.get("Content-Type", "") else {"error": r.text}
+                raise Exception(f"Cerebras API Error ({r.status_code}): {data.get('error', {}).get('message', r.text)}")
+
             data = r.json()
             if "choices" not in data:
-                raise Exception(f"Cerebras error: {data.get('error', {}).get('message', str(data))}")
+                raise Exception(f"Cerebras error: Unexpected response format: {str(data)}")
+                
             return data["choices"][0]["message"]["content"].strip()
         except Exception as e:
+            print(f"[CEREBRAS EXCEPTION] {str(e)}")
             raise Exception(f"Cerebras Connection Error: {str(e)}")
 
 async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
