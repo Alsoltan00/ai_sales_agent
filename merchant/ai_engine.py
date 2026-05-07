@@ -196,8 +196,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                     # 2. حذف الأعمدة الموقوفة (is_disabled) كلياً
                     if k in disabled_columns:
                         continue
-                    # 3. حذف الأعمدة "عند الطلب" — لا يراها النموذج إلا عند الطلب
-                    if k in restricted_columns:
+                    # 3. حذف الأعمدة "عند الطلب" — إلا إذا كانت تحتوي على كلمة "سعر" لأننا نحتاجها للحساب
+                    if k in restricted_columns and "سعر" not in k.lower() and "price" not in k.lower():
                         continue
                     parts.append(f"{k}: {v}")
                 if parts:
