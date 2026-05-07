@@ -372,6 +372,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         elif provider == "groq":       response = await _call_groq(api_key, model_id, messages)
         elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt)
         elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages)
+        elif provider == "cerebras":    response = await _call_cerebras(api_key, model_id, messages)
         else:
             print(f"[ENGINE] Unknown provider '{provider}', falling back to openrouter")
             response = await _call_openrouter(api_key, model_id, messages)
@@ -426,6 +427,22 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
             raise Exception(f"Groq error: {data.get('error', {}).get('message', str(data))}")
         return data["choices"][0]["message"]["content"].strip()
 
+
+async def _call_cerebras(api_key: str, model_id: str, messages: list) -> str:
+    """استدعاء نماذج Cerebras السريعة جداً"""
+    async with httpx.AsyncClient(timeout=30) as c:
+        try:
+            r = await c.post(
+                "https://api.cerebras.ai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            )
+            data = r.json()
+            if "choices" not in data:
+                raise Exception(f"Cerebras error: {data.get('error', {}).get('message', str(data))}")
+            return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            raise Exception(f"Cerebras Connection Error: {str(e)}")
 
 async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
     """استدعاء نماذج Hugging Face عبر Inference API"""
