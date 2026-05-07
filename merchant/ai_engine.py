@@ -115,13 +115,20 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 4. CONVERSATION HISTORY (Context Extraction) ───────────────────────────
     history = []
-    search_phone = phone_number.split("@")[0]
+    # التنظيف للبحث الشامل
+    clean_p = phone_number.replace("+", "").split("@")[0]
+    if clean_p.startswith("00"): clean_p = clean_p[2:]
+    
+    # مصفوفة الاحتمالات لضمان جلب الذاكرة مهما كان تنسيق الرقم المخزن
+    v_search = [clean_p, f"{clean_p}@s.whatsapp.net", f"+{clean_p}", f"00{clean_p}"]
+    or_filter = ",".join([f"phone_number.eq.{x}" for x in v_search])
     recent_context_text = ""
+
     try:
         # Fetch last 8 exchanges ordered by time ascending
         h_res = supabase.table("message_logs") \
             .select("message_text, ai_response") \
-            .or_(f"phone_number.eq.{search_phone},phone_number.eq.{phone_number}") \
+            .or_(or_filter) \
             .eq("client_id", client_id) \
             .order("timestamp", desc=True) \
             .limit(8) \

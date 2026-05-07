@@ -390,14 +390,33 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
     """مسح سجل المحادثات لعميل محدد (تصفير الذاكرة)"""
     supabase = get_supabase_client()
     try:
-        phone = payload.phone_number.strip().replace("+", "")
-        # Remove any whatsapp suffixes just in case
-        phone = phone.split("@")[0]
+        raw_phone = payload.phone_number.strip()
+        # التنظيف: إزالة + و 00 و أي لواحق واتساب
+        clean_phone = raw_phone.replace("+", "").split("@")[0]
+        if clean_phone.startswith("00"):
+            clean_phone = clean_phone[2:]
         
-        # Delete rows for this client_id and phone_number
-        res = supabase.table("message_logs").delete().eq("client_id", user["id"]).or_(f"phone_number.eq.{phone},phone_number.eq.{phone}@s.whatsapp.net").execute()
+        # مصفوفة احتمالات الرقم (بالسوابق المختلفة)
+        variations = [
+            clean_phone,
+            f"{clean_phone}@s.whatsapp.net",
+            f"+{clean_phone}",
+            f"00{clean_phone}"
+        ]
         
-        return {"status": "success", "message": f"تم مسح ذاكرة العميل ({phone}) بنجاح!"}
+        # بناء شرط OR شامل
+        or_filter = ",".join([f"phone_number.eq.{v}" for v in variations])
+        
+        # تنفيذ الحذف
+        res = supabase.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute()
+        
+        deleted_count = len(res.data) if res.data else 0
+        
+        if deleted_count > 0:
+            return {"status": "success", "message": f"تم مسح {deleted_count} رسالة من ذاكرة العميل بنجاح!"}
+        else:
+            return {"status": "success", "message": "لم يتم العثور على رسائل قديمة لهذا الرقم، الذاكرة فارغة بالفعل."}
+            
     except Exception as e:
         print(f"Error clearing memory: {e}")
         return {"status": "error", "message": "حدث خطأ أثناء محاولة مسح الذاكرة"}
