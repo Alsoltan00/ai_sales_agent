@@ -371,6 +371,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages)
         elif provider == "groq":       response = await _call_groq(api_key, model_id, messages)
         elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt)
+        elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages)
         else:
             print(f"[ENGINE] Unknown provider '{provider}', falling back to openrouter")
             response = await _call_openrouter(api_key, model_id, messages)
@@ -425,6 +426,25 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
             raise Exception(f"Groq error: {data.get('error', {}).get('message', str(data))}")
         return data["choices"][0]["message"]["content"].strip()
 
+
+async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
+    """استدعاء نماذج Hugging Face عبر Inference API"""
+    async with httpx.AsyncClient(timeout=60) as c:
+        try:
+            r = await c.post(
+                "https://api-inference.huggingface.co/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            )
+            data = r.json()
+            if "choices" not in data:
+                error_msg = data.get("error", str(data))
+                if "currently loading" in str(error_msg):
+                    raise Exception("النموذج قيد التحميل في Hugging Face، يرجى المحاولة بعد 30 ثانية.")
+                raise Exception(f"HuggingFace error: {error_msg}")
+            return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            raise Exception(f"HuggingFace Connection Error: {str(e)}")
 
 async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
     user_msgs = [m for m in messages if m["role"] != "system"]
