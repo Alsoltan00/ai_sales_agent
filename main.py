@@ -118,6 +118,55 @@ def _migrate_database():
                     conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
             except: pass
             
+            # 6. إنشاء جدول الطلبات الشامل
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS orders (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    client_id UUID,
+                    order_number TEXT NOT NULL,
+                    order_type TEXT DEFAULT 'purchase',
+                    order_status TEXT DEFAULT 'pending',
+                    customer_name TEXT,
+                    customer_phone TEXT,
+                    customer_email TEXT,
+                    customer_address TEXT,
+                    customer_city TEXT,
+                    customer_region TEXT,
+                    customer_country TEXT DEFAULT 'SA',
+                    customer_notes TEXT,
+                    items JSONB DEFAULT '[]',
+                    subtotal NUMERIC(12,2) DEFAULT 0,
+                    discount_amount NUMERIC(12,2) DEFAULT 0,
+                    discount_code TEXT,
+                    tax_percentage NUMERIC(5,2) DEFAULT 0,
+                    tax_amount NUMERIC(12,2) DEFAULT 0,
+                    shipping_cost NUMERIC(12,2) DEFAULT 0,
+                    total_amount NUMERIC(12,2) DEFAULT 0,
+                    currency TEXT DEFAULT 'SAR',
+                    payment_method TEXT,
+                    payment_status TEXT DEFAULT 'pending',
+                    payment_reference TEXT,
+                    paid_amount NUMERIC(12,2) DEFAULT 0,
+                    channel TEXT DEFAULT 'whatsapp',
+                    conversation_phone TEXT,
+                    booking_date DATE,
+                    booking_time TIME,
+                    booking_end_time TIME,
+                    booking_duration TEXT,
+                    booking_location TEXT,
+                    delivery_method TEXT,
+                    tracking_number TEXT,
+                    shipping_company TEXT,
+                    estimated_delivery DATE,
+                    internal_notes TEXT,
+                    ai_summary TEXT,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
+                    confirmed_at TIMESTAMPTZ,
+                    completed_at TIMESTAMPTZ
+                );
+            """))
+
             conn.commit()
             print("[DB] Database schema verified successfully.")
     except Exception as e:
