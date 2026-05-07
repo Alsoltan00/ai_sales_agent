@@ -550,6 +550,20 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
                 )
                 if res.status_code == 200: results["text"] = True
 
+            elif provider == "huggingface":
+                res = await client.post("https://api-inference.huggingface.co/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+                if res.status_code == 200: results["text"] = True
+
+            elif provider == "cerebras":
+                res = await client.post("https://api.cerebras.ai/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+                if res.status_code == 200: results["text"] = True
+
             if results["text"]:
                 return {"status": "success", "message": "تم اختبار النموذج بنجاح", "capabilities": results}
             else:
