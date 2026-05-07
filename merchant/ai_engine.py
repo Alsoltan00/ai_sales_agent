@@ -115,8 +115,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 4. CONVERSATION HISTORY (Context Extraction) ───────────────────────────
     history = []
-    # التنظيف للبحث الشامل
-    clean_p = phone_number.replace("+", "").split("@")[0]
+    # التنظيف للبحث الشامل: إزالة أي لواحق مثل @s.whatsapp.net أو :1 للأجهزة المرتبطة
+    clean_p = phone_number.replace("+", "").split("@")[0].split(":")[0]
     if clean_p.startswith("00"): clean_p = clean_p[2:]
     
     # مصفوفة الاحتمالات لضمان جلب الذاكرة مهما كان تنسيق الرقم المخزن

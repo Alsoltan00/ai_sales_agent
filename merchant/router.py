@@ -391,8 +391,8 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
     supabase = get_supabase_client()
     try:
         raw_phone = payload.phone_number.strip()
-        # التنظيف: إزالة + و 00 و أي لواحق واتساب
-        clean_phone = raw_phone.replace("+", "").split("@")[0]
+        # التنظيف: إزالة + و 00 و أي لواحق واتساب أو أجهزة مرتبطة (:1)
+        clean_phone = raw_phone.replace("+", "").split("@")[0].split(":")[0]
         if clean_phone.startswith("00"):
             clean_phone = clean_phone[2:]
         
