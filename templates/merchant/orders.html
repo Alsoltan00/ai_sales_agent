@@ -1,0 +1,317 @@
+{% extends "merchant_base.html" %}
+{% block title %}إدارة الطلبات{% endblock %}
+
+{% block extra_css %}
+.stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-card { flex: 1; min-width: 160px; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 14px; padding: 20px; text-align: center; transition: all 0.3s ease; }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+.stat-card .stat-value { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, var(--bs-primary), #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-card .stat-label { font-size: 0.8rem; color: var(--bs-secondary-color); margin-top: 4px; }
+.order-table-wrap { background: var(--bs-body-bg); border-radius: 14px; border: 1px solid var(--bs-border-color); overflow: hidden; }
+.order-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.order-table thead th { background: var(--bs-secondary-bg); padding: 12px 14px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: var(--bs-secondary-color); white-space: nowrap; border-bottom: 2px solid var(--bs-border-color); }
+.order-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--bs-border-color); vertical-align: middle; }
+.order-table tbody tr:hover { background: var(--bs-secondary-bg); }
+.badge-status { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-pending { background: #fff3cd; color: #856404; }
+.badge-confirmed { background: #cce5ff; color: #004085; }
+.badge-processing { background: #e2d5f1; color: #563d7c; }
+.badge-shipped { background: #d1ecf1; color: #0c5460; }
+.badge-delivered, .badge-completed { background: #d4edda; color: #155724; }
+.badge-cancelled, .badge-refunded { background: #f8d7da; color: #721c24; }
+.badge-on_hold { background: #e2e3e5; color: #383d41; }
+.badge-paid { background: #d4edda; color: #155724; }
+.badge-partial { background: #fff3cd; color: #856404; }
+.badge-failed { background: #f8d7da; color: #721c24; }
+.filters-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filters-bar .form-control, .filters-bar .form-select { max-width: 200px; border-radius: 10px; font-size: 0.85rem; }
+.order-items-list { list-style: none; padding: 0; margin: 0; }
+.order-items-list li { padding: 6px 0; border-bottom: 1px dashed var(--bs-border-color); font-size: 0.82rem; }
+.order-items-list li:last-child { border: none; }
+.empty-orders { text-align: center; padding: 80px 20px; }
+.empty-orders i { font-size: 4rem; color: var(--bs-secondary-color); opacity: 0.3; }
+.modal-body .row { margin-bottom: 0; }
+.detail-label { font-size: 0.75rem; text-transform: uppercase; color: var(--bs-secondary-color); font-weight: 700; margin-bottom: 4px; }
+.detail-value { font-size: 0.92rem; font-weight: 500; margin-bottom: 16px; }
+@media (max-width: 768px) { .filters-bar .form-control, .filters-bar .form-select { max-width: 100%; } .order-table { font-size: 0.78rem; } }
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1><i class="ti ti-receipt me-2"></i>إدارة الطلبات</h1>
+            <p class="text-secondary mb-0 mt-1">متابعة وإدارة جميع الطلبات والحجوزات والفواتير</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAddOrder()"><i class="ti ti-plus me-1"></i> طلب يدوي</button>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="stats-row">
+    <div class="stat-card"><div class="stat-value" id="statTotal">{{ orders|length }}</div><div class="stat-label">إجمالي الطلبات</div></div>
+    <div class="stat-card"><div class="stat-value" id="statPending">{{ orders|selectattr('order_status','equalto','pending')|list|length }}</div><div class="stat-label">قيد الانتظار</div></div>
+    <div class="stat-card"><div class="stat-value" id="statConfirmed">{{ orders|selectattr('order_status','equalto','confirmed')|list|length }}</div><div class="stat-label">مؤكدة</div></div>
+    <div class="stat-card"><div class="stat-value" id="statCompleted">{{ orders|selectattr('order_status','equalto','completed')|list|length + orders|selectattr('order_status','equalto','delivered')|list|length }}</div><div class="stat-label">مكتملة</div></div>
+    <div class="stat-card"><div class="stat-value" id="statRevenue">{{ "%.0f"|format(orders|sum(attribute='total_amount')) }}</div><div class="stat-label">الإيرادات</div></div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <input type="text" class="form-control" id="searchInput" placeholder="بحث بالاسم أو رقم الطلب..." oninput="filterOrders()">
+    <select class="form-select" id="statusFilter" onchange="filterOrders()">
+        <option value="">كل الحالات</option>
+        <option value="pending">قيد الانتظار</option>
+        <option value="confirmed">مؤكد</option>
+        <option value="processing">قيد التجهيز</option>
+        <option value="shipped">تم الشحن</option>
+        <option value="delivered">تم التسليم</option>
+        <option value="completed">مكتمل</option>
+        <option value="cancelled">ملغي</option>
+    </select>
+    <select class="form-select" id="paymentFilter" onchange="filterOrders()">
+        <option value="">كل حالات الدفع</option>
+        <option value="pending">لم يُدفع</option>
+        <option value="paid">مدفوع</option>
+        <option value="partial">دفع جزئي</option>
+    </select>
+</div>
+
+<!-- Orders Table -->
+<div class="order-table-wrap">
+{% if orders %}
+<div style="overflow-x:auto;">
+<table class="order-table" id="ordersTable">
+    <thead>
+        <tr>
+            <th>#</th><th>رقم الطلب</th><th>العميل</th><th>الهاتف</th><th>النوع</th>
+            <th>المنتجات</th><th>الإجمالي</th><th>الحالة</th><th>الدفع</th>
+            <th>طريقة الدفع</th><th>القناة</th><th>التاريخ</th><th>إجراءات</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for o in orders %}
+    <tr data-id="{{ o.id }}" data-status="{{ o.order_status }}" data-payment="{{ o.payment_status }}" data-search="{{ o.customer_name or '' }} {{ o.order_number }} {{ o.customer_phone or '' }}">
+        <td>{{ loop.index }}</td>
+        <td><strong>{{ o.order_number }}</strong></td>
+        <td>{{ o.customer_name or '—' }}</td>
+        <td dir="ltr" style="text-align:right">{{ o.customer_phone or '—' }}</td>
+        <td>{% if o.order_type == 'purchase' %}شراء{% elif o.order_type == 'return' %}مردود{% elif o.order_type == 'booking' %}حجز{% elif o.order_type == 'service' %}خدمة{% else %}{{ o.order_type }}{% endif %}</td>
+        <td>
+            {% if o.items %}
+                {% set items_list = o.items if o.items is iterable and o.items is not string else [] %}
+                <ul class="order-items-list">
+                {% for item in items_list[:3] %}
+                    <li>{{ item.name or item.get('اسم','—') }} {% if item.qty or item.get('كمية') %}× {{ item.qty or item.get('كمية') }}{% endif %}</li>
+                {% endfor %}
+                {% if items_list|length > 3 %}<li class="text-secondary">+{{ items_list|length - 3 }} أخرى</li>{% endif %}
+                </ul>
+            {% else %}—{% endif %}
+        </td>
+        <td><strong>{{ "%.2f"|format(o.total_amount or 0) }}</strong> {{ o.currency or 'SAR' }}</td>
+        <td><span class="badge-status badge-{{ o.order_status }}">{% if o.order_status == 'pending' %}انتظار{% elif o.order_status == 'confirmed' %}مؤكد{% elif o.order_status == 'processing' %}تجهيز{% elif o.order_status == 'shipped' %}شُحن{% elif o.order_status == 'delivered' %}تم التسليم{% elif o.order_status == 'completed' %}مكتمل{% elif o.order_status == 'cancelled' %}ملغي{% elif o.order_status == 'refunded' %}مسترجع{% else %}{{ o.order_status }}{% endif %}</span></td>
+        <td><span class="badge-status badge-{{ o.payment_status }}">{% if o.payment_status == 'paid' %}مدفوع{% elif o.payment_status == 'pending' %}لم يُدفع{% elif o.payment_status == 'partial' %}جزئي{% elif o.payment_status == 'refunded' %}مسترد{% else %}{{ o.payment_status }}{% endif %}</span></td>
+        <td>{% if o.payment_method == 'cod' %}عند الاستلام{% elif o.payment_method == 'bank_transfer' %}تحويل بنكي{% elif o.payment_method == 'card' %}بطاقة{% elif o.payment_method == 'cash' %}نقدي{% elif o.payment_method == 'wallet' %}محفظة{% else %}{{ o.payment_method or '—' }}{% endif %}</td>
+        <td>{% if o.channel == 'whatsapp' %}<i class="ti ti-brand-whatsapp text-success"></i>{% elif o.channel == 'manual' %}<i class="ti ti-pencil"></i>{% else %}{{ o.channel }}{% endif %}</td>
+        <td>{{ o.created_at[:10] if o.created_at else '—' }}</td>
+        <td>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ o.id }}')" title="عرض"><i class="ti ti-eye"></i></button>
+                <button class="btn btn-sm btn-outline-warning" onclick="editStatus('{{ o.id }}','{{ o.order_status }}','{{ o.payment_status }}')" title="تعديل"><i class="ti ti-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder('{{ o.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-orders">
+    <i class="ti ti-receipt-off d-block mb-3"></i>
+    <h4 class="text-secondary">لا توجد طلبات بعد</h4>
+    <p class="text-secondary">ستظهر الطلبات هنا تلقائياً عندما يقوم الذكاء الاصطناعي بتسجيلها</p>
+</div>
+{% endif %}
+</div>
+
+<!-- View Order Modal -->
+<div class="modal fade" id="viewModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-receipt me-2"></i>تفاصيل الطلب <span id="viewOrderNum"></span></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-4" id="viewBody"></div>
+</div></div></div>
+
+<!-- Edit Status Modal -->
+<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-edit me-2"></i>تحديث حالة الطلب</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-4">
+        <input type="hidden" id="editId">
+        <div class="mb-3"><label class="form-label fw-bold">حالة الطلب</label>
+            <select class="form-select" id="editOrderStatus">
+                <option value="pending">قيد الانتظار</option><option value="confirmed">مؤكد</option>
+                <option value="processing">قيد التجهيز</option><option value="shipped">تم الشحن</option>
+                <option value="delivered">تم التسليم</option><option value="completed">مكتمل</option>
+                <option value="cancelled">ملغي</option><option value="refunded">مسترجع</option>
+            </select>
+        </div>
+        <div class="mb-3"><label class="form-label fw-bold">حالة الدفع</label>
+            <select class="form-select" id="editPaymentStatus">
+                <option value="pending">لم يُدفع</option><option value="paid">مدفوع</option>
+                <option value="partial">دفع جزئي</option><option value="refunded">مسترد</option>
+            </select>
+        </div>
+    </div>
+    <div class="modal-footer border-top p-3">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveStatus()"><i class="ti ti-check me-1"></i>حفظ</button>
+    </div>
+</div></div></div>
+
+<!-- Add Manual Order Modal -->
+<div class="modal fade" id="addModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-plus me-2"></i>إضافة طلب يدوي</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-4">
+        <div class="row g-3">
+            <div class="col-md-4"><label class="form-label fw-bold">اسم العميل</label><input type="text" class="form-control" id="addName"></div>
+            <div class="col-md-4"><label class="form-label fw-bold">الهاتف</label><input type="tel" class="form-control" id="addPhone" dir="ltr"></div>
+            <div class="col-md-4"><label class="form-label fw-bold">نوع الطلب</label>
+                <select class="form-select" id="addType"><option value="purchase">شراء</option><option value="booking">حجز</option><option value="service">خدمة</option><option value="return">مردود</option></select>
+            </div>
+            <div class="col-md-8"><label class="form-label fw-bold">العنوان</label><input type="text" class="form-control" id="addAddress"></div>
+            <div class="col-md-4"><label class="form-label fw-bold">المدينة</label><input type="text" class="form-control" id="addCity"></div>
+            <div class="col-12"><label class="form-label fw-bold">المنتجات (JSON)</label><textarea class="form-control" id="addItems" rows="2" placeholder='[{"name":"منتج","qty":1,"price":100}]'></textarea></div>
+            <div class="col-md-3"><label class="form-label fw-bold">الإجمالي</label><input type="number" class="form-control" id="addTotal" step="0.01"></div>
+            <div class="col-md-3"><label class="form-label fw-bold">طريقة الدفع</label>
+                <select class="form-select" id="addPayment"><option value="cod">عند الاستلام</option><option value="bank_transfer">تحويل</option><option value="card">بطاقة</option><option value="cash">نقدي</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label fw-bold">التوصيل</label>
+                <select class="form-select" id="addDelivery"><option value="delivery">توصيل</option><option value="pickup">استلام</option><option value="digital">إلكتروني</option></select>
+            </div>
+            <div class="col-md-3"><label class="form-label fw-bold">القناة</label>
+                <select class="form-select" id="addChannel"><option value="manual">يدوي</option><option value="whatsapp">واتساب</option></select>
+            </div>
+            <div class="col-12"><label class="form-label fw-bold">ملاحظات</label><textarea class="form-control" id="addNotes" rows="2"></textarea></div>
+        </div>
+    </div>
+    <div class="modal-footer border-top p-3">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveOrder()"><i class="ti ti-check me-1"></i>حفظ الطلب</button>
+    </div>
+</div></div></div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+const addModal = new bootstrap.Modal(document.getElementById('addModal'));
+const allOrders = {{ orders_json | safe }};
+
+function filterOrders() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const st = document.getElementById('statusFilter').value;
+    const py = document.getElementById('paymentFilter').value;
+    document.querySelectorAll('#ordersTable tbody tr').forEach(r => {
+        const match = (!q || r.dataset.search.toLowerCase().includes(q)) &&
+                      (!st || r.dataset.status === st) &&
+                      (!py || r.dataset.payment === py);
+        r.style.display = match ? '' : 'none';
+    });
+}
+
+function viewOrder(id) {
+    const o = allOrders.find(x => x.id === id);
+    if (!o) return;
+    document.getElementById('viewOrderNum').textContent = o.order_number;
+    let items_html = '';
+    if (o.items && o.items.length) {
+        items_html = '<ul class="order-items-list">' + o.items.map(i =>
+            `<li><strong>${i.name||i['اسم']||'—'}</strong> × ${i.qty||i['كمية']||1} — ${i.price||i['سعر']||0} ${o.currency||'SAR'}</li>`
+        ).join('') + '</ul>';
+    }
+    document.getElementById('viewBody').innerHTML = `
+        <div class="row g-3">
+            <div class="col-md-6"><div class="detail-label">اسم العميل</div><div class="detail-value">${o.customer_name||'—'}</div></div>
+            <div class="col-md-6"><div class="detail-label">الهاتف</div><div class="detail-value" dir="ltr" style="text-align:right">${o.customer_phone||'—'}</div></div>
+            <div class="col-md-6"><div class="detail-label">العنوان</div><div class="detail-value">${o.customer_address||'—'}</div></div>
+            <div class="col-md-3"><div class="detail-label">المدينة</div><div class="detail-value">${o.customer_city||'—'}</div></div>
+            <div class="col-md-3"><div class="detail-label">المنطقة</div><div class="detail-value">${o.customer_region||'—'}</div></div>
+            <div class="col-12"><hr></div>
+            <div class="col-12"><div class="detail-label">المنتجات / الخدمات</div><div class="detail-value">${items_html||'—'}</div></div>
+            <div class="col-md-3"><div class="detail-label">المجموع الفرعي</div><div class="detail-value">${o.subtotal||0}</div></div>
+            <div class="col-md-3"><div class="detail-label">الخصم</div><div class="detail-value">${o.discount_amount||0}</div></div>
+            <div class="col-md-3"><div class="detail-label">الضريبة</div><div class="detail-value">${o.tax_amount||0}</div></div>
+            <div class="col-md-3"><div class="detail-label">الشحن</div><div class="detail-value">${o.shipping_cost||0}</div></div>
+            <div class="col-12"><div class="detail-label">الإجمالي النهائي</div><div class="detail-value" style="font-size:1.4rem;font-weight:800;color:var(--bs-primary)">${o.total_amount||0} ${o.currency||'SAR'}</div></div>
+            <div class="col-12"><hr></div>
+            <div class="col-md-4"><div class="detail-label">طريقة الدفع</div><div class="detail-value">${o.payment_method||'—'}</div></div>
+            <div class="col-md-4"><div class="detail-label">مرجع الدفع</div><div class="detail-value">${o.payment_reference||'—'}</div></div>
+            <div class="col-md-4"><div class="detail-label">القناة</div><div class="detail-value">${o.channel||'—'}</div></div>
+            ${o.booking_date ? `<div class="col-md-4"><div class="detail-label">تاريخ الحجز</div><div class="detail-value">${o.booking_date}</div></div>` : ''}
+            ${o.tracking_number ? `<div class="col-md-4"><div class="detail-label">رقم التتبع</div><div class="detail-value">${o.tracking_number}</div></div>` : ''}
+            ${o.internal_notes ? `<div class="col-12"><div class="detail-label">ملاحظات داخلية</div><div class="detail-value">${o.internal_notes}</div></div>` : ''}
+            ${o.ai_summary ? `<div class="col-12"><div class="detail-label">ملخص الذكاء الاصطناعي</div><div class="detail-value">${o.ai_summary}</div></div>` : ''}
+        </div>`;
+    viewModal.show();
+}
+
+function editStatus(id, status, payment) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editOrderStatus').value = status;
+    document.getElementById('editPaymentStatus').value = payment;
+    editModal.show();
+}
+
+async function saveStatus() {
+    const id = document.getElementById('editId').value;
+    const res = await fetch(`/merchant/api/orders/${id}/status`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            order_status: document.getElementById('editOrderStatus').value,
+            payment_status: document.getElementById('editPaymentStatus').value
+        })
+    });
+    const d = await res.json();
+    if (d.status === 'success') { editModal.hide(); location.reload(); }
+    else alert(d.message);
+}
+
+async function deleteOrder(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا الطلب؟')) return;
+    const res = await fetch(`/merchant/api/orders/${id}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (d.status === 'success') location.reload();
+    else alert(d.message);
+}
+
+function openAddOrder() { addModal.show(); }
+
+async function saveOrder() {
+    let items = [];
+    try { items = JSON.parse(document.getElementById('addItems').value || '[]'); } catch(e) {}
+    const payload = {
+        customer_name: document.getElementById('addName').value,
+        customer_phone: document.getElementById('addPhone').value,
+        order_type: document.getElementById('addType').value,
+        customer_address: document.getElementById('addAddress').value,
+        customer_city: document.getElementById('addCity').value,
+        items: items,
+        total_amount: parseFloat(document.getElementById('addTotal').value) || 0,
+        payment_method: document.getElementById('addPayment').value,
+        delivery_method: document.getElementById('addDelivery').value,
+        channel: document.getElementById('addChannel').value,
+        internal_notes: document.getElementById('addNotes').value
+    };
+    const res = await fetch('/merchant/api/orders', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+    });
+    const d = await res.json();
+    if (d.status === 'success') { addModal.hide(); location.reload(); }
+    else alert(d.message);
+}
+</script>
+{% endblock %}

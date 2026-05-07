@@ -445,3 +445,85 @@ async def api_get_data_view(user: dict = Depends(verify_merchant)):
         return {"status": "no_data", "data": [], "source_type": source}
     except Exception as e:
         return {"status": "no_data", "data": [], "source_type": ""}
+
+# --- Orders Management ---
+
+@router.get("/orders", response_class=HTMLResponse)
+async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة إدارة الطلبات"""
+    supabase = get_supabase_client()
+    try:
+        res = supabase.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
+        orders = res.data or []
+    except:
+        orders = []
+    import json as _json
+    return templates.TemplateResponse("merchant/orders.html", {
+        "request": request, "user": user,
+        "orders": orders,
+        "orders_json": _json.dumps(orders, ensure_ascii=False, default=str)
+    })
+
+@router.post("/api/orders")
+async def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
+    """إنشاء طلب يدوي جديد"""
+    supabase = get_supabase_client()
+    try:
+        # توليد رقم طلب فريد
+        import random
+        order_num = f"ORD-{datetime.now().strftime('%y%m%d')}-{random.randint(1000,9999)}"
+        
+        order_data = {
+            "client_id": user["id"],
+            "order_number": order_num,
+            "order_type": payload.get("order_type", "purchase"),
+            "order_status": "pending",
+            "customer_name": payload.get("customer_name", ""),
+            "customer_phone": payload.get("customer_phone", ""),
+            "customer_address": payload.get("customer_address", ""),
+            "customer_city": payload.get("customer_city", ""),
+            "items": payload.get("items", []),
+            "total_amount": float(payload.get("total_amount", 0)),
+            "payment_method": payload.get("payment_method"),
+            "payment_status": "pending",
+            "delivery_method": payload.get("delivery_method"),
+            "channel": payload.get("channel", "manual"),
+            "internal_notes": payload.get("internal_notes", ""),
+            "currency": payload.get("currency", "SAR")
+        }
+        supabase.table("orders").insert(order_data).execute()
+        return {"status": "success", "message": "تم إنشاء الطلب بنجاح", "order_number": order_num}
+    except Exception as e:
+        print(f"Error creating order: {e}")
+        return {"status": "error", "message": str(e)}
+
+@router.put("/api/orders/{order_id}/status")
+async def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+    """تحديث حالة الطلب والدفع"""
+    supabase = get_supabase_client()
+    try:
+        update = {}
+        if "order_status" in payload:
+            update["order_status"] = payload["order_status"]
+            if payload["order_status"] in ("completed", "delivered"):
+                update["completed_at"] = datetime.utcnow().isoformat()
+            if payload["order_status"] == "confirmed":
+                update["confirmed_at"] = datetime.utcnow().isoformat()
+        if "payment_status" in payload:
+            update["payment_status"] = payload["payment_status"]
+        
+        supabase.table("orders").update(update).eq("id", order_id).eq("client_id", user["id"]).execute()
+        return {"status": "success", "message": "تم تحديث الحالة"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/api/orders/{order_id}")
+async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
+    """حذف طلب"""
+    supabase = get_supabase_client()
+    try:
+        supabase.table("orders").delete().eq("id", order_id).eq("client_id", user["id"]).execute()
+        return {"status": "success", "message": "تم حذف الطلب"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
