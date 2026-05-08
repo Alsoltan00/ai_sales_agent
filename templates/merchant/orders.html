@@ -98,12 +98,12 @@
         <td dir="ltr" style="text-align:right">{{ o.customer_phone or '—' }}</td>
         <td>{% if o.order_type == 'purchase' %}شراء{% elif o.order_type == 'return' %}مردود{% elif o.order_type == 'booking' %}حجز{% elif o.order_type == 'service' %}خدمة{% else %}{{ o.order_type }}{% endif %}</td>
         <td>
-            {% if o.items %}
+            {% if o['items'] %}
                 <ul class="order-items-list">
-                {% for item in o.items[:3] %}
+                {% for item in o['items'][:3] %}
                     <li>{{ item.name or item.get('اسم','—') }} {% if item.qty or item.get('كمية') %}× {{ item.qty or item.get('كمية') }}{% endif %}</li>
                 {% endfor %}
-                {% if o.items|length > 3 %}<li class="text-secondary">+{{ o.items|length - 3 }} أخرى</li>{% endif %}
+                {% if o['items']|length > 3 %}<li class="text-secondary">+{{ o['items']|length - 3 }} أخرى</li>{% endif %}
                 </ul>
             {% else %}—{% endif %}
         </td>
