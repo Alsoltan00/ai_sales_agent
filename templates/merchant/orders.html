@@ -252,6 +252,51 @@
                     <span class="fw-bold">بسيط (Minimal)</span>
                 </div>
             </div>
+            <!-- Premium Corporate -->
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-premium_corp" onclick="selectTemplate('premium_corp')">
+                    <div class="template-preview" style="background: #e9ecef;">
+                        <div style="width:80%; height:80%; background:#fff; padding:0; border-left: 4px solid var(--print-color, #4361ee); box-shadow:0 4px 10px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
+                            <div style="height:25%; background:#f8f9fa; border-bottom:1px solid #eee; padding:5px;"><div style="width:40%; height:100%; background:#333;"></div></div>
+                            <div style="padding:5px; flex:1;">
+                                <div style="background:#eee; height:15%; margin-top:5px; width:80%;"></div>
+                                <div style="background:#eee; height:15%; margin-top:5px; width:60%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">شركات (احترافي)</span>
+                </div>
+            </div>
+            <!-- Elegant Retail -->
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-elegant_retail" onclick="selectTemplate('elegant_retail')">
+                    <div class="template-preview" style="background: #fff0f3;">
+                        <div style="width:70%; height:90%; background:#fff; padding:10px; border: 1px solid #f8d0d6; text-align:center;">
+                            <div style="width:30%; height:15%; border:1px solid #333; border-radius:50%; margin:0 auto;"></div>
+                            <div style="width:50%; height:10%; background:#333; margin:5px auto;"></div>
+                            <div style="width:80%; border-top:1px dashed #ccc; margin:10px auto;"></div>
+                            <div style="width:60%; height:10%; background:#eee; margin:0 auto;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">أنيق (للمتاجر)</span>
+                </div>
+            </div>
+            <!-- Thermal Receipt -->
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-thermal" onclick="selectTemplate('thermal')">
+                    <div class="template-preview" style="background: #333;">
+                        <div style="width:40%; height:100%; background:#fff; margin:0 auto; padding:5px; text-align:center; font-family:monospace;">
+                            <div style="width:60%; height:10%; background:#333; margin:0 auto 5px;"></div>
+                            <div style="width:100%; border-top:1px dashed #333; margin:5px 0;"></div>
+                            <div style="width:80%; height:5%; background:#ccc; margin:2px auto;"></div>
+                            <div style="width:80%; height:5%; background:#ccc; margin:2px auto;"></div>
+                            <div style="width:100%; border-top:1px dashed #333; margin:5px 0;"></div>
+                            <div style="width:50%; height:20%; background:#eee; margin:0 auto;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">إيصال حراري</span>
+                </div>
+            </div>
         </div>
 
         <div class="row g-4">
@@ -573,6 +618,149 @@ function printInvoice(id) {
                 </div>
                 ${termsText ? `<div class="terms-note"><strong>ملاحظات:</strong><br>${termsText.replace(/\n/g, '<br>')}</div>` : ''}
                 <div class="footer-note"><p>${footerText}</p></div>
+            </div>
+        `;
+    } else if (tpl === 'premium_corp') {
+        styles += `
+            .invoice-container { max-width: 800px; margin: 0 auto; background: #fff; padding: 50px 40px; box-shadow: 0 0 20px rgba(0,0,0,0.05); border-left: 8px solid ${primaryColor}; position: relative; overflow: hidden; }
+            .invoice-container::before { content: ''; position: absolute; top: -50px; left: -50px; width: 200px; height: 200px; background: ${primaryColor}; opacity: 0.05; border-radius: 50%; }
+            .header-sec { display: flex; justify-content: space-between; border-bottom: 2px solid #eee; padding-bottom: 20px; margin-bottom: 30px; }
+            .corp-title { text-transform: uppercase; letter-spacing: 2px; color: ${primaryColor}; font-size: 26px; font-weight: 800; margin: 0; }
+            .info-grid { display: flex; justify-content: space-between; margin-bottom: 30px; }
+            .info-box { background: #f8f9fa; padding: 15px; border-radius: 6px; width: 48%; border: 1px solid #eee; }
+            .info-box h4 { margin-top: 0; color: ${primaryColor}; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 10px; }
+            th { background: #f8f9fa; color: #333; text-transform: uppercase; font-size: 13px; border-bottom: 2px solid ${primaryColor}; }
+            td { border-bottom: 1px solid #eee; font-size: 14px; }
+            .totals-container { display: flex; justify-content: flex-end; margin-top: 20px; }
+            .totals-table { width: 300px; }
+            .totals-table td { border: none; padding: 8px; }
+            .totals-table tr.grand-total { background: ${primaryColor}; color: #fff; font-weight: bold; font-size: 18px; }
+            .totals-table tr.grand-total td { border-radius: 4px; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                <div class="header-sec">
+                    <div>
+                        <h1 class="corp-title">فاتورة ضريبية</h1>
+                        <p style="color: #666; margin: 5px 0 0 0;">رقم: ${o.order_number}</p>
+                        <p style="color: #666; margin: 5px 0 0 0;">التاريخ: ${(o.created_at || '').substring(0, 10)}</p>
+                    </div>
+                    ${logoHtml ? `<div>${logoHtml}</div>` : ''}
+                </div>
+                <div class="info-grid">
+                    <div class="info-box">
+                        <h4>فاتورة إلى</h4>
+                        <strong>${o.customer_name || '—'}</strong>
+                        <div style="margin-top: 5px; color: #555;">${o.customer_address || '—'}</div>
+                        <div style="margin-top: 5px; color: #555;" dir="ltr">${o.customer_phone || '—'}</div>
+                    </div>
+                    <div class="info-box">
+                        <h4>معلومات الدفع</h4>
+                        <div><strong>الطريقة:</strong> ${o.payment_method || '—'}</div>
+                        <div style="margin-top: 5px;"><strong>الحالة:</strong> ${o.order_status || '—'}</div>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th class="text-right">الوصف</th><th class="text-center">الكمية</th><th class="text-center">السعر</th><th class="text-left">الإجمالي</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div style="display:flex; justify-content:space-between; margin-top: 20px;">
+                    <div style="padding-top: 20px;">${qrHtml}</div>
+                    <div class="totals-container">
+                        <table class="totals-table">
+                            <tr class="grand-total">
+                                <td>الإجمالي النهائي</td>
+                                <td class="text-left">${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                ${termsText ? `<div class="terms-note"><strong>الشروط والأحكام:</strong><br>${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="footer-note"><p>${footerText}</p></div>
+            </div>
+        `;
+    } else if (tpl === 'elegant_retail') {
+        styles += `
+            @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+            .invoice-container { max-width: 600px; margin: 0 auto; font-family: 'Playfair Display', serif; background: #fffafb; padding: 40px; border: 1px solid #f8d0d6; text-align: center; }
+            .header-sec { margin-bottom: 30px; }
+            .logo-wrap { margin-bottom: 20px; }
+            .invoice-logo { max-height: 100px; border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+            .retail-title { font-size: 32px; color: ${primaryColor}; margin: 0 0 10px 0; font-style: italic; }
+            .divider { height: 1px; background: linear-gradient(to right, transparent, ${primaryColor}, transparent); margin: 20px 0; }
+            .info-row { font-size: 14px; color: #555; margin-bottom: 5px; }
+            th { border-bottom: 1px solid ${primaryColor}; color: ${primaryColor}; font-weight: normal; font-style: italic; font-size: 16px; text-align: center !important; }
+            td { border-bottom: 1px dashed #eec2c2; text-align: center !important; font-size: 15px; color: #444; padding: 15px 5px; }
+            .totals-sec { margin-top: 30px; font-size: 22px; color: ${primaryColor}; font-weight: bold; border-top: 1px solid ${primaryColor}; border-bottom: 1px solid ${primaryColor}; padding: 15px 0; }
+            .qr-wrap { margin-top: 30px; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                <div class="header-sec">
+                    ${logoHtml ? `<div class="logo-wrap">${logoHtml}</div>` : ''}
+                    <h1 class="retail-title">فاتورة الشراء</h1>
+                    <div class="info-row">طلب رقم: ${o.order_number}</div>
+                    <div class="info-row">التاريخ: ${(o.created_at || '').substring(0, 10)}</div>
+                </div>
+                <div class="divider"></div>
+                <div style="margin-bottom: 30px;">
+                    <div class="info-row"><strong>السيد/ة:</strong> ${o.customer_name || '—'}</div>
+                    <div class="info-row" dir="ltr">${o.customer_phone || '—'}</div>
+                </div>
+                <table>
+                    <thead><tr><th>المنتج</th><th>الكمية</th><th>السعر</th><th>المجموع</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div class="totals-sec">
+                    المطلوب: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}
+                </div>
+                ${showQR ? `<div class="qr-wrap">${qrHtml}</div>` : ''}
+                ${termsText ? `<div class="terms-note" style="text-align:center;">${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="footer-note" style="font-style:italic;"><p>~ ${footerText} ~</p></div>
+            </div>
+        `;
+    } else if (tpl === 'thermal') {
+        styles += `
+            @media print { @page { margin: 0; } body { margin: 0; padding: 0; } }
+            body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; background: #fff; }
+            .invoice-container { width: 80mm; margin: 0 auto; padding: 5mm; text-align: center; }
+            .invoice-logo { max-width: 60mm; filter: grayscale(100%) contrast(200%); margin-bottom: 10px; }
+            h1 { font-size: 16px; margin: 5px 0; }
+            .info-line { text-align: left; margin-bottom: 3px; font-size: 11px; }
+            .divider { border-top: 1px dashed #000; margin: 5px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 11px; }
+            th { border-bottom: 1px dashed #000; padding: 3px 0; }
+            td { padding: 3px 0; text-align: center; }
+            td:first-child { text-align: right; }
+            td:last-child { text-align: left; }
+            .totals-line { display: flex; justify-content: space-between; font-weight: bold; font-size: 14px; margin: 10px 0; }
+            .qr-code { margin: 15px auto; }
+            .qr-code img { width: 40mm; height: 40mm; }
+            .footer-note { margin-top: 15px; font-size: 10px; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                ${logoHtml ? `<div>${logoHtml}</div>` : ''}
+                <h1>فاتورة مبيعات</h1>
+                <div class="divider"></div>
+                <div class="info-line">رقم: ${o.order_number}</div>
+                <div class="info-line">تاريخ: ${(o.created_at || '').substring(0, 10)}</div>
+                <div class="info-line">عميل: ${o.customer_name || '—'}</div>
+                <div class="info-line" dir="ltr">هاتف: ${o.customer_phone || '—'}</div>
+                <div class="divider"></div>
+                <table>
+                    <thead><tr><th style="text-align:right">صنف</th><th>كمية</th><th>سعر</th><th style="text-align:left">إجمالي</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div class="divider"></div>
+                <div class="totals-line">
+                    <span>الإجمالي:</span>
+                    <span>${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</span>
+                </div>
+                <div class="divider"></div>
+                ${termsText ? `<div style="font-size:10px; margin-top:10px; text-align:right;">${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                ${showQR ? `<div class="qr-code">${qrHtml}</div>` : ''}
+                <div class="footer-note">${footerText}</div>
             </div>
         `;
     }
