@@ -94,9 +94,9 @@
                             {% for item in order.items %}
                             <tr>
                                 <td>{{ item.name or item['اسم'] or '—' }}</td>
-                                <td class="text-center">{{ item.qty or item['كمية'] or 1 }}</td>
-                                <td class="text-center">{{ item.price or item['سعر'] or 0 }}</td>
-                                <td class="text-left">{{ (item.qty or item['كمية'] or 1) * (item.price or item['سعر'] or 0) }} {{ order.currency or 'SAR' }}</td>
+                                <td class="text-center">{{ item.qty }}</td>
+                                <td class="text-center">{{ item.price }}</td>
+                                <td class="text-left">{{ "%.2f"|format(item.qty * item.price) }} {{ order.currency or 'SAR' }}</td>
                             </tr>
                             {% endfor %}
                         {% else %}

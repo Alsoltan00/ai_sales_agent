@@ -36,11 +36,21 @@ async def view_public_invoice(request: Request, order_id: str):
         clean_items = []
         for it in items:
             if isinstance(it, dict):
+                # Ensure qty and price are numbers to avoid Jinja2 math crash
+                try: it["qty"] = float(it.get("qty") or it.get("كمية") or 1)
+                except: it["qty"] = 1.0
+                try: it["price"] = float(it.get("price") or it.get("سعر") or 0)
+                except: it["price"] = 0.0
                 clean_items.append(it)
             elif isinstance(it, str):
-                clean_items.append({"name": it, "qty": 1, "price": 0})
+                clean_items.append({"name": it, "qty": 1.0, "price": 0.0})
                 
         order["items"] = clean_items
+
+        try:
+            order["total_amount"] = float(order.get("total_amount") or 0)
+        except:
+            order["total_amount"] = 0.0
 
         # Fetch client info for logo
         client_res = supabase.table("clients").select("company_name, logo_url").eq("id", client_id).execute()

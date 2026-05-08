@@ -446,7 +446,12 @@ function printInvoice(id) {
     const o = allOrders.find(x => x.id === id);
     if (!o) return;
     
-    // Get settings
+    // Open the public invoice link directly as requested by the user
+    const publicInvoiceUrl = window.location.origin + '/invoice/' + o.id;
+    window.open(publicInvoiceUrl, '_blank');
+    return;
+    
+    // Get settings (Legacy code skipped)
     const tpl = localStorage.getItem('print_template') || 'classic';
     const primaryColor = localStorage.getItem('print_color') || '#333333';
     const footerText = localStorage.getItem('print_footer') !== null ? localStorage.getItem('print_footer') : 'شكراً لتسوقكم معنا!';
