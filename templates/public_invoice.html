@@ -90,13 +90,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% if order['items'] %}
-                            {% for item in order['items'] %}
+                        {% set items_list = order.get('items', []) %}
+                        {% if items_list %}
+                            {% for item in items_list %}
                             <tr>
-                                <td>{{ item.name or item['اسم'] or '—' }}</td>
-                                <td class="text-center">{{ item.qty }}</td>
-                                <td class="text-center">{{ item.price }}</td>
-                                <td class="text-left">{{ "%.2f"|format(item.qty * item.price) }} {{ order.currency or 'SAR' }}</td>
+                                <td>{{ item.get('name') or item.get('اسم') or '—' }}</td>
+                                <td class="text-center">{{ item.get('qty', 1) }}</td>
+                                <td class="text-center">{{ item.get('price', 0) }}</td>
+                                <td class="text-left">{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }} {{ order.get('currency', 'SAR') }}</td>
                             </tr>
                             {% endfor %}
                         {% else %}
