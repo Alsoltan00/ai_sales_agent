@@ -75,6 +75,8 @@ def _migrate_database():
                 conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
             if 'messages_used' not in columns:
                 conn.execute(text("ALTER TABLE clients ADD COLUMN messages_used INTEGER DEFAULT 0;"))
+            if 'logo_url' not in columns:
+                conn.execute(text("ALTER TABLE clients ADD COLUMN logo_url TEXT;"))
 
             # 2. تحديث جدول التخطيط
             try:

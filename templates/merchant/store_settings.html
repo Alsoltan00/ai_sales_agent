@@ -49,6 +49,20 @@
                 <div id="alertBox" class="alert" style="display:none;"></div>
 
                 <form id="storeForm" onsubmit="saveSettings(event)">
+                    <!-- Store Logo -->
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-600 d-block mb-3">شعار المتجر</label>
+                        <div class="position-relative d-inline-block">
+                            <img id="logoPreview" src="{{ settings.logo_url or '/static/img/default-logo.png' }}" 
+                                 class="rounded-circle border" style="width: 120px; height: 120px; object-fit: cover;">
+                            <label for="logoUpload" class="btn btn-sm btn-primary position-absolute bottom-0 start-0 rounded-circle" style="width: 35px; height: 35px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                                <i class="ti ti-camera"></i>
+                            </label>
+                            <input type="file" id="logoUpload" class="d-none" accept="image/*" onchange="uploadLogo(event)">
+                        </div>
+                        <div id="logoAlert" class="mt-2 small" style="display:none;"></div>
+                    </div>
+
                     <!-- Company Name -->
                     <div class="mb-4">
                         <label class="form-label fw-600">اسم الشركة أو المتجر</label>
@@ -141,6 +155,39 @@
 
 {% block extra_scripts %}
 <script>
+    async function uploadLogo(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const alertBox = document.getElementById('logoAlert');
+        const preview = document.getElementById('logoPreview');
+        const formData = new FormData();
+        formData.append('file', file);
+
+        alertBox.className = 'mt-2 small text-primary';
+        alertBox.innerText = 'جاري الرفع...';
+        alertBox.style.display = 'block';
+
+        try {
+            const res = await fetch('/merchant/api/store/logo', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                preview.src = data.logo_url + '?t=' + new Date().getTime();
+                alertBox.className = 'mt-2 small text-success';
+                alertBox.innerText = 'تم رفع الشعار بنجاح';
+            } else {
+                alertBox.className = 'mt-2 small text-danger';
+                alertBox.innerText = data.message;
+            }
+        } catch (err) {
+            alertBox.className = 'mt-2 small text-danger';
+            alertBox.innerText = 'حدث خطأ أثناء الرفع';
+        }
+    }
+
     async function saveSettings(e) {
         e.preventDefault();
         const btn = document.getElementById('saveBtn');

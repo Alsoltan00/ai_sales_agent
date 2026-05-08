@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Request, HTTPException, Depends, UploadFile, File
+import shutil
+import os
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import pandas as pd
@@ -55,6 +57,35 @@ async def api_update_store(request: Request, payload: StoreSettingsRequest, user
             request.session["user"]["name"] = payload.company_name
         return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
+
+@router.post("/api/store/logo")
+async def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
+    """رفع شعار المتجر وحفظه محلياً"""
+    try:
+        # إنشاء المجلد إذا لم يكن موجوداً
+        logo_dir = "static/logos"
+        if not os.path.exists(logo_dir):
+            os.makedirs(logo_dir)
+            
+        # تحديد المسار واسم الملف
+        ext = file.filename.split(".")[-1] if "." in file.filename else "png"
+        filename = f"logo_{user['id']}.{ext}"
+        file_path = os.path.join(logo_dir, filename)
+        
+        # حفظ الملف
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        logo_url = f"/static/logos/{filename}"
+        
+        # تحديث قاعدة البيانات
+        from merchant.store_management.store_settings import update_store_settings
+        update_store_settings(user["id"], {"logo_url": logo_url})
+        
+        return {"status": "success", "message": "تم رفع الشعار بنجاح", "logo_url": logo_url}
+    except Exception as e:
+        print(f"Error uploading logo: {e}")
+        return {"status": "error", "message": f"حدث خطأ أثناء الرفع: {str(e)}"}
 
 class PasswordChangeRequest(BaseModel):
     new_password: str
@@ -452,6 +483,8 @@ async def api_get_data_view(user: dict = Depends(verify_merchant)):
 async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة الطلبات"""
     supabase = get_supabase_client()
+    from merchant.store_management.store_settings import get_store_settings
+    settings = get_store_settings(user["id"])
     try:
         res = supabase.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
         orders = res.data or []
@@ -510,6 +543,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
         "pending_count": pending_count,
         "confirmed_count": confirmed_count,
         "completed_count": completed_count,
+        "settings": settings,
         "orders_json": _json.dumps(orders, ensure_ascii=False, default=str)
     })
 

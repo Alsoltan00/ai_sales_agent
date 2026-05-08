@@ -85,7 +85,7 @@
     <thead>
         <tr>
             <th>#</th><th>رقم الطلب</th><th>العميل</th><th>الهاتف</th><th>النوع</th>
-            <th>المنتجات</th><th>الإجمالي</th><th>الحالة</th><th>الدفع</th>
+            <th>الإجمالي</th><th>الحالة</th><th>الدفع</th>
             <th>طريقة الدفع</th><th>القناة</th><th>التاريخ</th><th>إجراءات</th>
         </tr>
     </thead>
@@ -97,16 +97,6 @@
         <td>{{ o.customer_name or '—' }}</td>
         <td dir="ltr" style="text-align:right">{{ o.customer_phone or '—' }}</td>
         <td>{% if o.order_type == 'purchase' %}شراء{% elif o.order_type == 'return' %}مردود{% elif o.order_type == 'booking' %}حجز{% elif o.order_type == 'service' %}خدمة{% else %}{{ o.order_type }}{% endif %}</td>
-        <td>
-            {% if o['items'] %}
-                <ul class="order-items-list">
-                {% for item in o['items'][:3] %}
-                    <li>{{ item.name or item.get('اسم','—') }} {% if item.qty or item.get('كمية') %}× {{ item.qty or item.get('كمية') }}{% endif %}</li>
-                {% endfor %}
-                {% if o['items']|length > 3 %}<li class="text-secondary">+{{ o['items']|length - 3 }} أخرى</li>{% endif %}
-                </ul>
-            {% else %}—{% endif %}
-        </td>
         <td><strong>{{ "%.2f"|format(o.total_amount or 0) }}</strong> {{ o.currency or 'SAR' }}</td>
         <td><span class="badge-status badge-{{ o.order_status }}">{% if o.order_status == 'pending' %}انتظار{% elif o.order_status == 'confirmed' %}مؤكد{% elif o.order_status == 'processing' %}تجهيز{% elif o.order_status == 'shipped' %}شُحن{% elif o.order_status == 'delivered' %}تم التسليم{% elif o.order_status == 'completed' %}مكتمل{% elif o.order_status == 'cancelled' %}ملغي{% elif o.order_status == 'refunded' %}مسترجع{% else %}{{ o.order_status }}{% endif %}</span></td>
         <td><span class="badge-status badge-{{ o.payment_status }}">{% if o.payment_status == 'paid' %}مدفوع{% elif o.payment_status == 'pending' %}لم يُدفع{% elif o.payment_status == 'partial' %}جزئي{% elif o.payment_status == 'refunded' %}مسترد{% else %}{{ o.payment_status }}{% endif %}</span></td>
@@ -116,6 +106,7 @@
         <td>
             <div class="d-flex gap-1">
                 <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ o.id }}')" title="عرض"><i class="ti ti-eye"></i></button>
+                <button class="btn btn-sm btn-outline-success" onclick="printInvoice('{{ o.id }}')" title="طباعة الفاتورة"><i class="ti ti-printer"></i></button>
                 <button class="btn btn-sm btn-outline-warning" onclick="editStatus('{{ o.id }}','{{ o.order_status }}','{{ o.payment_status }}')" title="تعديل"><i class="ti ti-edit"></i></button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder('{{ o.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
             </div>
@@ -255,6 +246,85 @@ function viewOrder(id) {
             ${o.ai_summary ? `<div class="col-12"><div class="detail-label">ملخص الذكاء الاصطناعي</div><div class="detail-value">${o.ai_summary}</div></div>` : ''}
         </div>`;
     viewModal.show();
+}
+
+function printInvoice(id) {
+    const o = allOrders.find(x => x.id === id);
+    if (!o) return;
+    
+    let items_html = '';
+    if (o.items && o.items.length) {
+        items_html = o.items.map(i => `
+            <tr>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${i.name || i['اسم'] || '—'}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.qty || i['كمية'] || 1}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.price || i['سعر'] || 0}</td>
+                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${(i.qty || i['كمية'] || 1) * (i.price || i['سعر'] || 0)} ${o.currency || 'SAR'}</td>
+            </tr>
+        `).join('');
+    }
+
+    const printContent = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; direction: rtl; max-width: 800px; margin: 0 auto;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px;">
+                <div style="text-align: right;">
+                    <h1 style="margin: 0; color: #333;">فاتورة طلب</h1>
+                    <p style="margin: 5px 0 0 0; color: #666;">رقم الطلب: ${o.order_number}</p>
+                </div>
+                ${ '{{ settings.logo_url }}' ? `<img src="{{ settings.logo_url }}" style="max-height: 80px; max-width: 150px; object-fit: contain;">` : '' }
+            </div>
+            
+            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
+                <div>
+                    <h3 style="margin-top: 0;">بيانات العميل:</h3>
+                    <p><strong>الاسم:</strong> ${o.customer_name || '—'}</p>
+                    <p><strong>الهاتف:</strong> <span dir="ltr">${o.customer_phone || '—'}</span></p>
+                    <p><strong>العنوان:</strong> ${o.customer_address || '—'}</p>
+                </div>
+                <div>
+                    <h3 style="margin-top: 0;">بيانات الطلب:</h3>
+                    <p><strong>التاريخ:</strong> ${(o.created_at || '').substring(0, 10)}</p>
+                    <p><strong>طريقة الدفع:</strong> ${o.payment_method || '—'}</p>
+                    <p><strong>الحالة:</strong> ${o.order_status || '—'}</p>
+                </div>
+            </div>
+
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                <thead>
+                    <tr style="background-color: #f8f9fa;">
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">المنتج</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">الكمية</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">السعر</th>
+                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: left;">المجموع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${items_html}
+                </tbody>
+            </table>
+
+            <div style="text-align: left; border-top: 2px solid #333; padding-top: 20px;">
+                <h2 style="margin: 0; color: #333;">الإجمالي النهائي: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</h2>
+            </div>
+            
+            <div style="text-align: center; margin-top: 50px; color: #888; font-size: 0.9em;">
+                <p>شكراً لتسوقكم معنا!</p>
+            </div>
+        </div>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write('<html><head><title>طباعة الفاتورة - ' + o.order_number + '</title>');
+    printWindow.document.write('<style>@media print { body { margin: 0; } }</style>');
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(printContent);
+    printWindow.document.write('</body></html>');
+    printWindow.document.close();
+    
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 250);
 }
 
 function editStatus(id, status, payment) {
