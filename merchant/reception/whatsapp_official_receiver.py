@@ -117,34 +117,17 @@ async def official_webhook(request: Request):
                     )
 
                     # --- تفعيل الحفظ التلقائي للطلبات ---
-                    import re
-                    import json as py_json
-                    import random
-                    from datetime import datetime
+                    from merchant.reception.order_extractor import extract_order_json, build_order_record
                     supabase = get_supabase_client()
                     
-                    order_match = re.search(r'\[ORDER_DATA:\s*({.*?})\]', ai_reply, re.DOTALL)
-                    if order_match:
+                    order_data, ai_reply = extract_order_json(ai_reply)
+                    if order_data:
                         try:
-                            order_data = py_json.loads(order_match.group(1))
-                            order_num = f"WA-{datetime.now().strftime('%y%m%d')}-{random.randint(1000,9999)}"
-                            final_order = {
-                                "client_id": client_id,
-                                "order_number": order_num,
-                                "order_type": order_data.get("order_type", "purchase"),
-                                "customer_name": order_data.get("customer_name"),
-                                "customer_phone": order_data.get("customer_phone") or from_phone,
-                                "customer_address": order_data.get("customer_address"),
-                                "items": order_data.get("items", []),
-                                "total_amount": float(order_data.get("total_amount", 0)),
-                                "payment_method": order_data.get("payment_method"),
-                                "channel": "whatsapp",
-                                "conversation_phone": from_phone,
-                                "ai_summary": "تم تسجيله تلقائياً من واتساب الرسمي"
-                            }
+                            final_order = build_order_record(order_data, client_id, from_phone, "whatsapp_official", "WA")
                             supabase.table("orders").insert(final_order).execute()
-                            ai_reply = ai_reply.replace(order_match.group(0), "").strip()
-                        except: pass
+                            print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                        except Exception as e:
+                            print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
                     # ----------------------------------
 
                     # إرسال الرد

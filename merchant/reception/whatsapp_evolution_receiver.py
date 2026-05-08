@@ -248,44 +248,14 @@ async def evolution_webhook(instance_name: str, request: Request):
         )
 
         # --- تفعيل الحفظ التلقائي للطلبات ---
-        import re
-        import json as py_json
-        import random
-        from datetime import datetime
+        from merchant.reception.order_extractor import extract_order_json, build_order_record
         
-        # البحث عن وسم [ORDER_DATA: ...]
-        order_match = re.search(r'\[ORDER_DATA:\s*({.*?})\]', ai_reply, re.DOTALL)
-        if order_match:
+        order_data, ai_reply = extract_order_json(ai_reply)
+        if order_data:
             try:
-                order_json_str = order_match.group(1)
-                order_data = py_json.loads(order_json_str)
-                
-                # توليد رقم طلب
-                order_num = f"AI-{datetime.now().strftime('%y%m%d')}-{random.randint(1000,9999)}"
-                
-                # تجهيز البيانات للحفظ
-                final_order = {
-                    "client_id": client_id,
-                    "order_number": order_num,
-                    "order_type": order_data.get("order_type", "purchase"),
-                    "customer_name": order_data.get("customer_name"),
-                    "customer_phone": order_data.get("customer_phone") or phone.split("@")[0],
-                    "customer_address": order_data.get("customer_address"),
-                    "items": order_data.get("items", []),
-                    "total_amount": float(order_data.get("total_amount", 0)),
-                    "payment_method": order_data.get("payment_method"),
-                    "channel": "whatsapp",
-                    "conversation_phone": phone,
-                    "ai_summary": "تم تسجيله تلقائياً بواسطة الذكاء الاصطناعي"
-                }
-                
-                # الحفظ في قاعدة البيانات
+                final_order = build_order_record(order_data, client_id, phone, "whatsapp", "AI")
                 supabase.table("orders").insert(final_order).execute()
-                print(f"[AUTO-ORDER] Order {order_num} saved successfully for client {client_id}")
-                
-                # مسح الوسام من الرسالة لكي لا يراه العميل
-                ai_reply = ai_reply.replace(order_match.group(0), "").strip()
-                
+                print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
             except Exception as e:
                 print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
         # ----------------------------------
