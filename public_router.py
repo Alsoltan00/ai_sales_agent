@@ -2,9 +2,10 @@ import os
 import json
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.templating import Jinja2Templates
-from database.db_client import supabase
+from database.db_client import get_db_client
 
 router = APIRouter()
+supabase = get_db_client()
 
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
