@@ -90,8 +90,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% if order.items %}
-                            {% for item in order.items %}
+                        {% if order['items'] %}
+                            {% for item in order['items'] %}
                             <tr>
                                 <td>{{ item.name or item['اسم'] or '—' }}</td>
                                 <td class="text-center">{{ item.qty }}</td>
