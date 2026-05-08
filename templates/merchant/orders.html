@@ -472,7 +472,7 @@ function printInvoice(id) {
 
     // QR Code pointing to the public invoice URL
     const publicInvoiceUrl = window.location.origin + '/invoice/' + o.id;
-    const qrHtml = showQR ? `<div class="qr-code"><img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(publicInvoiceUrl)}" alt="QR Code"></div>` : '';
+    const qrHtml = showQR ? `<div class="qr-code"><img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(publicInvoiceUrl)}" alt="QR Code"></div>` : '';
     const logoHtml = (showLogo && logoUrl) ? `<img src="${logoUrl}" class="invoice-logo">` : '';
 
     let printContent = '';

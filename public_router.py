@@ -38,7 +38,7 @@ async def view_public_invoice(request: Request, order_id: str):
             "request": request,
             "order": order,
             "client": client_info,
-            "order_json": json.dumps(order)
+            "order_json": json.dumps(order, default=str)
         })
 
     except Exception as e:
