@@ -385,6 +385,14 @@ function viewOrder(id) {
             ${o.tracking_number ? `<div class="col-md-4"><div class="detail-label">رقم التتبع</div><div class="detail-value">${o.tracking_number}</div></div>` : ''}
             ${o.internal_notes ? `<div class="col-12"><div class="detail-label">ملاحظات داخلية</div><div class="detail-value">${o.internal_notes}</div></div>` : ''}
             ${o.ai_summary ? `<div class="col-12"><div class="detail-label">ملخص الذكاء الاصطناعي</div><div class="detail-value">${o.ai_summary}</div></div>` : ''}
+            <div class="col-12 mt-4 pt-3 border-top">
+                <a href="/invoice/${o.id}" target="_blank" class="btn btn-outline-primary btn-sm">
+                    <i class="ti ti-external-link me-1"></i> رابط الفاتورة للعميل
+                </a>
+                <button class="btn btn-ghost-secondary btn-sm ms-2" onclick="navigator.clipboard.writeText(window.location.origin + '/invoice/${o.id}'); alert('تم نسخ الرابط بنجاح');">
+                    <i class="ti ti-copy me-1"></i> نسخ الرابط
+                </button>
+            </div>
         </div>`;
     viewModal.show();
 }
@@ -462,8 +470,9 @@ function printInvoice(id) {
         `}).join('');
     }
 
-    // QR Code dummy image (can be replaced with real QR library later)
-    const qrHtml = showQR ? `<div class="qr-code"><img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('رقم الطلب: ' + o.order_number + '\nالإجمالي: ' + o.total_amount)}" alt="QR Code"></div>` : '';
+    // QR Code pointing to the public invoice URL
+    const publicInvoiceUrl = window.location.origin + '/invoice/' + o.id;
+    const qrHtml = showQR ? `<div class="qr-code"><img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(publicInvoiceUrl)}" alt="QR Code"></div>` : '';
     const logoHtml = (showLogo && logoUrl) ? `<img src="${logoUrl}" class="invoice-logo">` : '';
 
     let printContent = '';

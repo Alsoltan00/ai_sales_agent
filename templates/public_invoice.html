@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة طلب #{{ order.order_number }}</title>
+    <!-- Tabler CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.rtl.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.36.0/tabler-icons.min.css">
+    <style>
+        body { background: #f4f6fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .invoice-card { max-width: 800px; margin: 40px auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); overflow: hidden; }
+        .invoice-header { background: #4361ee; color: #fff; padding: 40px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 20px; }
+        .invoice-header h1 { margin: 0; font-size: 2rem; font-weight: 800; }
+        .invoice-header p { margin: 5px 0 0; opacity: 0.9; font-size: 1.1rem; }
+        .invoice-logo { max-height: 80px; max-width: 150px; background: #fff; padding: 10px; border-radius: 8px; }
+        .invoice-body { padding: 40px; }
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 30px; margin-bottom: 40px; }
+        .info-box { background: #f8f9fa; padding: 20px; border-radius: 8px; border: 1px solid #eee; }
+        .info-box h3 { color: #4361ee; margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; font-weight: 700; border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        .info-box p { margin: 5px 0; color: #555; }
+        .table-responsive { border-radius: 8px; overflow: hidden; border: 1px solid #eee; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #4361ee; color: #fff; padding: 15px; font-weight: 600; text-align: right; }
+        th.text-center { text-align: center; }
+        th.text-left { text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid #eee; color: #333; }
+        td.text-center { text-align: center; }
+        td.text-left { text-align: left; }
+        .totals-section { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 30px; flex-wrap: wrap; gap: 20px; }
+        .qr-section { background: #fff; padding: 10px; border: 1px solid #eee; border-radius: 8px; text-align: center; }
+        .totals-box { background: #4361ee; color: #fff; padding: 20px 40px; border-radius: 8px; text-align: left; }
+        .totals-box h2 { margin: 0; font-size: 1.8rem; font-weight: 700; }
+        .totals-box p { margin: 0; opacity: 0.8; font-size: 0.9rem; text-align: right; }
+        .footer-note { text-align: center; margin-top: 40px; color: #888; border-top: 1px dashed #ddd; padding-top: 20px; }
+        .print-btn { display: block; width: 100%; max-width: 200px; margin: 0 auto 40px; }
+        
+        @media print {
+            body { background: #fff; }
+            .invoice-card { margin: 0; box-shadow: none; border-radius: 0; max-width: 100%; }
+            .print-btn { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="invoice-card">
+        <div class="invoice-header">
+            <div>
+                <h1>فاتورة إلكترونية</h1>
+                <p>رقم الطلب: {{ order.order_number }}</p>
+                <p>تاريخ الطلب: {{ (order.created_at|string)[:10] }}</p>
+            </div>
+            {% if client.logo_url %}
+            <div>
+                <img src="{{ client.logo_url }}" alt="{{ client.business_name }}" class="invoice-logo">
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="invoice-body">
+            <div class="info-grid">
+                <div class="info-box">
+                    <h3><i class="ti ti-user me-2"></i>بيانات العميل</h3>
+                    <p><strong>الاسم:</strong> {{ order.customer_name or '—' }}</p>
+                    <p><strong>الهاتف:</strong> <span dir="ltr">{{ order.customer_phone or '—' }}</span></p>
+                    <p><strong>العنوان:</strong> {{ order.customer_address or '—' }}</p>
+                </div>
+                <div class="info-box">
+                    <h3><i class="ti ti-credit-card me-2"></i>تفاصيل الطلب</h3>
+                    <p><strong>حالة الطلب:</strong> 
+                        {% if order.order_status == 'pending' %}قيد الانتظار{% elif order.order_status == 'confirmed' %}مؤكد{% elif order.order_status == 'completed' %}مكتمل{% else %}{{ order.order_status }}{% endif %}
+                    </p>
+                    <p><strong>طريقة الدفع:</strong> {{ order.payment_method or '—' }}</p>
+                    <p><strong>حالة الدفع:</strong> 
+                        {% if order.payment_status == 'paid' %}مدفوع{% elif order.payment_status == 'pending' %}لم يُدفع{% else %}{{ order.payment_status }}{% endif %}
+                    </p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>المنتج / الوصف</th>
+                            <th class="text-center">الكمية</th>
+                            <th class="text-center">السعر</th>
+                            <th class="text-left">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if order.items %}
+                            {% for item in order.items %}
+                            <tr>
+                                <td>{{ item.name or item['اسم'] or '—' }}</td>
+                                <td class="text-center">{{ item.qty or item['كمية'] or 1 }}</td>
+                                <td class="text-center">{{ item.price or item['سعر'] or 0 }}</td>
+                                <td class="text-left">{{ (item.qty or item['كمية'] or 1) * (item.price or item['سعر'] or 0) }} {{ order.currency or 'SAR' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">لا توجد تفاصيل للمنتجات</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="totals-section">
+                <div class="qr-section">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data={{ request.url }}" alt="QR Code">
+                    <div class="text-muted small mt-1">مسح الكود للوصول للفاتورة</div>
+                </div>
+                <div class="totals-box">
+                    <p>الإجمالي النهائي</p>
+                    <h2>{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</h2>
+                </div>
+            </div>
+
+            <div class="footer-note">
+                شكراً لتسوقكم معنا! تم إنشاء هذه الفاتورة آلياً بواسطة نظام الذكاء الاصطناعي.
+            </div>
+        </div>
+    </div>
+    
+    <button class="btn btn-primary print-btn" onclick="window.print()">
+        <i class="ti ti-printer me-2"></i> طباعة / حفظ كملف PDF
+    </button>
+</div>
+
+</body>
+</html>
