@@ -50,10 +50,10 @@
 <!-- Stats -->
 <div class="stats-row">
     <div class="stat-card"><div class="stat-value" id="statTotal">{{ orders|length }}</div><div class="stat-label">إجمالي الطلبات</div></div>
-    <div class="stat-card"><div class="stat-value" id="statPending">{{ orders|selectattr('order_status','equalto','pending')|list|length }}</div><div class="stat-label">قيد الانتظار</div></div>
-    <div class="stat-card"><div class="stat-value" id="statConfirmed">{{ orders|selectattr('order_status','equalto','confirmed')|list|length }}</div><div class="stat-label">مؤكدة</div></div>
-    <div class="stat-card"><div class="stat-value" id="statCompleted">{{ orders|selectattr('order_status','equalto','completed')|list|length + orders|selectattr('order_status','equalto','delivered')|list|length }}</div><div class="stat-label">مكتملة</div></div>
-    <div class="stat-card"><div class="stat-value" id="statRevenue">{{ "%.0f"|format(orders|sum(attribute='total_amount')) }}</div><div class="stat-label">الإيرادات</div></div>
+    <div class="stat-card"><div class="stat-value" id="statPending">{{ pending_count }}</div><div class="stat-label">قيد الانتظار</div></div>
+    <div class="stat-card"><div class="stat-value" id="statConfirmed">{{ confirmed_count }}</div><div class="stat-label">مؤكدة</div></div>
+    <div class="stat-card"><div class="stat-value" id="statCompleted">{{ completed_count }}</div><div class="stat-label">مكتملة</div></div>
+    <div class="stat-card"><div class="stat-value" id="statRevenue">{{ "%.0f"|format(total_revenue) }}</div><div class="stat-label">الإيرادات</div></div>
 </div>
 
 <!-- Filters -->

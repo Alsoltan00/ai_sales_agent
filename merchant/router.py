@@ -457,10 +457,39 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
         orders = res.data or []
     except:
         orders = []
+        
+    # Safe stats calculation
+    total_revenue = 0
+    pending_count = 0
+    confirmed_count = 0
+    completed_count = 0
+    
+    for o in orders:
+        # Revenue
+        try:
+            val = o.get("total_amount")
+            if val is not None:
+                total_revenue += float(val)
+        except:
+            pass
+            
+        # Status counts
+        status = o.get("order_status")
+        if status == "pending":
+            pending_count += 1
+        elif status == "confirmed":
+            confirmed_count += 1
+        elif status in ["completed", "delivered"]:
+            completed_count += 1
+
     import json as _json
     return templates.TemplateResponse("merchant/orders.html", {
         "request": request, "user": user,
         "orders": orders,
+        "total_revenue": total_revenue,
+        "pending_count": pending_count,
+        "confirmed_count": confirmed_count,
+        "completed_count": completed_count,
         "orders_json": _json.dumps(orders, ensure_ascii=False, default=str)
     })
 
