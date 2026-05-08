@@ -31,7 +31,7 @@ async def view_public_invoice(request: Request, order_id: str):
         order["items"] = items
 
         # Fetch client info for logo
-        client_res = supabase.table("clients").select("business_name, logo_url").eq("id", client_id).execute()
+        client_res = supabase.table("clients").select("company_name, logo_url").eq("id", client_id).execute()
         client_info = client_res.data[0] if client_res.data else {}
 
         return templates.TemplateResponse("public_invoice.html", {
