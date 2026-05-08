@@ -445,33 +445,11 @@ function savePrintSettings() {
 function printInvoice(id) {
     const o = allOrders.find(x => x.id === id);
     if (!o) return;
-    
     const publicInvoiceUrl = window.location.origin + '/invoice/' + o.id;
     window.open(publicInvoiceUrl, '_blank');
-                <div class="divider"></div>
-                ${termsText ? `<div style="font-size:10px; margin-top:10px; text-align:right;">${termsText.replace(/\n/g, '<br>')}</div>` : ''}
-                ${showQR ? `<div class="qr-code">${qrHtml}</div>` : ''}
-                <div class="footer-note">${footerText}</div>
-            </div>
-        `;
-    }
-
-    const printControls = `
-        <div class="no-print" style="text-align: center; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-bottom: 1px solid #ddd;">
-            <button onclick="window.print()" style="background: #4361ee; color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; font-family: inherit;">طباعة الفاتورة</button>
-            <button onclick="window.close()" style="background: #e9ecef; color: #333; border: 1px solid #ccc; padding: 10px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; font-family: inherit; margin-right: 10px;">إغلاق</button>
-        </div>
-    `;
-
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write('<html><head><title>طباعة الفاتورة - ' + o.order_number + '</title>');
-    printWindow.document.write('<style>' + styles + ' @media print { .no-print { display: none !important; } } </style>');
-    printWindow.document.write('</head><body style="margin:0; padding:0; background:#f4f6fa;">');
-    printWindow.document.write(printControls);
-    printWindow.document.write('<div style="background:#fff; max-width: 800px; margin: 0 auto; min-height: 100vh;">' + printContent + '</div>');
-    printWindow.document.write('</body></html>');
-    printWindow.document.close();
 }
+
+
 
 function editStatus(id, status, payment) {
     document.getElementById('editId').value = id;
