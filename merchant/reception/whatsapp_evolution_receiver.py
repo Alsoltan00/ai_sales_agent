@@ -92,6 +92,7 @@ async def _send_evolution_audio(api_url: str, api_key: str, instance_name: str, 
 @router.post("/whatsapp/evolution/{instance_name}")
 async def evolution_webhook(instance_name: str, request: Request):
     """Webhook لاستقبال رسائل واتساب عبر Evolution API"""
+    msg_id = None
     try:
         body = await request.json()
         print(f"[DEBUG] Received Webhook for instance: {instance_name}")
