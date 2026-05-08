@@ -465,13 +465,33 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     completed_count = 0
     
     for o in orders:
+        # Ensure items is a list to prevent Jinja2 slicing errors
+        items_data = o.get("items")
+        if not isinstance(items_data, list):
+            if isinstance(items_data, dict):
+                o["items"] = [items_data]
+            else:
+                o["items"] = []
+                
+        # Ensure every item in the list is a dict to prevent item.get() crashing
+        clean_items = []
+        for it in o["items"]:
+            if isinstance(it, dict):
+                clean_items.append(it)
+            elif isinstance(it, str):
+                clean_items.append({"name": it, "qty": 1, "price": 0})
+        o["items"] = clean_items
+                
         # Revenue
         try:
             val = o.get("total_amount")
             if val is not None:
+                o["total_amount"] = float(val)
                 total_revenue += float(val)
+            else:
+                o["total_amount"] = 0.0
         except:
-            pass
+            o["total_amount"] = 0.0
             
         # Status counts
         status = o.get("order_status")
