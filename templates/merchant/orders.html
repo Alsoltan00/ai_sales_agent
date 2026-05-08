@@ -33,6 +33,15 @@
 .modal-body .row { margin-bottom: 0; }
 .detail-label { font-size: 0.75rem; text-transform: uppercase; color: var(--bs-secondary-color); font-weight: 700; margin-bottom: 4px; }
 .detail-value { font-size: 0.92rem; font-weight: 500; margin-bottom: 16px; }
+
+/* Print Settings Styles */
+.template-option { border: 2px solid var(--bs-border-color); border-radius: 12px; padding: 10px; cursor: pointer; transition: all 0.2s ease; background: var(--bs-body-bg); text-align: center; }
+.template-option:hover { border-color: var(--bs-primary-border-subtle); }
+.template-option.selected { border-color: var(--bs-primary); background: rgba(var(--bs-primary-rgb), 0.05); }
+.template-preview { height: 120px; border-radius: 8px; background: #fff; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 1px solid #eee; }
+.template-preview img { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+.color-picker { width: 36px; height: 36px; padding: 2px; border-radius: 8px; cursor: pointer; }
+
 @media (max-width: 768px) { .filters-bar .form-control, .filters-bar .form-select { max-width: 100%; } .order-table { font-size: 0.78rem; } }
 {% endblock %}
 
@@ -43,7 +52,10 @@
             <h1><i class="ti ti-receipt me-2"></i>إدارة الطلبات</h1>
             <p class="text-secondary mb-0 mt-1">متابعة وإدارة جميع الطلبات والحجوزات والفواتير</p>
         </div>
-        <button class="btn btn-primary" onclick="openAddOrder()"><i class="ti ti-plus me-1"></i> طلب يدوي</button>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary" onclick="openPrintSettings()"><i class="ti ti-printer-cog me-1"></i>إعدادات الطباعة</button>
+            <button class="btn btn-primary" onclick="openAddOrder()"><i class="ti ti-plus me-1"></i> طلب يدوي</button>
+        </div>
     </div>
 </div>
 
@@ -191,6 +203,90 @@
         <button class="btn btn-primary" onclick="saveOrder()"><i class="ti ti-check me-1"></i>حفظ الطلب</button>
     </div>
 </div></div></div>
+
+<!-- Print Settings Modal -->
+<div class="modal fade" id="printSettingsModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered modal-lg">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4">
+        <h5 class="modal-title"><i class="ti ti-printer-cog me-2"></i>إعدادات طباعة الفواتير</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body p-4">
+        <h6 class="fw-bold mb-3">اختر تصميم الفاتورة</h6>
+        <div class="row g-3 mb-4">
+            <!-- Classic Template -->
+            <div class="col-md-4">
+                <div class="template-option selected" id="tpl-classic" onclick="selectTemplate('classic')">
+                    <div class="template-preview" style="background: #f8f9fa;">
+                        <div style="width:80%; height:80%; border:1px solid #ccc; background:#fff; padding:5px;">
+                            <div style="border-bottom:1px solid #333; height:20%;"></div>
+                            <div style="background:#eee; height:10%; margin-top:5px;"></div>
+                            <div style="background:#eee; height:10%; margin-top:5px;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">كلاسيكي (الافتراضي)</span>
+                </div>
+            </div>
+            <!-- Modern Template -->
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-modern" onclick="selectTemplate('modern')">
+                    <div class="template-preview" style="background: #f1f5f9;">
+                        <div style="width:80%; height:80%; background:#fff; padding:5px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                            <div style="display:flex; justify-content:space-between; height:20%;"><div style="width:30%; background:var(--print-color, #4361ee); border-radius:4px;"></div><div style="width:20%; background:#ddd;"></div></div>
+                            <div style="background:#f8f9fa; height:20%; margin-top:5px; border-radius:4px;"></div>
+                            <div style="background:#f8f9fa; height:20%; margin-top:5px; border-radius:4px;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">عصري وحديث</span>
+                </div>
+            </div>
+            <!-- Minimal Template -->
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-minimal" onclick="selectTemplate('minimal')">
+                    <div class="template-preview" style="background: #fff;">
+                        <div style="width:80%; height:80%; padding:5px; border: 1px dashed #ccc;">
+                            <div style="text-align:center; height:20%;"><div style="width:40%; height:100%; background:#333; margin:0 auto;"></div></div>
+                            <div style="text-align:center; height:10%; background:#eee; margin-top:10px; width:60%; margin-left:auto; margin-right:auto;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">بسيط (Minimal)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold">اللون الأساسي للفاتورة</label>
+                <div class="d-flex gap-2 align-items-center">
+                    <input type="color" class="form-control form-control-color color-picker" id="printColor" value="#4361ee" title="اختر اللون">
+                    <span class="text-secondary small">سيتم استخدامه في العناوين والحدود</span>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">تذييل الفاتورة (النص السفلي)</label>
+                <input type="text" class="form-control" id="printFooterText" placeholder="مثال: شكراً لتسوقكم معنا!" value="شكراً لتسوقكم معنا!">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">إظهار الشروط والأحكام</label>
+                <textarea class="form-control" id="printTerms" rows="2" placeholder="أدخل الشروط (اختياري)"></textarea>
+            </div>
+            <div class="col-md-6">
+                <div class="form-check mt-4">
+                    <input class="form-check-input" type="checkbox" id="printShowLogo" checked>
+                    <label class="form-check-label fw-bold" for="printShowLogo">إظهار شعار المتجر</label>
+                </div>
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" id="printShowQR">
+                    <label class="form-check-label fw-bold" for="printShowQR">إظهار رمز استجابة سريعة (QR Code)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer border-top p-3">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إغلاق</button>
+        <button class="btn btn-primary" onclick="savePrintSettings()"><i class="ti ti-device-floppy me-1"></i>حفظ الإعدادات</button>
+    </div>
+</div></div></div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -248,74 +344,242 @@ function viewOrder(id) {
     viewModal.show();
 }
 
+const printSettingsModal = new bootstrap.Modal(document.getElementById('printSettingsModal'));
+let currentTemplate = localStorage.getItem('print_template') || 'classic';
+
+// Load print settings on start
+document.addEventListener('DOMContentLoaded', () => {
+    selectTemplate(currentTemplate);
+    const savedColor = localStorage.getItem('print_color');
+    if(savedColor) {
+        document.getElementById('printColor').value = savedColor;
+        document.documentElement.style.setProperty('--print-color', savedColor);
+    }
+    const savedFooter = localStorage.getItem('print_footer');
+    if(savedFooter !== null) document.getElementById('printFooterText').value = savedFooter;
+    const savedTerms = localStorage.getItem('print_terms');
+    if(savedTerms) document.getElementById('printTerms').value = savedTerms;
+    const showLogo = localStorage.getItem('print_show_logo');
+    if(showLogo !== null) document.getElementById('printShowLogo').checked = showLogo === 'true';
+    const showQR = localStorage.getItem('print_show_qr');
+    if(showQR !== null) document.getElementById('printShowQR').checked = showQR === 'true';
+});
+
+function openPrintSettings() {
+    printSettingsModal.show();
+}
+
+function selectTemplate(tpl) {
+    currentTemplate = tpl;
+    document.querySelectorAll('.template-option').forEach(el => el.classList.remove('selected'));
+    document.getElementById('tpl-' + tpl).classList.add('selected');
+}
+
+document.getElementById('printColor').addEventListener('input', function(e) {
+    document.documentElement.style.setProperty('--print-color', e.target.value);
+});
+
+function savePrintSettings() {
+    localStorage.setItem('print_template', currentTemplate);
+    localStorage.setItem('print_color', document.getElementById('printColor').value);
+    localStorage.setItem('print_footer', document.getElementById('printFooterText').value);
+    localStorage.setItem('print_terms', document.getElementById('printTerms').value);
+    localStorage.setItem('print_show_logo', document.getElementById('printShowLogo').checked);
+    localStorage.setItem('print_show_qr', document.getElementById('printShowQR').checked);
+    printSettingsModal.hide();
+}
+
 function printInvoice(id) {
     const o = allOrders.find(x => x.id === id);
     if (!o) return;
     
+    // Get settings
+    const tpl = localStorage.getItem('print_template') || 'classic';
+    const primaryColor = localStorage.getItem('print_color') || '#333333';
+    const footerText = localStorage.getItem('print_footer') !== null ? localStorage.getItem('print_footer') : 'شكراً لتسوقكم معنا!';
+    const termsText = localStorage.getItem('print_terms') || '';
+    const showLogo = localStorage.getItem('print_show_logo') !== 'false';
+    const showQR = localStorage.getItem('print_show_qr') === 'true';
+    const logoUrl = '{{ settings.logo_url }}';
+
     let items_html = '';
     if (o.items && o.items.length) {
-        items_html = o.items.map(i => `
+        items_html = o.items.map(i => {
+            const qty = i.qty || i['كمية'] || 1;
+            const price = i.price || i['سعر'] || 0;
+            return `
             <tr>
-                <td style="padding: 8px; border-bottom: 1px solid #ddd;">${i.name || i['اسم'] || '—'}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.qty || i['كمية'] || 1}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: center;">${i.price || i['سعر'] || 0}</td>
-                <td style="padding: 8px; border-bottom: 1px solid #ddd; text-align: left;">${(i.qty || i['كمية'] || 1) * (i.price || i['سعر'] || 0)} ${o.currency || 'SAR'}</td>
+                <td class="td-item">${i.name || i['اسم'] || '—'}</td>
+                <td class="td-qty text-center">${qty}</td>
+                <td class="td-price text-center">${price}</td>
+                <td class="td-total">${(qty * price).toFixed(2)} ${o.currency || 'SAR'}</td>
             </tr>
-        `).join('');
+        `}).join('');
     }
 
-    const printContent = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; direction: rtl; max-width: 800px; margin: 0 auto;">
-            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px;">
-                <div style="text-align: right;">
-                    <h1 style="margin: 0; color: #333;">فاتورة طلب</h1>
-                    <p style="margin: 5px 0 0 0; color: #666;">رقم الطلب: ${o.order_number}</p>
-                </div>
-                ${ '{{ settings.logo_url }}' ? `<img src="{{ settings.logo_url }}" style="max-height: 80px; max-width: 150px; object-fit: contain;">` : '' }
-            </div>
-            
-            <div style="display: flex; justify-content: space-between; margin-bottom: 30px;">
-                <div>
-                    <h3 style="margin-top: 0;">بيانات العميل:</h3>
-                    <p><strong>الاسم:</strong> ${o.customer_name || '—'}</p>
-                    <p><strong>الهاتف:</strong> <span dir="ltr">${o.customer_phone || '—'}</span></p>
-                    <p><strong>العنوان:</strong> ${o.customer_address || '—'}</p>
-                </div>
-                <div>
-                    <h3 style="margin-top: 0;">بيانات الطلب:</h3>
-                    <p><strong>التاريخ:</strong> ${(o.created_at || '').substring(0, 10)}</p>
-                    <p><strong>طريقة الدفع:</strong> ${o.payment_method || '—'}</p>
-                    <p><strong>الحالة:</strong> ${o.order_status || '—'}</p>
-                </div>
-            </div>
+    // QR Code dummy image (can be replaced with real QR library later)
+    const qrHtml = showQR ? `<div class="qr-code"><img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent('رقم الطلب: ' + o.order_number + '\nالإجمالي: ' + o.total_amount)}" alt="QR Code"></div>` : '';
+    const logoHtml = (showLogo && logoUrl) ? `<img src="${logoUrl}" class="invoice-logo">` : '';
 
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
-                <thead>
-                    <tr style="background-color: #f8f9fa;">
-                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: right;">المنتج</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">الكمية</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: center;">السعر</th>
-                        <th style="padding: 10px; border-bottom: 2px solid #ddd; text-align: left;">المجموع</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${items_html}
-                </tbody>
-            </table>
-
-            <div style="text-align: left; border-top: 2px solid #333; padding-top: 20px;">
-                <h2 style="margin: 0; color: #333;">الإجمالي النهائي: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</h2>
-            </div>
-            
-            <div style="text-align: center; margin-top: 50px; color: #888; font-size: 0.9em;">
-                <p>شكراً لتسوقكم معنا!</p>
-            </div>
-        </div>
+    let printContent = '';
+    let styles = `
+        @media print { body { margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction: rtl; color: #2b2b2b; }
+        .invoice-container { max-width: 800px; margin: 0 auto; padding: 40px 20px; background: #fff; }
+        .text-center { text-align: center; }
+        .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .invoice-logo { max-height: 80px; max-width: 150px; object-fit: contain; }
+        table { width: 100%; border-collapse: collapse; margin-top: 30px; margin-bottom: 30px; }
+        th { padding: 12px; font-weight: bold; }
+        td { padding: 12px; }
+        .footer-note { text-align: center; margin-top: 50px; color: #666; font-size: 0.9em; }
+        .terms-note { font-size: 0.8em; color: #777; margin-top: 30px; padding-top: 15px; border-top: 1px dashed #ccc; }
+        .qr-code img { width: 80px; height: 80px; }
     `;
+
+    if (tpl === 'classic') {
+        styles += `
+            .header-sec { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${primaryColor}; padding-bottom: 20px; margin-bottom: 30px; }
+            .header-sec h1 { margin: 0; color: ${primaryColor}; font-size: 28px; }
+            .info-grid { display: flex; justify-content: space-between; }
+            th { border-bottom: 2px solid #ddd; background: #f8f9fa; }
+            td { border-bottom: 1px solid #ddd; }
+            .totals-sec { border-top: 2px solid ${primaryColor}; padding-top: 15px; }
+            .totals-sec h2 { margin: 0; color: ${primaryColor}; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                <div class="header-sec">
+                    <div class="text-right">
+                        <h1>فاتورة ضريبية</h1>
+                        <p style="margin: 5px 0 0 0; color: #666;">رقم الطلب: ${o.order_number}</p>
+                    </div>
+                    ${logoHtml}
+                </div>
+                <div class="info-grid">
+                    <div>
+                        <h3 style="margin-top:0; color:${primaryColor};">بيانات العميل</h3>
+                        <p><strong>الاسم:</strong> ${o.customer_name || '—'}</p>
+                        <p><strong>الهاتف:</strong> <span dir="ltr">${o.customer_phone || '—'}</span></p>
+                        <p><strong>العنوان:</strong> ${o.customer_address || '—'}</p>
+                    </div>
+                    <div>
+                        <h3 style="margin-top:0; color:${primaryColor};">بيانات الطلب</h3>
+                        <p><strong>التاريخ:</strong> ${(o.created_at || '').substring(0, 10)}</p>
+                        <p><strong>طريقة الدفع:</strong> ${o.payment_method || '—'}</p>
+                        <p><strong>الحالة:</strong> ${o.order_status || '—'}</p>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th class="text-right">المنتج</th><th class="text-center">الكمية</th><th class="text-center">السعر</th><th class="text-left">المجموع</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div class="info-grid totals-sec">
+                    <div>${qrHtml}</div>
+                    <div class="text-left">
+                        <h2>الإجمالي النهائي: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</h2>
+                    </div>
+                </div>
+                ${termsText ? `<div class="terms-note"><strong>الشروط والأحكام:</strong><br>${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="footer-note"><p>${footerText}</p></div>
+            </div>
+        `;
+    } else if (tpl === 'modern') {
+        styles += `
+            .invoice-container { background: #fafbfc; border-radius: 12px; padding: 40px; }
+            .header-sec { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; }
+            .title-box { background: ${primaryColor}; color: #fff; padding: 15px 30px; border-radius: 8px; display: inline-block; }
+            .title-box h1 { margin: 0; font-size: 24px; }
+            .title-box p { margin: 5px 0 0 0; opacity: 0.9; }
+            .info-cards { display: flex; gap: 20px; margin-bottom: 30px; }
+            .info-card { background: #fff; padding: 20px; border-radius: 10px; flex: 1; box-shadow: 0 4px 15px rgba(0,0,0,0.03); border: 1px solid #eee; }
+            .info-card h3 { margin-top: 0; color: ${primaryColor}; font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+            th { color: #fff; background: ${primaryColor}; border: none; }
+            th:first-child { border-top-right-radius: 8px; border-bottom-right-radius: 8px; }
+            th:last-child { border-top-left-radius: 8px; border-bottom-left-radius: 8px; }
+            td { border-bottom: 1px solid #eee; background: #fff; }
+            .totals-box { background: ${primaryColor}; color: #fff; padding: 20px 30px; border-radius: 10px; display: inline-block; }
+            .totals-box h2 { margin: 0; font-size: 24px; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                <div class="header-sec">
+                    <div class="title-box">
+                        <h1>فاتورة</h1>
+                        <p>رقم: ${o.order_number}</p>
+                        <p>التاريخ: ${(o.created_at || '').substring(0, 10)}</p>
+                    </div>
+                    ${logoHtml}
+                </div>
+                <div class="info-cards">
+                    <div class="info-card">
+                        <h3>بيانات العميل</h3>
+                        <p style="margin:5px 0;">${o.customer_name || '—'}</p>
+                        <p style="margin:5px 0;" dir="ltr">${o.customer_phone || '—'}</p>
+                        <p style="margin:5px 0; color:#666;">${o.customer_address || '—'}</p>
+                    </div>
+                    <div class="info-card">
+                        <h3>تفاصيل الدفع</h3>
+                        <p style="margin:5px 0;">الطريقة: <strong>${o.payment_method || '—'}</strong></p>
+                        <p style="margin:5px 0;">الحالة: <strong>${o.order_status || '—'}</strong></p>
+                    </div>
+                </div>
+                <table>
+                    <thead><tr><th class="text-right">الوصف</th><th class="text-center">الكمية</th><th class="text-center">السعر</th><th class="text-left">الإجمالي</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:30px;">
+                    <div>${qrHtml}</div>
+                    <div class="totals-box">
+                        <h2>المطلوب: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}</h2>
+                    </div>
+                </div>
+                ${termsText ? `<div class="terms-note"><strong>الشروط والأحكام:</strong><br>${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="footer-note"><p>${footerText}</p></div>
+            </div>
+        `;
+    } else if (tpl === 'minimal') {
+        styles += `
+            .invoice-container { max-width: 600px; font-family: 'Courier New', Courier, monospace; }
+            .header-sec { text-align: center; border-bottom: 1px dashed ${primaryColor}; padding-bottom: 20px; margin-bottom: 20px; }
+            .header-sec h1 { letter-spacing: 2px; color: ${primaryColor}; margin-bottom: 5px; }
+            .info-grid { border-bottom: 1px dashed #ccc; padding-bottom: 20px; margin-bottom: 20px; line-height: 1.6; }
+            th { background: transparent; border-bottom: 1px solid #333; text-transform: uppercase; }
+            td { border-bottom: 1px dotted #ccc; }
+            .totals-sec { text-align: left; padding-top: 20px; font-weight: bold; font-size: 1.2em; border-top: 1px solid #333; }
+        `;
+        printContent = `
+            <div class="invoice-container">
+                <div class="header-sec">
+                    ${logoHtml ? `<div style="margin-bottom:15px;">${logoHtml}</div>` : ''}
+                    <h1>INVOICE</h1>
+                    <div>فاتورة رقم: ${o.order_number}</div>
+                    <div>التاريخ: ${(o.created_at || '').substring(0, 10)}</div>
+                </div>
+                <div class="info-grid">
+                    <div><strong>إلى:</strong> ${o.customer_name || '—'} | <span dir="ltr">${o.customer_phone || '—'}</span></div>
+                    <div style="color:#555;">${o.customer_address || '—'}</div>
+                </div>
+                <table>
+                    <thead><tr><th class="text-right">البيان</th><th class="text-center">الكمية</th><th class="text-center">السعر</th><th class="text-left">المجموع</th></tr></thead>
+                    <tbody>${items_html}</tbody>
+                </table>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 20px;">
+                    <div>${qrHtml}</div>
+                    <div class="totals-sec">
+                        الإجمالي: ${parseFloat(o.total_amount || 0).toFixed(2)} ${o.currency || 'SAR'}
+                    </div>
+                </div>
+                ${termsText ? `<div class="terms-note"><strong>ملاحظات:</strong><br>${termsText.replace(/\n/g, '<br>')}</div>` : ''}
+                <div class="footer-note"><p>${footerText}</p></div>
+            </div>
+        `;
+    }
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write('<html><head><title>طباعة الفاتورة - ' + o.order_number + '</title>');
-    printWindow.document.write('<style>@media print { body { margin: 0; } }</style>');
+    printWindow.document.write('<style>' + styles + '</style>');
     printWindow.document.write('</head><body>');
     printWindow.document.write(printContent);
     printWindow.document.write('</body></html>');
@@ -324,7 +588,7 @@ function printInvoice(id) {
     setTimeout(() => {
         printWindow.print();
         printWindow.close();
-    }, 250);
+    }, 300);
 }
 
 function editStatus(id, status, payment) {
