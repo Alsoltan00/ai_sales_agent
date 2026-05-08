@@ -72,4 +72,4 @@ async def view_public_invoice(request: Request, order_id: str):
 
     except Exception as e:
         print(f"[ERROR] public invoice: {e}")
-        raise HTTPException(status_code=500, detail="حدث خطأ أثناء عرض الفاتورة")
+        raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء عرض الفاتورة: {str(e)}")
