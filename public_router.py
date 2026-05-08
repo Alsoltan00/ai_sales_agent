@@ -25,20 +25,39 @@ async def view_public_invoice(request: Request, order_id: str):
         items = order.get("items", [])
         if isinstance(items, str):
             try:
-                items = json.loads(items)
+                import json as _json
+                items = _json.loads(items)
             except:
                 items = []
-        order["items"] = items
+        
+        if not isinstance(items, list):
+            items = [items] if items else []
+            
+        clean_items = []
+        for it in items:
+            if isinstance(it, dict):
+                clean_items.append(it)
+            elif isinstance(it, str):
+                clean_items.append({"name": it, "qty": 1, "price": 0})
+                
+        order["items"] = clean_items
 
         # Fetch client info for logo
         client_res = supabase.table("clients").select("company_name, logo_url").eq("id", client_id).execute()
         client_info = client_res.data[0] if client_res.data else {}
 
+        host = request.headers.get("host", request.url.hostname)
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if host and ":" not in host and host != "localhost":
+            scheme = "https" # Force HTTPS in production
+        public_url = f"{scheme}://{host}/invoice/{order_id}"
+
         return templates.TemplateResponse("public_invoice.html", {
             "request": request,
             "order": order,
             "client": client_info,
-            "order_json": json.dumps(order, default=str)
+            "order_json": json.dumps(order, default=str),
+            "public_url": public_url
         })
 
     except Exception as e:

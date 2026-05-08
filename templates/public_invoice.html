@@ -110,7 +110,7 @@
 
             <div class="totals-section">
                 <div class="qr-section">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ request.url }}" alt="QR Code">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR Code">
                     <div class="text-muted small mt-1">مسح الكود للوصول للفاتورة</div>
                 </div>
                 <div class="totals-box">
