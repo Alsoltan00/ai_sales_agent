@@ -295,13 +295,11 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     shipping_section = ""
     try:
         ship_cfg = supabase.table("shipping_config").select("*").eq("client_id", client_id).single().execute()
-        ship_zones_res = supabase.table("shipping_zones").select("zone_name, shipping_price").eq("client_id", client_id).execute()
+        ship_zones_res = supabase.table("shipping_zones").select("zone_name, shipping_price, free_shipping_enabled, free_shipping_min").eq("client_id", client_id).execute()
         ship_zones = ship_zones_res.data or []
 
         if ship_cfg.data or ship_zones:
             sc = ship_cfg.data or {}
-            free_city = sc.get("free_shipping_city", "")
-            free_min = sc.get("free_shipping_min", 0)
             unavail_msg = sc.get("unavailable_area_msg", "")
 
             zones_text = ""
@@ -309,20 +307,23 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                 zones_list = []
                 for z in ship_zones:
                     price = float(z.get("shipping_price", 0))
+                    free_enabled = z.get("free_shipping_enabled", False)
+                    free_min = float(z.get("free_shipping_min", 0))
+                    
+                    line = f"  - {z['zone_name']}: {price} ريال"
                     if price == 0:
-                        zones_list.append(f"  - {z['zone_name']}: مجاني")
-                    else:
-                        zones_list.append(f"  - {z['zone_name']}: {price} ريال")
+                        line = f"  - {z['zone_name']}: مجاني"
+                    if free_enabled and free_min > 0:
+                        line += f" (شحن مجاني عند تجاوز الطلب {free_min} ريال)"
+                    zones_list.append(line)
                 zones_text = "\n".join(zones_list)
 
             shipping_section = f"""
 ## سياسة الشحن (التزم بها حرفياً):
 - مناطق الشحن المتاحة وأسعارها:
 {zones_text}
-{f'- الشحن مجاني لمدينة: {free_city}' if free_city else ''}
-{f'- الشحن مجاني لجميع المناطق إذا تجاوز الطلب {free_min} ريال' if free_min and float(free_min) > 0 else ''}
 - **إذا ذكر العميل مدينة أو منطقة غير موجودة في القائمة أعلاه:** {unavail_msg if unavail_msg else 'أخبره بلطف أن الشحن غير متاح حالياً لمنطقته وسيتم تحويل طلبه للإدارة.'}
-- عند حساب الفاتورة النهائية، أضف سعر الشحن بناءً على مدينة العميل وأظهره كبند منفصل في الملخص.
+- عند حساب الفاتورة النهائية، أضف سعر الشحن بناءً على مدينة العميل وأظهره كبند منفصل في الملخص. إذا كان الشحن مجاني (بسبب تجاوز الحد الأدنى) اذكر ذلك.
 - أضف حقل "shipping_cost" في ORDER_DATA بالقيمة الصحيحة.
 """
             print(f"[ENGINE] Shipping zones loaded: {len(ship_zones)} zones")

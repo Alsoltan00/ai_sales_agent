@@ -4,20 +4,40 @@
 {% block extra_css %}
 .shipping-card { border-radius: 16px; border: 1px solid var(--bs-border-color); margin-bottom: 24px; overflow: hidden; }
 .shipping-card .card-header-custom { padding: 20px 24px; background: var(--bs-secondary-bg); border-bottom: 1px solid var(--bs-border-color); display: flex; align-items: center; gap: 14px; }
-.shipping-card .card-header-custom .icon-wrap { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+.shipping-card .card-header-custom .icon-wrap { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
 .shipping-card .card-body { padding: 24px; }
-.zone-row { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--bs-border-color); border-radius: 12px; margin-bottom: 10px; background: var(--bs-body-bg); transition: all 0.2s ease; }
-.zone-row:hover { border-color: var(--bs-primary-border-subtle); background: var(--bs-secondary-bg); }
-.zone-row .form-control { border-radius: 8px; }
-.zone-row .zone-name { flex: 2; }
-.zone-row .zone-price { flex: 1; max-width: 150px; }
-.zone-row .btn-remove { flex-shrink: 0; }
+
+/* Zone Card */
+.zone-card { border: 1px solid var(--bs-border-color); border-radius: 14px; padding: 20px; margin-bottom: 14px; background: var(--bs-body-bg); transition: all 0.25s ease; position: relative; }
+.zone-card:hover { border-color: var(--bs-primary-border-subtle); box-shadow: 0 4px 16px rgba(0,0,0,0.06); }
+.zone-card .zone-header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.zone-card .zone-header .zone-num { width: 32px; height: 32px; border-radius: 8px; background: var(--bs-primary); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; }
+.zone-card .zone-inputs { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.zone-card .zone-inputs .input-wrap { flex: 1; min-width: 150px; }
+.zone-card .zone-inputs .input-wrap label { font-size: 0.72rem; text-transform: uppercase; font-weight: 700; color: var(--bs-secondary-color); margin-bottom: 4px; display: block; }
+.zone-card .zone-inputs .form-control { border-radius: 10px; font-size: 0.9rem; }
+
+/* Free shipping toggle */
+.free-ship-toggle { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 10px; cursor: pointer; user-select: none; transition: all 0.2s ease; border: 1px solid var(--bs-border-color); background: var(--bs-body-bg); flex-shrink: 0; }
+.free-ship-toggle:hover { border-color: var(--bs-success-border-subtle); }
+.free-ship-toggle.active { background: rgba(var(--bs-success-rgb), 0.08); border-color: var(--bs-success); }
+.free-ship-toggle .toggle-dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--bs-border-color); transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.free-ship-toggle.active .toggle-dot { border-color: var(--bs-success); background: var(--bs-success); color: white; }
+.free-ship-toggle .toggle-label { font-size: 0.8rem; font-weight: 600; white-space: nowrap; }
+
+/* Free shipping min row */
+.free-min-row { margin-top: 12px; padding: 14px 16px; border-radius: 10px; background: rgba(var(--bs-success-rgb), 0.04); border: 1px dashed rgba(var(--bs-success-rgb), 0.3); display: none; animation: fadeSlide 0.25s ease; }
+.free-min-row.show { display: flex; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+.btn-remove-zone { position: absolute; top: 10px; left: 10px; width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0; }
+
 .empty-zones { text-align: center; padding: 50px 20px; }
 .empty-zones i { font-size: 3rem; color: var(--bs-secondary-color); opacity: 0.3; }
-.stats-mini { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-.stats-mini .mini-card { flex: 1; min-width: 140px; padding: 16px; border-radius: 12px; border: 1px solid var(--bs-border-color); text-align: center; }
-.stats-mini .mini-card .value { font-size: 1.5rem; font-weight: 800; color: var(--bs-primary); }
-.stats-mini .mini-card .label { font-size: 0.75rem; color: var(--bs-secondary-color); margin-top: 2px; }
+
+/* Quick add buttons */
+.quick-btn { border-radius: 20px; font-size: 0.82rem; padding: 6px 14px; transition: all 0.2s ease; }
+.quick-btn:hover { transform: translateY(-1px); }
 {% endblock %}
 
 {% block content %}
@@ -25,121 +45,125 @@
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div>
             <h1><i class="ti ti-truck-delivery me-2"></i>إعدادات الشحن</h1>
-            <p class="text-secondary mb-0 mt-1">حدد مناطق الشحن وأسعارها ليتمكن الذكاء الاصطناعي من حساب التكلفة تلقائياً أثناء المحادثة.</p>
+            <p class="text-secondary mb-0 mt-1">حدد مناطق الشحن وأسعارها ليتمكن الذكاء الاصطناعي من حساب التكلفة تلقائياً.</p>
         </div>
+        <button class="btn btn-primary btn-lg px-4 shadow-sm" onclick="saveAll()" id="saveBtn">
+            <i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات
+        </button>
     </div>
-</div>
-
-<!-- Stats -->
-<div class="stats-mini">
-    <div class="mini-card"><div class="value" id="statZones">{{ zones|length }}</div><div class="label">مناطق الشحن</div></div>
-    <div class="mini-card"><div class="value" id="statFreeCity">{{ config.free_shipping_city or '—' }}</div><div class="label">مدينة الشحن المجاني</div></div>
-    <div class="mini-card"><div class="value" id="statFreeMin">{{ config.free_shipping_min or '—' }}</div><div class="label">حد الشحن المجاني (ريال)</div></div>
 </div>
 
 <div id="alertBox" class="alert" style="display:none;"></div>
 
-<!-- 1. General Shipping Settings -->
+<!-- 1. Shipping Zones -->
 <div class="shipping-card">
     <div class="card-header-custom">
-        <div class="icon-wrap bg-primary bg-opacity-10 text-primary"><i class="ti ti-settings"></i></div>
-        <div>
-            <h5 class="mb-0 fw-bold">الإعدادات العامة</h5>
-            <p class="text-secondary small mb-0">حدد الشحن المجاني والرسالة الافتراضية للمناطق غير المتاحة.</p>
+        <div class="icon-wrap bg-primary bg-opacity-10 text-primary"><i class="ti ti-map-2"></i></div>
+        <div class="flex-grow-1">
+            <h5 class="mb-0 fw-bold">مناطق الشحن</h5>
+            <p class="text-secondary small mb-0">أضف المناطق التي تشحن إليها مع السعر. فعّل "شحن مجاني" وحدد الحد الأدنى لكل منطقة.</p>
         </div>
-    </div>
-    <div class="card-body">
-        <div class="row g-4">
-            <div class="col-md-6">
-                <label class="form-label fw-bold">مدينة الشحن المجاني</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-map-pin"></i></span>
-                    <input type="text" class="form-control" id="freeCity" value="{{ config.free_shipping_city or '' }}" placeholder="مثال: الرياض">
-                </div>
-                <div class="form-text">الشحن لهذه المدينة سيكون مجاني دائماً.</div>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label fw-bold">حد الشحن المجاني (مبلغ الطلب)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-cash"></i></span>
-                    <input type="number" class="form-control" id="freeMin" value="{{ config.free_shipping_min or '' }}" placeholder="مثال: 300">
-                    <span class="input-group-text">ريال</span>
-                </div>
-                <div class="form-text">عند تجاوز هذا المبلغ يصبح الشحن مجاني لجميع المناطق.</div>
-            </div>
-            <div class="col-12">
-                <label class="form-label fw-bold"><i class="ti ti-alert-circle text-warning me-1"></i>رسالة المناطق غير المتاحة</label>
-                <textarea class="form-control" id="unavailableMsg" rows="3" placeholder="مثال: عذراً، الشحن غير متاح حالياً لمنطقتك، ولكن سيتم تحويل طلبك للإدارة للتواصل معك">{{ config.unavailable_area_msg or '' }}</textarea>
-                <div class="form-text">هذه الرسالة سيرسلها الذكاء الاصطناعي إذا كان العميل في منطقة لم تقم بإضافتها.</div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- 2. Shipping Zones -->
-<div class="shipping-card">
-    <div class="card-header-custom">
-        <div class="icon-wrap bg-success bg-opacity-10 text-success"><i class="ti ti-map-2"></i></div>
-        <div>
-            <h5 class="mb-0 fw-bold">مناطق الشحن والأسعار</h5>
-            <p class="text-secondary small mb-0">أضف المدن أو المناطق التي تشحن إليها مع سعر الشحن لكل واحدة.</p>
-        </div>
+        <button class="btn btn-outline-primary" onclick="addZone()">
+            <i class="ti ti-plus me-1"></i> إضافة منطقة
+        </button>
     </div>
     <div class="card-body">
         <div id="zonesContainer">
             {% for z in zones %}
-            <div class="zone-row" data-id="{{ z.id }}">
-                <input type="text" class="form-control zone-name" value="{{ z.zone_name }}" placeholder="اسم المنطقة / المدينة">
-                <input type="number" class="form-control zone-price" value="{{ z.shipping_price }}" placeholder="السعر" step="0.01">
-                <span class="input-group-text" style="border-radius: 8px;">ريال</span>
-                <button class="btn btn-sm btn-outline-danger btn-remove" onclick="removeZone(this)" title="حذف"><i class="ti ti-trash"></i></button>
+            <div class="zone-card" data-id="{{ z.id }}">
+                <button class="btn btn-sm btn-outline-danger btn-remove-zone" onclick="removeZone(this)" title="حذف"><i class="ti ti-x"></i></button>
+                <div class="zone-header">
+                    <div class="zone-num">{{ loop.index }}</div>
+                    <div class="zone-inputs">
+                        <div class="input-wrap" style="flex: 2;">
+                            <label>المنطقة / المدينة</label>
+                            <input type="text" class="form-control zone-name" value="{{ z.zone_name }}" placeholder="مثال: جدة">
+                        </div>
+                        <div class="input-wrap" style="flex: 1; max-width: 160px;">
+                            <label>سعر الشحن</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control zone-price" value="{{ z.shipping_price }}" placeholder="0" step="0.01">
+                                <span class="input-group-text" style="border-radius: 0 10px 10px 0; font-size: 0.8rem;">ريال</span>
+                            </div>
+                        </div>
+                        <div style="align-self: flex-end;">
+                            <div class="free-ship-toggle {{ 'active' if z.free_shipping_enabled else '' }}" onclick="toggleFreeShip(this)">
+                                <div class="toggle-dot">{{ '<i class=\'ti ti-check\' style=\'font-size:0.7rem;\'></i>' | safe if z.free_shipping_enabled else '' }}</div>
+                                <span class="toggle-label">شحن مجاني</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="free-min-row {{ 'show' if z.free_shipping_enabled else '' }} align-items-center gap-3">
+                    <i class="ti ti-gift text-success fs-5"></i>
+                    <span class="small fw-bold text-success">الحد الأدنى للشحن المجاني:</span>
+                    <div class="input-group" style="max-width: 180px;">
+                        <input type="number" class="form-control form-control-sm free-min-amount" value="{{ z.free_shipping_min or '' }}" placeholder="300" step="1">
+                        <span class="input-group-text" style="font-size: 0.8rem;">ريال</span>
+                    </div>
+                    <span class="small text-secondary">( الشحن مجاني عند تجاوز هذا المبلغ )</span>
+                </div>
             </div>
             {% endfor %}
         </div>
 
         <div id="emptyZones" class="empty-zones" style="{% if zones %}display:none;{% endif %}">
             <i class="ti ti-map-off d-block mb-2"></i>
-            <p class="text-secondary">لم تضف أي مناطق شحن بعد</p>
-        </div>
-
-        <div class="d-flex justify-content-between align-items-center mt-3">
-            <button class="btn btn-outline-success" onclick="addZone()">
-                <i class="ti ti-plus me-1"></i> إضافة منطقة
-            </button>
-            <button class="btn btn-primary btn-lg px-4" onclick="saveAll()" id="saveBtn">
-                <i class="ti ti-device-floppy me-1"></i> حفظ جميع الإعدادات
-            </button>
+            <h5 class="text-secondary fw-bold">لم تضف أي مناطق شحن بعد</h5>
+            <p class="text-secondary small">اضغط "إضافة منطقة" أو اختر من المناطق السريعة أدناه</p>
         </div>
     </div>
 </div>
 
-<!-- 3. Quick Add Common Regions -->
+<!-- 2. Unavailable Area Message -->
+<div class="shipping-card">
+    <div class="card-header-custom">
+        <div class="icon-wrap bg-warning bg-opacity-10 text-warning"><i class="ti ti-alert-triangle"></i></div>
+        <div>
+            <h5 class="mb-0 fw-bold">رسالة المناطق غير المتاحة</h5>
+            <p class="text-secondary small mb-0">ماذا يقول الذكاء الاصطناعي إذا أرسل العميل منطقة غير موجودة في قائمتك؟</p>
+        </div>
+    </div>
+    <div class="card-body">
+        <textarea class="form-control" id="unavailableMsg" rows="3" style="border-radius: 12px; font-size: 0.95rem;" placeholder="مثال: عذراً، الشحن غير متاح حالياً لمنطقتك، ولكن سيتم تحويل طلبك للإدارة للتواصل معك">{{ config.unavailable_area_msg or '' }}</textarea>
+        <div class="mt-2 d-flex flex-wrap gap-2">
+            <span class="small text-secondary"><i class="ti ti-info-circle me-1"></i>اقتراحات سريعة:</span>
+            <button class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem; border-radius: 20px;" onclick="document.getElementById('unavailableMsg').value='عذراً، الشحن غير متاح حالياً لمنطقتك ولكن سيتم تحويل طلبك للإدارة للتواصل معك في أقرب وقت.'">تحويل للإدارة</button>
+            <button class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem; border-radius: 20px;" onclick="document.getElementById('unavailableMsg').value='نعتذر، حالياً نشحن فقط داخل المملكة العربية السعودية. نعمل على التوسع قريباً!'">داخل المملكة فقط</button>
+            <button class="btn btn-sm btn-outline-secondary" style="font-size: 0.75rem; border-radius: 20px;" onclick="document.getElementById('unavailableMsg').value='عذراً، منطقتك غير مشمولة بالتوصيل حالياً. يمكنك الطلب والاستلام من أقرب فرع.'">استلام من الفرع</button>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Quick Add -->
 <div class="shipping-card">
     <div class="card-header-custom">
         <div class="icon-wrap bg-info bg-opacity-10 text-info"><i class="ti ti-sparkles"></i></div>
         <div>
-            <h5 class="mb-0 fw-bold">إضافة سريعة لمناطق شائعة</h5>
-            <p class="text-secondary small mb-0">اضغط على أي منطقة لإضافتها تلقائياً (يمكنك تعديل السعر بعد الإضافة).</p>
+            <h5 class="mb-0 fw-bold">إضافة سريعة</h5>
+            <p class="text-secondary small mb-0">اضغط على أي مدينة لإضافتها مباشرة (يمكنك تعديل السعر لاحقاً).</p>
         </div>
     </div>
     <div class="card-body">
         <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الرياض', 0)">🏙️ الرياض</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('جدة', 25)">🌊 جدة</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('مكة المكرمة', 25)">🕋 مكة</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('المدينة المنورة', 30)">🕌 المدينة</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الدمام', 25)">🏭 الدمام</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الخبر', 25)">🌅 الخبر</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الظهران', 25)">🛢️ الظهران</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('أبها', 35)">⛰️ أبها</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('تبوك', 35)">🏜️ تبوك</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('حائل', 30)">🌾 حائل</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('القصيم', 25)">🌿 القصيم</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('جازان', 35)">🌴 جازان</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('نجران', 35)">🏔️ نجران</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الباحة', 30)">🌳 الباحة</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('الجوف', 35)">🏕️ الجوف</button>
-            <button class="btn btn-sm btn-outline-secondary" onclick="quickAdd('عسير', 35)">⛰️ عسير</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الرياض', 20)">🏙️ الرياض</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('جدة', 25)">🌊 جدة</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('مكة المكرمة', 25)">🕋 مكة</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('المدينة المنورة', 30)">🕌 المدينة</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الدمام', 25)">🏭 الدمام</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الخبر', 25)">🌅 الخبر</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الظهران', 25)">🛢️ الظهران</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('أبها', 35)">⛰️ أبها</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('تبوك', 35)">🏜️ تبوك</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('حائل', 30)">🌾 حائل</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('القصيم', 25)">🌿 القصيم</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('جازان', 35)">🌴 جازان</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('نجران', 35)">🏔️ نجران</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الباحة', 30)">🌳 الباحة</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الجوف', 35)">🏕️ الجوف</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('عسير', 35)">⛰️ عسير</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('ينبع', 30)">🚢 ينبع</button>
+            <button class="btn btn-sm btn-outline-secondary quick-btn" onclick="quickAdd('الطائف', 25)">🌹 الطائف</button>
         </div>
     </div>
 </div>
@@ -147,24 +171,73 @@
 
 {% block extra_scripts %}
 <script>
-function addZone(name = '', price = '') {
+let zoneCounter = {{ zones|length }};
+
+function addZone(name = '', price = '', freeEnabled = false, freeMin = '') {
     document.getElementById('emptyZones').style.display = 'none';
+    zoneCounter++;
     const container = document.getElementById('zonesContainer');
-    const row = document.createElement('div');
-    row.className = 'zone-row';
-    row.innerHTML = `
-        <input type="text" class="form-control zone-name" value="${name}" placeholder="اسم المنطقة / المدينة">
-        <input type="number" class="form-control zone-price" value="${price}" placeholder="السعر" step="0.01">
-        <span class="input-group-text" style="border-radius: 8px;">ريال</span>
-        <button class="btn btn-sm btn-outline-danger btn-remove" onclick="removeZone(this)" title="حذف"><i class="ti ti-trash"></i></button>
+    const card = document.createElement('div');
+    card.className = 'zone-card';
+    card.innerHTML = `
+        <button class="btn btn-sm btn-outline-danger btn-remove-zone" onclick="removeZone(this)" title="حذف"><i class="ti ti-x"></i></button>
+        <div class="zone-header">
+            <div class="zone-num">${zoneCounter}</div>
+            <div class="zone-inputs">
+                <div class="input-wrap" style="flex: 2;">
+                    <label>المنطقة / المدينة</label>
+                    <input type="text" class="form-control zone-name" value="${name}" placeholder="مثال: جدة">
+                </div>
+                <div class="input-wrap" style="flex: 1; max-width: 160px;">
+                    <label>سعر الشحن</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control zone-price" value="${price}" placeholder="0" step="0.01">
+                        <span class="input-group-text" style="border-radius: 0 10px 10px 0; font-size: 0.8rem;">ريال</span>
+                    </div>
+                </div>
+                <div style="align-self: flex-end;">
+                    <div class="free-ship-toggle" onclick="toggleFreeShip(this)">
+                        <div class="toggle-dot"></div>
+                        <span class="toggle-label">شحن مجاني</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="free-min-row align-items-center gap-3">
+            <i class="ti ti-gift text-success fs-5"></i>
+            <span class="small fw-bold text-success">الحد الأدنى للشحن المجاني:</span>
+            <div class="input-group" style="max-width: 180px;">
+                <input type="number" class="form-control form-control-sm free-min-amount" value="${freeMin}" placeholder="300" step="1">
+                <span class="input-group-text" style="font-size: 0.8rem;">ريال</span>
+            </div>
+            <span class="small text-secondary">( الشحن مجاني عند تجاوز هذا المبلغ )</span>
+        </div>
     `;
-    container.appendChild(row);
-    // Focus on the name field
-    if (!name) row.querySelector('.zone-name').focus();
+    container.appendChild(card);
+    if (!name) card.querySelector('.zone-name').focus();
+
+    // If freeEnabled, activate it
+    if (freeEnabled) {
+        const toggle = card.querySelector('.free-ship-toggle');
+        toggleFreeShip(toggle);
+    }
+}
+
+function toggleFreeShip(el) {
+    el.classList.toggle('active');
+    const isActive = el.classList.contains('active');
+    const dot = el.querySelector('.toggle-dot');
+    dot.innerHTML = isActive ? '<i class="ti ti-check" style="font-size:0.7rem;"></i>' : '';
+    const card = el.closest('.zone-card');
+    const freeRow = card.querySelector('.free-min-row');
+    if (isActive) {
+        freeRow.classList.add('show');
+    } else {
+        freeRow.classList.remove('show');
+    }
 }
 
 function quickAdd(name, price) {
-    // Check if zone already exists
     const existing = document.querySelectorAll('.zone-name');
     for (const input of existing) {
         if (input.value.trim() === name) {
@@ -173,15 +246,23 @@ function quickAdd(name, price) {
         }
     }
     addZone(name, price);
-    showAlert(`تمت إضافة "${name}" — يمكنك تعديل السعر`, 'success');
+    showAlert(`تمت إضافة "${name}" بسعر ${price} ريال`, 'success');
 }
 
 function removeZone(btn) {
-    btn.closest('.zone-row').remove();
-    const remaining = document.querySelectorAll('.zone-row');
+    btn.closest('.zone-card').remove();
+    reNumber();
+    const remaining = document.querySelectorAll('.zone-card');
     if (remaining.length === 0) {
         document.getElementById('emptyZones').style.display = '';
     }
+}
+
+function reNumber() {
+    document.querySelectorAll('.zone-card .zone-num').forEach((el, i) => {
+        el.textContent = i + 1;
+    });
+    zoneCounter = document.querySelectorAll('.zone-card').length;
 }
 
 function showAlert(msg, type) {
@@ -197,19 +278,24 @@ async function saveAll() {
     btn.disabled = true;
     btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
 
-    // Collect zones
     const zones = [];
-    document.querySelectorAll('.zone-row').forEach(row => {
-        const name = row.querySelector('.zone-name').value.trim();
-        const price = parseFloat(row.querySelector('.zone-price').value) || 0;
+    document.querySelectorAll('.zone-card').forEach(card => {
+        const name = card.querySelector('.zone-name').value.trim();
+        const price = parseFloat(card.querySelector('.zone-price').value) || 0;
+        const freeToggle = card.querySelector('.free-ship-toggle');
+        const freeEnabled = freeToggle.classList.contains('active');
+        const freeMin = parseFloat(card.querySelector('.free-min-amount').value) || 0;
         if (name) {
-            zones.push({ zone_name: name, shipping_price: price });
+            zones.push({
+                zone_name: name,
+                shipping_price: price,
+                free_shipping_enabled: freeEnabled,
+                free_shipping_min: freeMin
+            });
         }
     });
 
     const payload = {
-        free_shipping_city: document.getElementById('freeCity').value.trim(),
-        free_shipping_min: parseFloat(document.getElementById('freeMin').value) || 0,
         unavailable_area_msg: document.getElementById('unavailableMsg').value.trim(),
         zones: zones
     };
@@ -230,7 +316,7 @@ async function saveAll() {
         showAlert('حدث خطأ في الاتصال بالسيرفر', 'danger');
     } finally {
         btn.disabled = false;
-        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ جميع الإعدادات';
+        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات';
     }
 }
 </script>

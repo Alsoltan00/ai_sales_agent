@@ -186,9 +186,20 @@ def _migrate_database():
                     client_id UUID,
                     zone_name TEXT NOT NULL,
                     shipping_price NUMERIC(12,2) DEFAULT 0,
+                    free_shipping_enabled BOOLEAN DEFAULT FALSE,
+                    free_shipping_min NUMERIC(12,2) DEFAULT 0,
                     created_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
+
+            # تحديث جدول shipping_zones إذا كان موجوداً بدون الأعمدة الجديدة
+            try:
+                sz_cols = [c['name'] for c in inspector.get_columns('shipping_zones')]
+                if 'free_shipping_enabled' not in sz_cols:
+                    conn.execute(text("ALTER TABLE shipping_zones ADD COLUMN free_shipping_enabled BOOLEAN DEFAULT FALSE;"))
+                if 'free_shipping_min' not in sz_cols:
+                    conn.execute(text("ALTER TABLE shipping_zones ADD COLUMN free_shipping_min NUMERIC(12,2) DEFAULT 0;"))
+            except: pass
 
             conn.commit()
             print("[DB] Database schema verified successfully.")

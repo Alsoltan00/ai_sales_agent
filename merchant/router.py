@@ -638,11 +638,9 @@ async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)
     """حفظ إعدادات الشحن ومناطق الشحن"""
     supabase = get_supabase_client()
     try:
-        # 1. حفظ الإعدادات العامة
+        # 1. حفظ الإعدادات العامة (رسالة المناطق غير المتاحة)
         config_data = {
             "client_id": user["id"],
-            "free_shipping_city": payload.get("free_shipping_city", ""),
-            "free_shipping_min": float(payload.get("free_shipping_min", 0)),
             "unavailable_area_msg": payload.get("unavailable_area_msg", ""),
             "updated_at": datetime.now().isoformat()
         }
@@ -663,7 +661,9 @@ async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)
                 supabase.table("shipping_zones").insert({
                     "client_id": user["id"],
                     "zone_name": zone_name,
-                    "shipping_price": float(z.get("shipping_price", 0))
+                    "shipping_price": float(z.get("shipping_price", 0)),
+                    "free_shipping_enabled": bool(z.get("free_shipping_enabled", False)),
+                    "free_shipping_min": float(z.get("free_shipping_min", 0))
                 }).execute()
         
         return {"status": "success", "message": "تم حفظ إعدادات الشحن بنجاح"}
