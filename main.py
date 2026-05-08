@@ -169,6 +169,27 @@ def _migrate_database():
                 );
             """))
 
+            # 7. إنشاء جداول الشحن
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS shipping_config (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    client_id UUID UNIQUE,
+                    free_shipping_city TEXT,
+                    free_shipping_min NUMERIC(12,2) DEFAULT 0,
+                    unavailable_area_msg TEXT DEFAULT '',
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS shipping_zones (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    client_id UUID,
+                    zone_name TEXT NOT NULL,
+                    shipping_price NUMERIC(12,2) DEFAULT 0,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+
             conn.commit()
             print("[DB] Database schema verified successfully.")
     except Exception as e:

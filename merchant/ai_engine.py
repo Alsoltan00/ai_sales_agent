@@ -291,6 +291,44 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
+    # ─── 6.5 SHIPPING DATA ─────────────────────────────────────────────────────
+    shipping_section = ""
+    try:
+        ship_cfg = supabase.table("shipping_config").select("*").eq("client_id", client_id).single().execute()
+        ship_zones_res = supabase.table("shipping_zones").select("zone_name, shipping_price").eq("client_id", client_id).execute()
+        ship_zones = ship_zones_res.data or []
+
+        if ship_cfg.data or ship_zones:
+            sc = ship_cfg.data or {}
+            free_city = sc.get("free_shipping_city", "")
+            free_min = sc.get("free_shipping_min", 0)
+            unavail_msg = sc.get("unavailable_area_msg", "")
+
+            zones_text = ""
+            if ship_zones:
+                zones_list = []
+                for z in ship_zones:
+                    price = float(z.get("shipping_price", 0))
+                    if price == 0:
+                        zones_list.append(f"  - {z['zone_name']}: مجاني")
+                    else:
+                        zones_list.append(f"  - {z['zone_name']}: {price} ريال")
+                zones_text = "\n".join(zones_list)
+
+            shipping_section = f"""
+## سياسة الشحن (التزم بها حرفياً):
+- مناطق الشحن المتاحة وأسعارها:
+{zones_text}
+{f'- الشحن مجاني لمدينة: {free_city}' if free_city else ''}
+{f'- الشحن مجاني لجميع المناطق إذا تجاوز الطلب {free_min} ريال' if free_min and float(free_min) > 0 else ''}
+- **إذا ذكر العميل مدينة أو منطقة غير موجودة في القائمة أعلاه:** {unavail_msg if unavail_msg else 'أخبره بلطف أن الشحن غير متاح حالياً لمنطقته وسيتم تحويل طلبه للإدارة.'}
+- عند حساب الفاتورة النهائية، أضف سعر الشحن بناءً على مدينة العميل وأظهره كبند منفصل في الملخص.
+- أضف حقل "shipping_cost" في ORDER_DATA بالقيمة الصحيحة.
+"""
+            print(f"[ENGINE] Shipping zones loaded: {len(ship_zones)} zones")
+    except Exception as e:
+        print(f"[ENGINE] Shipping data error: {e}")
+
     # ─── 7. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
     system_prompt = f"""أنت "{agent_name}"، موظف مبيعات في "{company_name}".
 نشاط المتجر: {store_activity}.
@@ -331,6 +369,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 {product_section}
 
 {rules_section}
+
+{shipping_section}
 
 ## قانون منع الهلوسة (غير قابل للكسر):
 - لا تذكر أي {single_item_term} غير موجود في القائمة أعلاه أبداً. إذا سأل العميل عن شيء غير موجود، التزم فوراً بـ (قواعد تصنيف الأسئلة) أدناه لتحديد كيفية الرد.

@@ -610,3 +610,63 @@ async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant))
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+# --- Shipping Management ---
+
+@router.get("/shipping", response_class=HTMLResponse)
+async def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة إعدادات الشحن"""
+    supabase = get_supabase_client()
+    config = {}
+    zones = []
+    try:
+        cfg_res = supabase.table("shipping_config").select("*").eq("client_id", user["id"]).single().execute()
+        if cfg_res.data:
+            config = cfg_res.data
+    except:
+        pass
+    try:
+        z_res = supabase.table("shipping_zones").select("*").eq("client_id", user["id"]).order("created_at").execute()
+        zones = z_res.data or []
+    except:
+        pass
+    return templates.TemplateResponse("merchant/shipping.html", {
+        "request": request, "user": user, "config": config, "zones": zones
+    })
+
+@router.post("/api/shipping")
+async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
+    """حفظ إعدادات الشحن ومناطق الشحن"""
+    supabase = get_supabase_client()
+    try:
+        # 1. حفظ الإعدادات العامة
+        config_data = {
+            "client_id": user["id"],
+            "free_shipping_city": payload.get("free_shipping_city", ""),
+            "free_shipping_min": float(payload.get("free_shipping_min", 0)),
+            "unavailable_area_msg": payload.get("unavailable_area_msg", ""),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        existing = supabase.table("shipping_config").select("id").eq("client_id", user["id"]).execute()
+        if existing.data:
+            supabase.table("shipping_config").update(config_data).eq("client_id", user["id"]).execute()
+        else:
+            supabase.table("shipping_config").insert(config_data).execute()
+        
+        # 2. حذف المناطق القديمة وإضافة الجديدة
+        supabase.table("shipping_zones").delete().eq("client_id", user["id"]).execute()
+        
+        zones = payload.get("zones", [])
+        for z in zones:
+            zone_name = z.get("zone_name", "").strip()
+            if zone_name:
+                supabase.table("shipping_zones").insert({
+                    "client_id": user["id"],
+                    "zone_name": zone_name,
+                    "shipping_price": float(z.get("shipping_price", 0))
+                }).execute()
+        
+        return {"status": "success", "message": "تم حفظ إعدادات الشحن بنجاح"}
+    except Exception as e:
+        print(f"Error saving shipping config: {e}")
+        return {"status": "error", "message": str(e)}
