@@ -40,6 +40,50 @@
             .invoice-card { margin: 0; box-shadow: none; border-radius: 0; max-width: 100%; }
             .print-btn { display: none !important; }
         }
+
+        /* Dynamic Styling */
+        :root {
+            --primary-color: {{ color or '#4361ee' }};
+        }
+        
+        .invoice-header { background: var(--primary-color) !important; }
+        .info-box h3 { color: var(--primary-color) !important; }
+        .table th { background: var(--primary-color) !important; }
+        .totals-box { background: var(--primary-color) !important; }
+
+        /* Template Specific Adjustments */
+        {% if tpl == 'modern' %}
+        .invoice-card { background: #fafbfc; border-radius: 12px; }
+        .info-box { background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        {% elif tpl == 'minimal' %}
+        .invoice-card { font-family: 'Courier New', Courier, monospace; box-shadow: none; border: 1px dashed #ccc; }
+        .invoice-header { background: #fff !important; color: #000 !important; border-bottom: 2px solid #000; }
+        .invoice-header h1, .invoice-header p { color: #000 !important; }
+        .table th { background: #000 !important; }
+        .totals-box { background: #000 !important; }
+        {% elif tpl == 'elegant_retail' %}
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+        .invoice-card { font-family: 'Playfair Display', serif; background: #fffafb; border: 1px solid #f8d0d6; text-align: center; }
+        .invoice-header { background: transparent !important; color: var(--primary-color) !important; display: block; border-bottom: 1px solid var(--primary-color); }
+        .invoice-header h1 { font-style: italic; font-size: 2.5rem; }
+        .invoice-header p { color: #666 !important; }
+        .info-box { background: transparent; border: none; border-bottom: 1px dashed #eec2c2; }
+        .table th { background: var(--primary-color) !important; font-style: italic; }
+        {% elif tpl == 'thermal' %}
+        body { background: #fff; }
+        .invoice-card { width: 80mm; margin: 0 auto; box-shadow: none; border: 1px solid #000; padding: 5mm; font-family: monospace; }
+        .invoice-header { background: #fff !important; color: #000 !important; display: block; border-bottom: 1px dashed #000; text-align: center; }
+        .invoice-header h1 { font-size: 1.5rem; }
+        .info-grid { display: block; }
+        .info-box { background: transparent; border: none; border-bottom: 1px dashed #000; }
+        .table th { background: #fff !important; color: #000 !important; border-bottom: 1px dashed #000; }
+        .totals-box { background: #fff !important; color: #000 !important; border: 1px dashed #000; }
+        {% elif tpl == 'premium_corp' %}
+        .invoice-card { border-left: 10px solid var(--primary-color); padding: 50px; }
+        .invoice-header { background: transparent !important; color: #333 !important; border-bottom: 2px solid #eee; }
+        .invoice-header h1 { color: var(--primary-color) !important; font-weight: 900; }
+        .info-box { background: #f8f9fa; border-radius: 4px; border-top: 3px solid var(--primary-color); }
+        {% endif %}
     </style>
 </head>
 <body>
@@ -50,11 +94,11 @@
             <div>
                 <h1>فاتورة إلكترونية</h1>
                 <p>رقم الطلب: {{ order.order_number }}</p>
-                <p>تاريخ الطلب: {{ (order.created_at|string)[:10] }}</p>
+                <p>تاريخ الطلب: {{ (order.get('created_at')|string)[:10] if order.get('created_at') else '—' }}</p>
             </div>
-            {% if client.logo_url %}
+            {% if show_logo and client.get('logo_url') %}
             <div>
-                <img src="{{ client.logo_url }}" alt="{{ client.company_name }}" class="invoice-logo">
+                <img src="{{ client.get('logo_url') }}" alt="{{ client.get('company_name') }}" class="invoice-logo">
             </div>
             {% endif %}
         </div>
@@ -110,10 +154,12 @@
             </div>
 
             <div class="totals-section">
+                {% if show_qr %}
                 <div class="qr-section">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR Code">
                     <div class="text-muted small mt-1">مسح الكود للوصول للفاتورة</div>
                 </div>
+                {% endif %}
                 <div class="totals-box">
                     <p>الإجمالي النهائي</p>
                     <h2>{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</h2>
@@ -121,7 +167,7 @@
             </div>
 
             <div class="footer-note">
-                شكراً لتسوقكم معنا! تم إنشاء هذه الفاتورة آلياً بواسطة نظام الذكاء الاصطناعي.
+                {{ footer or 'شكراً لتسوقكم معنا! تم إنشاء هذه الفاتورة آلياً بواسطة نظام الذكاء الاصطناعي.' }}
             </div>
         </div>
     </div>

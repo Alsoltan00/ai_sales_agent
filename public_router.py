@@ -11,7 +11,7 @@ templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
 @router.get("/invoice/{order_id}")
-async def view_public_invoice(request: Request, order_id: str):
+async def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "false", footer: str = ""):
     try:
         # Fetch order
         order_res = supabase.table("orders").select("*").eq("id", order_id).execute()
@@ -67,7 +67,12 @@ async def view_public_invoice(request: Request, order_id: str):
             "order": order,
             "client": client_info,
             "order_json": json.dumps(order, default=str),
-            "public_url": public_url
+            "public_url": public_url,
+            "tpl": tpl,
+            "color": color,
+            "show_logo": show_logo.lower() == "true",
+            "show_qr": show_qr.lower() == "true",
+            "footer": footer
         })
 
     except Exception as e:

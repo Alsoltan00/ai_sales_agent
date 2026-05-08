@@ -445,8 +445,18 @@ function savePrintSettings() {
 function printInvoice(id) {
     const o = allOrders.find(x => x.id === id);
     if (!o) return;
-    const publicInvoiceUrl = window.location.origin + '/invoice/' + o.id;
-    window.open(publicInvoiceUrl, '_blank');
+    
+    const tpl = localStorage.getItem('print_template') || 'classic';
+    const color = localStorage.getItem('print_color') || '#4361ee';
+    const footer = localStorage.getItem('print_footer') || '';
+    const showLogo = localStorage.getItem('print_show_logo') !== 'false';
+    const showQR = localStorage.getItem('print_show_qr') === 'true';
+    
+    let url = window.location.origin + '/invoice/' + o.id;
+    url += `?tpl=${tpl}&color=${encodeURIComponent(color)}&show_logo=${showLogo}&show_qr=${showQR}`;
+    if (footer) url += `&footer=${encodeURIComponent(footer)}`;
+    
+    window.open(url, '_blank');
 }
 
 
