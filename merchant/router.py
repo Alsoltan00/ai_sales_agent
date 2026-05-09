@@ -25,13 +25,58 @@ def verify_merchant(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "merchant":
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
+    # إرفاق إعدادات التخطيط للشريط الجانبي الشرطي
+    try:
+        planning = get_planning_config(user["id"])
+        user["_planning"] = planning
+    except:
+        user["_planning"] = {}
     return user
 
 @router.get("/home", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
-    """لوحة التاجر الرئيسية (Home)"""
+    """لوحة التاجر الرئيسية (Home) - مع فحص الإعداد الأولي"""
     settings = get_store_settings(user["id"])
-    return templates.TemplateResponse("merchant_home.html", {"request": request, "user": user, "settings": settings})
+    planning = get_planning_config(user["id"])
+    
+    # فحص هل أكمل الإعداد الأولي؟
+    if not settings.get("onboarding_completed"):
+        return RedirectResponse(url="/merchant/onboarding", status_code=302)
+    
+    return templates.TemplateResponse("merchant_home.html", {
+        "request": request, "user": user, "settings": settings, "planning": planning
+    })
+
+@router.get("/onboarding", response_class=HTMLResponse)
+async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة الإعداد الأولي (Onboarding Wizard)"""
+    settings = get_store_settings(user["id"])
+    # إذا سبق وأكمل الإعداد، أعده للصفحة الرئيسية
+    if settings.get("onboarding_completed"):
+        return RedirectResponse(url="/merchant/home", status_code=302)
+    return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user})
+
+@router.post("/api/onboarding")
+async def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
+    """حفظ الإعداد الأولي (نوع المبيعات + مسار الطلب)"""
+    sales_type = payload.get("sales_type")
+    order_flow = payload.get("order_flow")
+    
+    if not sales_type or not order_flow:
+        return {"status": "error", "message": "يرجى اختيار نوع المبيعات ومسار الطلب"}
+    
+    try:
+        # حفظ في planning_config
+        update_planning_config(user["id"], {
+            "sales_type": sales_type,
+            "order_flow": order_flow
+        })
+        # تحديث حالة الإعداد الأولي
+        update_store_settings(user["id"], {"onboarding_completed": True})
+        return {"status": "success", "message": "تم حفظ الإعداد بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
+
 
 # --- Store Management ---
 

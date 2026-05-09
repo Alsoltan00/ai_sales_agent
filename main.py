@@ -217,6 +217,24 @@ def _migrate_database():
             except Exception as e:
                 print(f"[DB] Error migrating channels_config: {e}")
 
+            # 9. إضافة أعمدة الإعداد الأولي (Onboarding)
+            try:
+                cl_cols = [c['name'] for c in inspector.get_columns('clients')]
+                if 'onboarding_completed' not in cl_cols:
+                    conn.execute(text("ALTER TABLE clients ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE;"))
+            except Exception as e:
+                print(f"[DB] Error adding onboarding column: {e}")
+
+            # 10. إضافة أعمدة نوع المبيعات ومسار الطلب
+            try:
+                pc_cols = [c['name'] for c in inspector.get_columns('planning_config')]
+                if 'sales_type' not in pc_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN sales_type TEXT;"))
+                if 'order_flow' not in pc_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN order_flow TEXT;"))
+            except Exception as e:
+                print(f"[DB] Error adding planning columns: {e}")
+
             conn.commit()
             print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:

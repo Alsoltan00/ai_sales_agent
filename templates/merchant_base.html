@@ -141,7 +141,8 @@
       </a>
     </li>
 
-    <!-- Orders -->
+    {% if user and user._planning and user._planning.order_flow == 'in_chat' %}
+    <!-- Orders (in_chat فقط) -->
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
         <span class="nav-icon"><i class="ti ti-receipt"></i></span>
@@ -149,13 +150,28 @@
       </a>
     </li>
 
-    <!-- Shipping -->
+    <!-- Shipping (in_chat فقط) -->
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
         <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span>
         <span class="text">إعدادات الشحن</span>
       </a>
     </li>
+    {% elif not user or not user._planning or not user._planning.order_flow %}
+    <!-- Default: show all if not configured yet -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
+        <span class="nav-icon"><i class="ti ti-receipt"></i></span>
+        <span class="text">الطلبات</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
+        <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span>
+        <span class="text">إعدادات الشحن</span>
+      </a>
+    </li>
+    {% endif %}
 
     <!-- Divider -->
     <li class="nav-item">
@@ -276,6 +292,7 @@
           <span class="nav-icon"><i class="ti ti-shield-check"></i></span> <span class="text">الأرقام المصرّحة</span>
         </a>
       </li>
+      {% if user and user._planning and user._planning.order_flow == 'in_chat' %}
       <li class="nav-item">
         <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
           <span class="nav-icon"><i class="ti ti-receipt"></i></span> <span class="text">الطلبات</span>
@@ -286,6 +303,18 @@
           <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span> <span class="text">إعدادات الشحن</span>
         </a>
       </li>
+      {% elif not user or not user._planning or not user._planning.order_flow %}
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
+          <span class="nav-icon"><i class="ti ti-receipt"></i></span> <span class="text">الطلبات</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
+          <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span> <span class="text">إعدادات الشحن</span>
+        </a>
+      </li>
+      {% endif %}
     </ul>
   </div>
 </div>

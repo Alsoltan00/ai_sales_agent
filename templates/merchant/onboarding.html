@@ -1,0 +1,411 @@
+{% extends "merchant_base.html" %}
+
+{% block title %}إعداد المتجر{% endblock %}
+
+{% block extra_css %}
+/* ─── Onboarding Wizard Styles ─── */
+.onboarding-wrapper {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 20px 0 60px;
+}
+.onboarding-progress {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 40px;
+}
+.progress-step {
+    flex: 1;
+    height: 5px;
+    border-radius: 99px;
+    background: var(--bs-border-color);
+    transition: background 0.4s ease;
+}
+.progress-step.active {
+    background: var(--bs-primary);
+}
+.progress-step.done {
+    background: #10b981;
+}
+
+.step-panel {
+    display: none;
+    animation: fadeSlide 0.4s ease;
+}
+.step-panel.active {
+    display: block;
+}
+@keyframes fadeSlide {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.step-header {
+    text-align: center;
+    margin-bottom: 36px;
+}
+.step-header h2 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+.step-header p {
+    color: var(--bs-secondary-color);
+    font-size: 0.9rem;
+    max-width: 520px;
+    margin: 0 auto;
+}
+.step-header .step-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    margin: 0 auto 18px;
+}
+
+/* ─── Type Cards ─── */
+.type-card {
+    border: 2px solid var(--bs-border-color);
+    border-radius: 16px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-align: center;
+    position: relative;
+    background: var(--bs-body-bg);
+    height: 100%;
+}
+.type-card:hover {
+    border-color: rgba(var(--bs-primary-rgb), 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+.type-card.selected {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
+}
+.type-card .check-badge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    font-size: 0.75rem;
+    color: transparent;
+}
+.type-card.selected .check-badge {
+    background: var(--bs-primary);
+    border-color: var(--bs-primary);
+    color: white;
+}
+.type-card .card-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    margin: 0 auto 14px;
+    transition: all 0.25s ease;
+}
+.type-card h5 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+/* ─── Flow Cards (larger) ─── */
+.flow-card {
+    border: 2px solid var(--bs-border-color);
+    border-radius: 18px;
+    padding: 28px 24px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    background: var(--bs-body-bg);
+}
+.flow-card:hover {
+    border-color: rgba(var(--bs-primary-rgb), 0.4);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+}
+.flow-card.selected {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.04);
+    box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.15);
+}
+.flow-card .radio-dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+}
+.flow-card.selected .radio-dot {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary);
+}
+.flow-card.selected .radio-dot::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: white;
+}
+.flow-card .flow-icon {
+    font-size: 1.5rem;
+    margin-bottom: 4px;
+}
+.flow-card h5 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.flow-card p {
+    color: var(--bs-secondary-color);
+    font-size: 0.82rem;
+    margin-bottom: 0;
+    line-height: 1.7;
+}
+.flow-card .flow-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+.flow-badge.recommended {
+    background: rgba(16,185,129,0.12);
+    color: #10b981;
+    border: 1px solid rgba(16,185,129,0.3);
+}
+
+/* ─── Buttons ─── */
+.wizard-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--bs-border-color);
+}
+.btn-wizard {
+    padding: 12px 36px;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+.btn-wizard:hover {
+    transform: translateY(-1px);
+}
+
+/* ─── Welcome animation ─── */
+.welcome-emoji {
+    font-size: 3rem;
+    animation: bounce 1s ease infinite;
+    display: inline-block;
+}
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+{% endblock %}
+
+{% block content %}
+<div class="onboarding-wrapper">
+    <!-- Progress Bar -->
+    <div class="onboarding-progress">
+        <div class="progress-step active" id="prog-1"></div>
+        <div class="progress-step" id="prog-2"></div>
+    </div>
+
+    <!-- ═══ Step 1: Sales Type ═══ -->
+    <div class="step-panel active" id="step-1">
+        <div class="step-header">
+            <div class="step-icon bg-primary-subtle text-primary">
+                <i class="ti ti-box"></i>
+            </div>
+            <h2>نوع المبيعات / النشاط</h2>
+            <p>حدد طبيعة ما تقدمه لعملائك ليتمكن الموظف الآلي من استخدام المصطلحات الصحيحة (مثال: منتج، خدمة، موعد)</p>
+        </div>
+
+        <div class="row row-cols-2 row-cols-md-4 g-3 justify-content-center">
+            <div class="col">
+                <div class="type-card" data-type="products" onclick="selectType(this, 'products')">
+                    <div class="check-badge"><i class="ti ti-check"></i></div>
+                    <div class="card-icon bg-primary-subtle text-primary">
+                        <i class="ti ti-package"></i>
+                    </div>
+                    <h5>منتجات</h5>
+                </div>
+            </div>
+            <div class="col">
+                <div class="type-card" data-type="services" onclick="selectType(this, 'services')">
+                    <div class="check-badge"><i class="ti ti-check"></i></div>
+                    <div class="card-icon bg-info-subtle text-info">
+                        <i class="ti ti-tools"></i>
+                    </div>
+                    <h5>خدمات</h5>
+                </div>
+            </div>
+            <div class="col">
+                <div class="type-card" data-type="reservations" onclick="selectType(this, 'reservations')">
+                    <div class="check-badge"><i class="ti ti-check"></i></div>
+                    <div class="card-icon bg-warning-subtle text-warning">
+                        <i class="ti ti-calendar-event"></i>
+                    </div>
+                    <h5>حجوزات</h5>
+                </div>
+            </div>
+            <div class="col">
+                <div class="type-card" data-type="other" onclick="selectType(this, 'other')">
+                    <div class="check-badge"><i class="ti ti-check"></i></div>
+                    <div class="card-icon bg-secondary-subtle text-secondary">
+                        <i class="ti ti-dots-circle-horizontal"></i>
+                    </div>
+                    <h5>أخرى</h5>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-actions">
+            <div></div>
+            <button class="btn btn-primary btn-wizard" id="nextBtn1" onclick="goStep(2)" disabled>
+                التالي <i class="ti ti-arrow-left ms-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══ Step 2: Order Flow ═══ -->
+    <div class="step-panel" id="step-2">
+        <div class="step-header">
+            <div class="step-icon bg-success-subtle text-success">
+                <i class="ti ti-route"></i>
+            </div>
+            <h2>أين سيتم إتمام الطلب والدفع؟</h2>
+            <p>حدد مسار العمل الأساسي. هل تريد من الموظف الآلي إتمام كل شيء داخل المحادثة أم توجيههم للمتجر؟</p>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="flow-card" onclick="selectFlow(this, 'in_chat')">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="radio-dot mt-1"></div>
+                        <div>
+                            <div class="flow-icon">💬</div>
+                            <h5>داخل المحادثة (واتساب)</h5>
+                            <p>سيقوم الموظف بأخذ بيانات العميل وتأكيد الطلب يدوياً بالكامل في المحادثة.</p>
+                            <span class="flow-badge recommended">✓ المسار المعتمد</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="flow-card" onclick="selectFlow(this, 'online_store')">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="radio-dot mt-1"></div>
+                        <div>
+                            <div class="flow-icon">🛒</div>
+                            <h5>عبر المتجر الإلكتروني</h5>
+                            <p>سيوجه الموظف الآلي العميل لروابط المنتجات في متجرك لإتمام الشراء والدفع.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-actions">
+            <button class="btn btn-outline-secondary btn-wizard" onclick="goStep(1)">
+                <i class="ti ti-arrow-right me-1"></i> السابق
+            </button>
+            <button class="btn btn-primary btn-wizard" id="finishBtn" onclick="finishOnboarding()" disabled>
+                <i class="ti ti-check me-1"></i> بدء الاستخدام
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let selectedSalesType = null;
+let selectedOrderFlow = null;
+
+function selectType(el, type) {
+    document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedSalesType = type;
+    document.getElementById('nextBtn1').disabled = false;
+}
+
+function selectFlow(el, flow) {
+    document.querySelectorAll('.flow-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedOrderFlow = flow;
+    document.getElementById('finishBtn').disabled = false;
+}
+
+function goStep(step) {
+    // Validate before going forward
+    if (step === 2 && !selectedSalesType) return;
+
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + step).classList.add('active');
+
+    // Update progress
+    for (let i = 1; i <= 2; i++) {
+        const prog = document.getElementById('prog-' + i);
+        prog.classList.remove('active', 'done');
+        if (i < step) prog.classList.add('done');
+        else if (i === step) prog.classList.add('active');
+    }
+}
+
+async function finishOnboarding() {
+    if (!selectedSalesType || !selectedOrderFlow) return;
+
+    const btn = document.getElementById('finishBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
+
+    try {
+        const res = await fetch('/merchant/api/onboarding', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                sales_type: selectedSalesType,
+                order_flow: selectedOrderFlow
+            })
+        });
+        const data = await res.json();
+        if (data.status === 'success') {
+            window.location.href = '/merchant/home';
+        } else {
+            alert(data.message || 'حدث خطأ');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-check me-1"></i> بدء الاستخدام';
+        }
+    } catch(e) {
+        alert('خطأ في الاتصال بالخادم');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-check me-1"></i> بدء الاستخدام';
+    }
+}
+</script>
+{% endblock %}
