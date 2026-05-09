@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تأكيد حجز #{{ order.order_number }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: {{ color or '#4361ee' }}; --primary-light: {{ color or '#4361ee' }}15; --primary-dark: {{ color or '#4361ee' }}dd; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Kufi Arabic', sans-serif; background: #eef1f5; color: #1a1a2e; font-size: 14px; }
+        .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; position: relative; overflow: hidden; }
+        
+        /* Decorative top */
+        .top-deco { height: 8px; background: linear-gradient(90deg, var(--primary), var(--primary-dark), var(--primary)); }
+        
+        /* Header */
+        .bk-header { padding: 30px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f0f0; }
+        .bk-header .brand { display: flex; align-items: center; gap: 14px; }
+        .bk-header .brand img { max-height: 55px; max-width: 100px; }
+        .bk-header .brand .name { font-size: 1.3rem; font-weight: 800; color: #333; }
+        .bk-header .brand .sub { font-size: 0.75rem; color: #888; }
+        .bk-header .booking-badge { background: var(--primary); color: #fff; padding: 10px 24px; border-radius: 30px; font-weight: 700; font-size: 0.9rem; }
+        
+        /* Confirmation Banner -->
+        .confirm-banner { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: #fff; padding: 28px 40px; text-align: center; }
+        .confirm-banner .icon { font-size: 2.5rem; margin-bottom: 8px; }
+        .confirm-banner h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+        .confirm-banner p { opacity: 0.85; font-size: 0.85rem; }
+        
+        .bk-body { padding: 28px 40px; }
+        
+        /* Booking Number Card */
+        .booking-num-card { background: var(--primary-light); border: 2px dashed var(--primary); border-radius: 12px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+        .booking-num-card .lbl { color: #666; font-size: 0.82rem; }
+        .booking-num-card .num { font-size: 1.6rem; font-weight: 800; color: var(--primary); letter-spacing: 2px; }
+        .booking-num-card .date-info { text-align: left; }
+        .booking-num-card .date-info .d { font-weight: 700; color: #333; font-size: 0.95rem; }
+        .booking-num-card .date-info .t { color: #888; font-size: 0.75rem; }
+        
+        /* Info Grid */
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 24px; }
+        .info-block { background: #fafbfc; border: 1px solid #e8ecf1; border-radius: 10px; padding: 18px; }
+        .info-block .block-title { font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px dashed #ddd; letter-spacing: 1px; }
+        .info-block .info-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 0.82rem; }
+        .info-block .info-row .k { color: #888; }
+        .info-block .info-row .v { font-weight: 600; }
+        
+        /* Booking Details */
+        .booking-details { border: 1px solid #e8ecf1; border-radius: 10px; overflow: hidden; margin-bottom: 24px; }
+        .booking-details .det-header { background: var(--primary); color: #fff; padding: 12px 18px; font-weight: 700; font-size: 0.85rem; }
+        .booking-details .det-body { padding: 16px 18px; }
+        .det-table { width: 100%; border-collapse: collapse; }
+        .det-table th { text-align: right; padding: 10px 12px; background: #f8f9fb; font-size: 0.78rem; color: #666; border-bottom: 1px solid #eee; }
+        .det-table th.c { text-align: center; }
+        .det-table th.l { text-align: left; }
+        .det-table td { padding: 10px 12px; border-bottom: 1px solid #f5f5f5; font-size: 0.82rem; }
+        .det-table td.c { text-align: center; }
+        .det-table td.l { text-align: left; font-weight: 600; }
+        
+        /* Total Bar */
+        .total-bar { background: var(--primary); color: #fff; border-radius: 10px; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .total-bar .lbl { font-size: 0.9rem; }
+        .total-bar .val { font-size: 1.5rem; font-weight: 800; }
+        
+        /* QR + Notes */
+        .bottom-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; margin-bottom: 20px; }
+        .notes-box { flex: 1; background: #fffbf0; border: 1px solid #f5e6c8; border-radius: 10px; padding: 14px 16px; font-size: 0.8rem; }
+        .notes-box .nt { font-weight: 700; color: #c0860a; margin-bottom: 6px; }
+        .qr-wrap { text-align: center; }
+        .qr-wrap img { width: 100px; height: 100px; border-radius: 8px; }
+        .qr-wrap p { font-size: 0.65rem; color: #999; margin-top: 4px; }
+        
+        /* Footer */
+        .bk-footer { border-top: 1px dashed #ddd; padding-top: 14px; text-align: center; color: #aaa; font-size: 0.72rem; }
+        .bk-footer .msg { color: #666; font-size: 0.8rem; margin-bottom: 6px; }
+        
+        /* Print */
+        .print-actions { text-align: center; padding: 20px; }
+        .print-actions button { font-family: 'Noto Kufi Arabic', sans-serif; padding: 10px 28px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; margin: 0 5px; }
+        .btn-p { background: var(--primary); color: #fff; }
+        .btn-b { background: #e8ecf1; color: #333; }
+        @media print { body { background: #fff; } .page { margin: 0; box-shadow: none; width: 100%; } .print-actions { display: none !important; } }
+        @media screen { .page { box-shadow: 0 4px 30px rgba(0,0,0,0.1); margin: 30px auto; border-radius: 4px; } }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <div class="top-deco"></div>
+    
+    <!-- Header -->
+    <div class="bk-header">
+        <div class="brand">
+            {% if show_logo and client.get('logo_url') %}
+            <img src="{{ client.get('logo_url') }}" alt="Logo">
+            {% endif %}
+            <div>
+                <div class="name">{{ client.get('company_name', 'المتجر') }}</div>
+                <div class="sub">{% if client.get('contact_number') %}📞 {{ client.get('contact_number') }}{% endif %}</div>
+            </div>
+        </div>
+        <div class="booking-badge">📋 تأكيد حجز</div>
+    </div>
+    
+    <!-- Confirmation Banner -->
+    <div class="confirm-banner">
+        <div class="icon">✅</div>
+        <h2>تم تأكيد حجزك بنجاح</h2>
+        <p>يرجى الاحتفاظ بهذا المستند كمرجع للحجز</p>
+    </div>
+    
+    <div class="bk-body">
+        <!-- Booking Number -->
+        <div class="booking-num-card">
+            <div>
+                <div class="lbl">رقم الحجز</div>
+                <div class="num">{{ order.order_number }}</div>
+            </div>
+            <div class="date-info">
+                <div class="lbl">تاريخ الحجز</div>
+                <div class="d">{{ (order.get('created_at')|string)[:10] if order.get('created_at') else '—' }}</div>
+                {% if order.get('booking_date') %}<div class="t">موعد الحجز: {{ order.booking_date }}</div>{% endif %}
+            </div>
+        </div>
+        
+        <!-- Info -->
+        <div class="info-grid">
+            <div class="info-block">
+                <div class="block-title">👤 بيانات العميل</div>
+                <div class="info-row"><span class="k">الاسم</span><span class="v">{{ order.customer_name or '—' }}</span></div>
+                <div class="info-row"><span class="k">الهاتف</span><span class="v" dir="ltr">{{ order.customer_phone or '—' }}</span></div>
+                <div class="info-row"><span class="k">العنوان</span><span class="v">{{ order.customer_address or '—' }}</span></div>
+                <div class="info-row"><span class="k">المدينة</span><span class="v">{{ order.customer_city or '—' }}</span></div>
+            </div>
+            <div class="info-block">
+                <div class="block-title">📌 تفاصيل الحجز</div>
+                <div class="info-row"><span class="k">نوع الطلب</span><span class="v">حجز</span></div>
+                <div class="info-row"><span class="k">حالة الحجز</span><span class="v">{% if order.order_status == 'confirmed' %}مؤكد ✅{% elif order.order_status == 'pending' %}قيد الانتظار ⏳{% elif order.order_status == 'completed' %}مكتمل 🎉{% else %}{{ order.order_status }}{% endif %}</span></div>
+                <div class="info-row"><span class="k">الدفع</span><span class="v">{% if order.payment_status == 'paid' %}مدفوع ✅{% else %}غير مدفوع{% endif %}</span></div>
+                <div class="info-row"><span class="k">طريقة الدفع</span><span class="v">{% if order.payment_method == 'cod' %}عند الاستلام{% elif order.payment_method == 'cash' %}نقدي{% elif order.payment_method == 'card' %}بطاقة{% elif order.payment_method == 'bank_transfer' %}تحويل{% else %}{{ order.payment_method or '—' }}{% endif %}</span></div>
+            </div>
+        </div>
+        
+        <!-- Items -->
+        <div class="booking-details">
+            <div class="det-header">📦 تفاصيل الخدمات / المنتجات المحجوزة</div>
+            <div class="det-body">
+                <table class="det-table">
+                    <thead><tr><th>#</th><th>البند</th><th class="c">الكمية</th><th class="c">السعر</th><th class="l">الإجمالي</th></tr></thead>
+                    <tbody>
+                    {% for item in order.get('items', []) %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ item.get('name') or item.get('اسم') or '—' }}</td>
+                        <td class="c">{{ item.get('qty', 1) }}</td>
+                        <td class="c">{{ "%.2f"|format(item.get('price', 0)) }}</td>
+                        <td class="l">{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }} {{ order.get('currency', 'SAR') }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% if not order.get('items') %}
+                    <tr><td colspan="5" style="text-align:center; padding:20px; color:#aaa;">—</td></tr>
+                    {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Total -->
+        <div class="total-bar">
+            <span class="lbl">💰 المبلغ الإجمالي</span>
+            <span class="val">{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</span>
+        </div>
+        
+        <!-- Bottom -->
+        <div class="bottom-row">
+            <div class="notes-box">
+                <div class="nt">⚠️ ملاحظات هامة</div>
+                <ul style="padding-right:16px; font-size:0.78rem; color:#666; line-height:1.8;">
+                    <li>يرجى إحضار هذا المستند عند الحضور</li>
+                    <li>في حال الرغبة بالإلغاء يرجى التواصل مسبقاً</li>
+                    {% if order.get('internal_notes') %}<li>{{ order.internal_notes }}</li>{% endif %}
+                </ul>
+            </div>
+            {% if show_qr %}
+            <div class="qr-wrap">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR">
+                <p>امسح للتفاصيل</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="bk-footer">
+            <div class="msg">{{ footer or 'شكراً لثقتكم بنا! نتطلع لخدمتكم.' }}</div>
+            <p>Powered by AI Sales Agent</p>
+        </div>
+    </div>
+</div>
+
+<div class="print-actions">
+    <button class="btn-p" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+    <button class="btn-b" onclick="history.back()">↩️ رجوع</button>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إيصال رقمي #{{ order.order_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; background: #1a1a2e; font-size: 12px; color: #000; }
+        .receipt { width: 80mm; margin: 20px auto; background: #fff; padding: 8mm 5mm; }
+        .r-center { text-align: center; }
+        .r-line { border-top: 1px dashed #000; margin: 8px 0; }
+        .r-line2 { border-top: 2px dashed #000; margin: 10px 0; }
+        .r-logo { max-width: 45mm; max-height: 14mm; margin: 0 auto 6px; display: block; }
+        .r-store { font-size: 15px; font-weight: bold; }
+        .r-sub { font-size: 10px; color: #555; margin: 2px 0; }
+        .r-badge { display: inline-block; background: #000; color: #fff; padding: 4px 14px; font-size: 11px; font-weight: bold; margin: 6px 0; border-radius: 3px; }
+        .r-num { font-size: 16px; font-weight: bold; letter-spacing: 1px; margin: 4px 0; }
+        .r-date { font-size: 10px; color: #666; }
+        .r-section { text-align: right; margin: 6px 0; font-size: 11px; }
+        .r-section .lbl { color: #666; }
+        .r-section .title { font-weight: bold; font-size: 11px; margin-bottom: 3px; text-decoration: underline; }
+        .r-item-card { border: 1px solid #ddd; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+        .r-item-name { font-weight: bold; font-size: 12px; }
+        .r-item-detail { font-size: 10px; color: #666; }
+        .r-item-price { text-align: left; font-weight: bold; font-size: 12px; margin-top: 2px; }
+        .r-grand { display: flex; justify-content: space-between; padding: 6px 0; font-size: 16px; font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 6px 0; }
+        .r-delivery { background: #f0fff0; border: 1px solid #ccc; padding: 6px 8px; margin: 6px 0; font-size: 10px; text-align: center; }
+        .r-payment { text-align: center; font-size: 11px; padding: 4px; background: #f5f5f5; margin: 6px 0; }
+        .r-qr { text-align: center; margin: 8px 0; }
+        .r-qr img { width: 28mm; height: 28mm; }
+        .r-qr p { font-size: 9px; color: #888; }
+        .r-footer { text-align: center; font-size: 9px; color: #888; margin-top: 6px; }
+        .r-thanks { font-size: 12px; font-weight: bold; color: #333; margin-bottom: 3px; }
+        .print-actions { text-align: center; padding: 15px; }
+        .print-actions button { font-family: monospace; padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 0 4px; font-weight: bold; }
+        .btn-p { background: #8b5cf6; color: #fff; }
+        .btn-b { background: #555; color: #fff; }
+        @media print { body { background: #fff; } .receipt { margin: 0; } .print-actions { display: none !important; } }
+        @media screen { .receipt { box-shadow: 0 2px 20px rgba(0,0,0,0.4); } }
+    </style>
+</head>
+<body>
+<div class="receipt">
+    {% if show_logo and client.get('logo_url') %}<img src="{{ client.get('logo_url') }}" class="r-logo" alt="">{% endif %}
+    <div class="r-center">
+        <div class="r-store">{{ client.get('company_name', 'المتجر') }}</div>
+        <div class="r-sub">{% if client.get('contact_number') %}📞 {{ client.get('contact_number') }}{% endif %}</div>
+        <div class="r-badge">💎 منتج رقمي</div>
+    </div>
+    <div class="r-line2"></div>
+    <div class="r-center">
+        <div class="r-num">{{ order.order_number }}</div>
+        <div class="r-date">{{ (order.get('created_at')|string)[:16] if order.get('created_at') else '—' }}</div>
+    </div>
+    <div class="r-line"></div>
+    <div class="r-section">
+        <div class="title">بيانات المشتري</div>
+        <div><span class="lbl">الاسم: </span>{{ order.customer_name or '—' }}</div>
+        <div><span class="lbl">الهاتف: </span><span dir="ltr">{{ order.customer_phone or '—' }}</span></div>
+    </div>
+    <div class="r-line"></div>
+    <div class="r-section">
+        <div class="title">📦 المنتجات الرقمية</div>
+    </div>
+    {% for item in order.get('items', []) %}
+    <div class="r-item-card">
+        <div class="r-item-name">📱 {{ item.get('name') or item.get('اسم') or '—' }}</div>
+        <div class="r-item-detail">الكمية: {{ item.get('qty', 1) }} × {{ "%.2f"|format(item.get('price', 0)) }}</div>
+        <div class="r-item-price">{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }} {{ order.get('currency', 'SAR') }}</div>
+    </div>
+    {% endfor %}
+    <div class="r-line2"></div>
+    <div class="r-grand">
+        <span>الإجمالي</span>
+        <span>{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</span>
+    </div>
+    <div class="r-payment">
+        الدفع: {% if order.payment_status == 'paid' %}✅ مدفوع{% else %}⏳ غير مدفوع{% endif %}
+    </div>
+    <div class="r-delivery">⚡ تسليم فوري — إلكتروني</div>
+    {% if show_qr %}
+    <div class="r-qr">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR">
+        <p>امسح للتفاصيل</p>
+    </div>
+    {% endif %}
+    <div class="r-line"></div>
+    <div class="r-footer">
+        <div class="r-thanks">{{ footer or 'شكراً لشرائكم!' }}</div>
+        <p>AI Sales Agent</p>
+    </div>
+</div>
+<div class="print-actions">
+    <button class="btn-p" onclick="window.print()">🖨️ طباعة</button>
+    <button class="btn-b" onclick="history.back()">↩️ رجوع</button>
+</div>
+</body>
+</html>

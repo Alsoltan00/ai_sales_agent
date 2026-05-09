@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>إيصال حجز #{{ order.order_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; background: #333; font-size: 12px; color: #000; }
+        .receipt { width: 80mm; margin: 20px auto; background: #fff; padding: 8mm 5mm; }
+        .r-center { text-align: center; }
+        .r-line { border-top: 1px dashed #000; margin: 8px 0; }
+        .r-line2 { border-top: 2px dashed #000; margin: 10px 0; }
+        .r-logo { max-width: 45mm; max-height: 14mm; margin: 0 auto 6px; display: block; }
+        .r-store { font-size: 15px; font-weight: bold; }
+        .r-sub { font-size: 10px; color: #555; margin: 2px 0 6px; }
+        
+        .r-badge { display: inline-block; background: #000; color: #fff; padding: 4px 14px; font-size: 12px; font-weight: bold; margin: 6px 0; border-radius: 3px; }
+        .r-confirm { font-size: 14px; font-weight: bold; margin: 8px 0 4px; }
+        .r-num { font-size: 18px; font-weight: bold; letter-spacing: 2px; margin: 4px 0; }
+        .r-date { font-size: 10px; color: #666; }
+        
+        .r-section { text-align: right; margin: 6px 0; font-size: 11px; }
+        .r-section .lbl { color: #666; }
+        .r-section .title { font-weight: bold; font-size: 12px; margin-bottom: 4px; text-decoration: underline; }
+        
+        .r-items { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 11px; }
+        .r-items th { text-align: right; padding: 4px 2px; border-bottom: 1px solid #000; font-size: 10px; }
+        .r-items th:last-child { text-align: left; }
+        .r-items td { padding: 3px 2px; border-bottom: 1px dotted #ccc; }
+        .r-items td:last-child { text-align: left; font-weight: bold; }
+        .r-items td.c { text-align: center; }
+        
+        .r-grand { display: flex; justify-content: space-between; padding: 6px 0; font-size: 16px; font-weight: bold; border-top: 2px solid #000; border-bottom: 2px solid #000; margin: 6px 0; }
+        
+        .r-payment { text-align: center; font-size: 11px; padding: 4px; background: #f5f5f5; margin: 6px 0; }
+        .r-note { background: #f9f9f0; padding: 6px 8px; font-size: 10px; border: 1px dashed #ccc; margin: 6px 0; }
+        .r-note strong { display: block; margin-bottom: 3px; }
+        
+        .r-qr { text-align: center; margin: 8px 0; }
+        .r-qr img { width: 28mm; height: 28mm; }
+        .r-qr p { font-size: 9px; color: #888; }
+        
+        .r-footer { text-align: center; font-size: 9px; color: #888; margin-top: 6px; }
+        .r-thanks { font-size: 13px; font-weight: bold; color: #333; margin-bottom: 3px; }
+        
+        .print-actions { text-align: center; padding: 15px; }
+        .print-actions button { font-family: monospace; padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 0 4px; font-weight: bold; }
+        .btn-p { background: #27ae60; color: #fff; }
+        .btn-b { background: #555; color: #fff; }
+        @media print { body { background: #fff; } .receipt { margin: 0; } .print-actions { display: none !important; } }
+        @media screen { .receipt { box-shadow: 0 2px 20px rgba(0,0,0,0.3); } }
+    </style>
+</head>
+<body>
+
+<div class="receipt">
+    {% if show_logo and client.get('logo_url') %}<img src="{{ client.get('logo_url') }}" class="r-logo" alt="">{% endif %}
+    
+    <div class="r-center">
+        <div class="r-store">{{ client.get('company_name', 'المتجر') }}</div>
+        <div class="r-sub">{% if client.get('contact_number') %}📞 {{ client.get('contact_number') }}{% endif %}</div>
+        <div class="r-badge">📋 إيصال حجز</div>
+    </div>
+    
+    <div class="r-line2"></div>
+    
+    <div class="r-center">
+        <div class="r-confirm">✅ تم تأكيد الحجز</div>
+        <div class="r-num">{{ order.order_number }}</div>
+        <div class="r-date">{{ (order.get('created_at')|string)[:16] if order.get('created_at') else '—' }}</div>
+        {% if order.get('booking_date') %}<div class="r-date" style="font-weight:bold;">موعد الحجز: {{ order.booking_date }}</div>{% endif %}
+    </div>
+    
+    <div class="r-line"></div>
+    
+    <div class="r-section">
+        <div class="title">بيانات العميل</div>
+        <div><span class="lbl">الاسم: </span>{{ order.customer_name or '—' }}</div>
+        <div><span class="lbl">الهاتف: </span><span dir="ltr">{{ order.customer_phone or '—' }}</span></div>
+        {% if order.customer_address %}<div><span class="lbl">العنوان: </span>{{ order.customer_address }}</div>{% endif %}
+    </div>
+    
+    <div class="r-line"></div>
+    
+    <table class="r-items">
+        <thead><tr><th>البند</th><th style="text-align:center">عدد</th><th>المبلغ</th></tr></thead>
+        <tbody>
+        {% for item in order.get('items', []) %}
+        <tr>
+            <td>{{ item.get('name') or item.get('اسم') or '—' }}</td>
+            <td class="c">{{ item.get('qty', 1) }}</td>
+            <td>{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="r-grand">
+        <span>الإجمالي</span>
+        <span>{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</span>
+    </div>
+    
+    <div class="r-payment">
+        الدفع: {% if order.payment_status == 'paid' %}✅ مدفوع{% else %}⏳ غير مدفوع{% endif %}
+    </div>
+    
+    <div class="r-note">
+        <strong>⚠️ تعليمات:</strong>
+        • يرجى إحضار هذا الإيصال عند الحضور<br>
+        • للإلغاء تواصل معنا مسبقاً
+    </div>
+    
+    {% if show_qr %}
+    <div class="r-qr">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR">
+        <p>امسح للتفاصيل</p>
+    </div>
+    {% endif %}
+    
+    <div class="r-line"></div>
+    <div class="r-footer">
+        <div class="r-thanks">{{ footer or 'شكراً لثقتكم!' }}</div>
+        <p>AI Sales Agent</p>
+    </div>
+</div>
+
+<div class="print-actions">
+    <button class="btn-p" onclick="window.print()">🖨️ طباعة</button>
+    <button class="btn-b" onclick="history.back()">↩️ رجوع</button>
+</div>
+</body>
+</html>

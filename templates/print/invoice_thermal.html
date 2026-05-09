@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إيصال #{{ order.order_number }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Courier New', monospace; background: #333; font-size: 12px; color: #000; }
+        .receipt { width: 80mm; margin: 20px auto; background: #fff; padding: 8mm 5mm; }
+        
+        .r-center { text-align: center; }
+        .r-line { border-top: 1px dashed #000; margin: 8px 0; }
+        .r-line-double { border-top: 2px dashed #000; margin: 10px 0; }
+        
+        /* Header */
+        .r-logo { max-width: 50mm; max-height: 15mm; margin: 0 auto 6px; display: block; }
+        .r-store { font-size: 16px; font-weight: bold; margin-bottom: 2px; }
+        .r-subtitle { font-size: 10px; color: #555; margin-bottom: 4px; }
+        .r-inv-num { font-size: 14px; font-weight: bold; margin: 6px 0 2px; }
+        .r-date { font-size: 10px; color: #666; }
+        
+        /* Customer */
+        .r-customer { text-align: right; margin: 6px 0; font-size: 11px; }
+        .r-customer .lbl { color: #666; }
+        
+        /* Items */
+        .r-items { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 11px; }
+        .r-items th { text-align: right; padding: 4px 2px; font-size: 10px; border-bottom: 1px solid #000; }
+        .r-items th:last-child { text-align: left; }
+        .r-items td { padding: 4px 2px; border-bottom: 1px dotted #ccc; }
+        .r-items td:last-child { text-align: left; font-weight: bold; }
+        .r-items td.c { text-align: center; }
+        
+        /* Totals */
+        .r-total-line { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; }
+        .r-grand { display: flex; justify-content: space-between; padding: 8px 0; font-size: 16px; font-weight: bold; margin-top: 4px; }
+        
+        /* Payment */
+        .r-payment { text-align: center; font-size: 11px; padding: 4px; background: #f5f5f5; border-radius: 4px; margin: 6px 0; }
+        .r-status-paid { color: #27ae60; font-weight: bold; }
+        .r-status-pending { color: #e74c3c; font-weight: bold; }
+        
+        /* QR */
+        .r-qr { text-align: center; margin: 8px 0; }
+        .r-qr img { width: 30mm; height: 30mm; }
+        .r-qr p { font-size: 9px; color: #888; margin-top: 2px; }
+        
+        /* Footer */
+        .r-footer { text-align: center; font-size: 9px; color: #888; margin-top: 8px; }
+        .r-thanks { font-size: 13px; font-weight: bold; margin-bottom: 4px; color: #333; }
+        
+        /* Print */
+        .print-actions { text-align: center; padding: 15px; }
+        .print-actions button { font-family: 'Courier New', monospace; padding: 8px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 0 4px; font-weight: bold; }
+        .btn-p { background: #27ae60; color: #fff; }
+        .btn-b { background: #555; color: #fff; }
+        
+        @media print {
+            body { background: #fff; }
+            .receipt { margin: 0; box-shadow: none; }
+            .print-actions { display: none !important; }
+        }
+        @media screen {
+            .receipt { box-shadow: 0 2px 20px rgba(0,0,0,0.3); border-radius: 2px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="receipt">
+    {% if show_logo and client.get('logo_url') %}
+    <img src="{{ client.get('logo_url') }}" class="r-logo" alt="Logo">
+    {% endif %}
+    
+    <div class="r-center">
+        <div class="r-store">{{ client.get('company_name', 'المتجر') }}</div>
+        {% if client.get('contact_number') %}<div class="r-subtitle">📞 {{ client.get('contact_number') }}</div>{% endif %}
+    </div>
+    
+    <div class="r-line-double"></div>
+    
+    <div class="r-center">
+        <div class="r-inv-num">فاتورة #{{ order.order_number }}</div>
+        <div class="r-date">{{ (order.get('created_at')|string)[:16] if order.get('created_at') else '—' }}</div>
+    </div>
+    
+    <div class="r-line"></div>
+    
+    <!-- Customer -->
+    <div class="r-customer">
+        <div><span class="lbl">العميل: </span>{{ order.customer_name or '—' }}</div>
+        <div><span class="lbl">الهاتف: </span><span dir="ltr">{{ order.customer_phone or '—' }}</span></div>
+        {% if order.customer_address %}<div><span class="lbl">العنوان: </span>{{ order.customer_address }}</div>{% endif %}
+    </div>
+    
+    <div class="r-line"></div>
+    
+    <!-- Items -->
+    <table class="r-items">
+        <thead><tr><th>الصنف</th><th style="text-align:center">كمية</th><th>المبلغ</th></tr></thead>
+        <tbody>
+        {% for item in order.get('items', []) %}
+        <tr>
+            <td>{{ item.get('name') or item.get('اسم') or '—' }}</td>
+            <td class="c">{{ item.get('qty', 1) }}</td>
+            <td>{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="r-line-double"></div>
+    
+    <!-- Totals -->
+    {% if order.get('subtotal') %}<div class="r-total-line"><span>المجموع الفرعي</span><span>{{ "%.2f"|format(order.subtotal) }}</span></div>{% endif %}
+    {% if order.get('discount_amount') %}<div class="r-total-line"><span>الخصم</span><span>- {{ "%.2f"|format(order.discount_amount) }}</span></div>{% endif %}
+    {% if order.get('tax_amount') %}<div class="r-total-line"><span>الضريبة</span><span>{{ "%.2f"|format(order.tax_amount) }}</span></div>{% endif %}
+    {% if order.get('shipping_cost') %}<div class="r-total-line"><span>الشحن</span><span>{{ "%.2f"|format(order.shipping_cost) }}</span></div>{% endif %}
+    
+    <div class="r-grand">
+        <span>الإجمالي</span>
+        <span>{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</span>
+    </div>
+    
+    <div class="r-payment">
+        طريقة الدفع: {% if order.payment_method == 'cod' %}عند الاستلام{% elif order.payment_method == 'cash' %}نقدي{% elif order.payment_method == 'card' %}بطاقة{% elif order.payment_method == 'bank_transfer' %}تحويل{% else %}{{ order.payment_method or '—' }}{% endif %}
+        <br>
+        الحالة: {% if order.payment_status == 'paid' %}<span class="r-status-paid">✅ مدفوع</span>{% else %}<span class="r-status-pending">⏳ غير مدفوع</span>{% endif %}
+    </div>
+    
+    {% if show_qr %}
+    <div class="r-qr">
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR">
+        <p>امسح للفاتورة الإلكترونية</p>
+    </div>
+    {% endif %}
+    
+    <div class="r-line"></div>
+    
+    <div class="r-footer">
+        <div class="r-thanks">{{ footer or 'شكراً لزيارتكم!' }}</div>
+        <p>فاتورة إلكترونية — AI Sales Agent</p>
+    </div>
+</div>
+
+<div class="print-actions">
+    <button class="btn-p" onclick="window.print()">🖨️ طباعة</button>
+    <button class="btn-b" onclick="history.back()">↩️ رجوع</button>
+</div>
+
+</body>
+</html>

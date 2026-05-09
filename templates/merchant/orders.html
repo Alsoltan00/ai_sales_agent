@@ -118,7 +118,20 @@
         <td>
             <div class="d-flex gap-1">
                 <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ o.id }}')" title="عرض"><i class="ti ti-eye"></i></button>
-                <button class="btn btn-sm btn-outline-success" onclick="printInvoice('{{ o.id }}')" title="طباعة الفاتورة"><i class="ti ti-printer"></i></button>
+                <div class="dropdown d-inline-block">
+                    <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" title="طباعة"><i class="ti ti-printer"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="min-width:220px;">
+                        <li><h6 class="dropdown-header"><i class="ti ti-file-text me-1"></i>نماذج A4</h6></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','invoice_a4')"><i class="ti ti-file-invoice me-2 text-primary"></i>فاتورة عادية A4</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','booking_a4')"><i class="ti ti-calendar-check me-2 text-success"></i>تأكيد حجز A4</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','digital_a4')"><i class="ti ti-device-mobile me-2 text-info"></i>منتج رقمي A4</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header"><i class="ti ti-receipt me-1"></i>إيصال حراري (80mm)</h6></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','invoice_thermal')"><i class="ti ti-receipt-2 me-2 text-warning"></i>إيصال فاتورة</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','booking_thermal')"><i class="ti ti-ticket me-2 text-success"></i>إيصال حجز</a></li>
+                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','digital_thermal')"><i class="ti ti-qrcode me-2 text-info"></i>إيصال رقمي</a></li>
+                    </ul>
+                </div>
                 <button class="btn btn-sm btn-outline-warning" onclick="editStatus('{{ o.id }}','{{ o.order_status }}','{{ o.payment_status }}')" title="تعديل"><i class="ti ti-edit"></i></button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder('{{ o.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
             </div>
@@ -386,6 +399,13 @@ function viewOrder(id) {
             ${o.internal_notes ? `<div class="col-12"><div class="detail-label">ملاحظات داخلية</div><div class="detail-value">${o.internal_notes}</div></div>` : ''}
             ${o.ai_summary ? `<div class="col-12"><div class="detail-label">ملخص الذكاء الاصطناعي</div><div class="detail-value">${o.ai_summary}</div></div>` : ''}
             <div class="col-12 mt-4 pt-3 border-top">
+                <div class="detail-label mb-2">🖨️ طباعة النموذج</div>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <button class="btn btn-outline-primary btn-sm" onclick="openPrint('${o.id}','invoice_a4')"><i class="ti ti-file-invoice me-1"></i>فاتورة A4</button>
+                    <button class="btn btn-outline-success btn-sm" onclick="openPrint('${o.id}','booking_a4')"><i class="ti ti-calendar-check me-1"></i>حجز A4</button>
+                    <button class="btn btn-outline-info btn-sm" onclick="openPrint('${o.id}','digital_a4')"><i class="ti ti-device-mobile me-1"></i>رقمي A4</button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="openPrint('${o.id}','invoice_thermal')"><i class="ti ti-receipt me-1"></i>إيصال حراري</button>
+                </div>
                 <a href="/invoice/${o.id}" target="_blank" class="btn btn-outline-primary btn-sm">
                     <i class="ti ti-external-link me-1"></i> رابط الفاتورة للعميل
                 </a>
@@ -459,7 +479,18 @@ function printInvoice(id) {
     window.open(url, '_blank');
 }
 
-
+function openPrint(id, template) {
+    const color = localStorage.getItem('print_color') || '#4361ee';
+    const footer = localStorage.getItem('print_footer') || '';
+    const showLogo = localStorage.getItem('print_show_logo') !== 'false';
+    const showQR = localStorage.getItem('print_show_qr') !== 'false';
+    
+    let url = window.location.origin + '/print/' + id;
+    url += `?template=${template}&color=${encodeURIComponent(color)}&show_logo=${showLogo}&show_qr=${showQR}`;
+    if (footer) url += `&footer=${encodeURIComponent(footer)}`;
+    
+    window.open(url, '_blank');
+}
 
 function editStatus(id, status, payment) {
     document.getElementById('editId').value = id;

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاتورة رقمية #{{ order.order_number }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: {{ color or '#4361ee' }}; --primary-light: {{ color or '#4361ee' }}12; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Kufi Arabic', sans-serif; background: #0f0f1a; color: #e0e0e0; font-size: 14px; }
+        .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: linear-gradient(180deg, #0f0f1a 0%, #1a1a2e 100%); position: relative; overflow: hidden; }
+        
+        /* Glow circles deco */
+        .glow-1 { position: absolute; top: -80px; right: -80px; width: 300px; height: 300px; background: var(--primary); opacity: 0.06; border-radius: 50%; filter: blur(60px); }
+        .glow-2 { position: absolute; bottom: -100px; left: -100px; width: 350px; height: 350px; background: #8b5cf6; opacity: 0.05; border-radius: 50%; filter: blur(80px); }
+        
+        /* Header */
+        .dg-header { padding: 35px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.08); position: relative; z-index: 1; }
+        .dg-header .brand { display: flex; align-items: center; gap: 12px; }
+        .dg-header .brand img { max-height: 50px; max-width: 100px; border-radius: 8px; }
+        .dg-header .brand .name { font-size: 1.2rem; font-weight: 800; color: #fff; }
+        .dg-header .brand .sub { font-size: 0.72rem; color: #888; }
+        .dg-header .badge-digital { background: linear-gradient(135deg, var(--primary), #8b5cf6); color: #fff; padding: 8px 20px; border-radius: 25px; font-weight: 700; font-size: 0.82rem; }
+        
+        /* Invoice Info Strip -->
+        .info-strip { background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.06); padding: 12px 40px; display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; position: relative; z-index: 1; }
+        .info-strip strong { color: #fff; }
+        
+        .dg-body { padding: 28px 40px; position: relative; z-index: 1; }
+        
+        /* Customer Card */
+        .customer-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px; margin-bottom: 24px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .customer-card .card-title { font-size: 0.72rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; grid-column: span 2; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+        .customer-card .field { font-size: 0.82rem; }
+        .customer-card .field .k { color: #777; font-size: 0.72rem; }
+        .customer-card .field .v { color: #fff; font-weight: 600; margin-top: 2px; }
+        
+        /* Digital Items -->
+        .digital-items { margin-bottom: 24px; }
+        .digital-items .section-title { font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+        .digital-item { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; padding: 14px 18px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        .digital-item:hover { background: rgba(255,255,255,0.06); }
+        .digital-item .item-info { display: flex; align-items: center; gap: 12px; }
+        .digital-item .item-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--primary), #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .digital-item .item-name { font-weight: 600; color: #fff; font-size: 0.88rem; }
+        .digital-item .item-qty { font-size: 0.72rem; color: #888; }
+        .digital-item .item-price { font-weight: 700; color: #fff; font-size: 0.95rem; }
+        
+        /* Summary */
+        .summary-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
+        .summary-line { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.82rem; color: #aaa; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .summary-line:last-child { border: none; }
+        .summary-line .val { color: #fff; font-weight: 600; }
+        .grand-total { background: linear-gradient(135deg, var(--primary), #8b5cf6); border-radius: 12px; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .grand-total .lbl { color: rgba(255,255,255,0.85); font-size: 0.9rem; }
+        .grand-total .val { color: #fff; font-size: 1.5rem; font-weight: 800; }
+        
+        /* Delivery Info */
+        .delivery-info { background: rgba(39, 174, 96, 0.1); border: 1px solid rgba(39, 174, 96, 0.2); border-radius: 10px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+        .delivery-info .icon { font-size: 1.5rem; }
+        .delivery-info .text { font-size: 0.82rem; color: #27ae60; }
+        .delivery-info .text strong { color: #2ecc71; }
+        
+        /* Bottom row */
+        .bottom-area { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 20px; }
+        .qr-area { text-align: center; }
+        .qr-area img { width: 100px; height: 100px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); }
+        .qr-area p { font-size: 0.65rem; color: #666; margin-top: 4px; }
+        .status-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-size: 0.78rem; font-weight: 700; }
+        .status-paid { background: rgba(39,174,96,0.15); color: #2ecc71; }
+        .status-pending { background: rgba(231,76,60,0.15); color: #e74c3c; }
+        
+        /* Footer */
+        .dg-footer { border-top: 1px solid rgba(255,255,255,0.06); padding-top: 14px; text-align: center; color: #555; font-size: 0.7rem; }
+        .dg-footer .msg { color: #888; font-size: 0.78rem; margin-bottom: 6px; }
+        
+        /* Print */
+        .print-actions { text-align: center; padding: 20px; }
+        .print-actions button { font-family: 'Noto Kufi Arabic', sans-serif; padding: 10px 28px; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; margin: 0 5px; }
+        .btn-p { background: linear-gradient(135deg, var(--primary), #8b5cf6); color: #fff; }
+        .btn-b { background: #2a2a3e; color: #aaa; }
+        @media print { body { background: #0f0f1a; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .page { margin: 0; width: 100%; } .print-actions { display: none !important; } }
+        @media screen { .page { box-shadow: 0 4px 40px rgba(0,0,0,0.4); margin: 30px auto; border-radius: 4px; } }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <div class="glow-1"></div>
+    <div class="glow-2"></div>
+    
+    <div class="dg-header">
+        <div class="brand">
+            {% if show_logo and client.get('logo_url') %}<img src="{{ client.get('logo_url') }}" alt="Logo">{% endif %}
+            <div>
+                <div class="name">{{ client.get('company_name', 'المتجر') }}</div>
+                <div class="sub">{% if client.get('contact_number') %}📞 {{ client.get('contact_number') }}{% endif %}</div>
+            </div>
+        </div>
+        <div class="badge-digital">💎 منتج رقمي</div>
+    </div>
+    
+    <div class="info-strip">
+        <span>📄 رقم الفاتورة: <strong>{{ order.order_number }}</strong></span>
+        <span>📅 التاريخ: <strong>{{ (order.get('created_at')|string)[:10] if order.get('created_at') else '—' }}</strong></span>
+        <span class="status-badge {% if order.payment_status == 'paid' %}status-paid{% else %}status-pending{% endif %}">
+            {% if order.payment_status == 'paid' %}✅ مدفوعة{% else %}⏳ غير مدفوعة{% endif %}
+        </span>
+    </div>
+    
+    <div class="dg-body">
+        <div class="customer-card">
+            <div class="card-title">👤 بيانات المشتري</div>
+            <div class="field"><div class="k">الاسم</div><div class="v">{{ order.customer_name or '—' }}</div></div>
+            <div class="field"><div class="k">الهاتف</div><div class="v" dir="ltr">{{ order.customer_phone or '—' }}</div></div>
+            <div class="field"><div class="k">البريد</div><div class="v">{{ client.get('email', '—') }}</div></div>
+            <div class="field"><div class="k">طريقة الدفع</div><div class="v">{% if order.payment_method == 'card' %}بطاقة ائتمان{% elif order.payment_method == 'bank_transfer' %}تحويل بنكي{% elif order.payment_method == 'wallet' %}محفظة إلكترونية{% else %}{{ order.payment_method or '—' }}{% endif %}</div></div>
+        </div>
+        
+        <div class="digital-items">
+            <div class="section-title">📦 المنتجات الرقمية</div>
+            {% for item in order.get('items', []) %}
+            <div class="digital-item">
+                <div class="item-info">
+                    <div class="item-icon">📱</div>
+                    <div>
+                        <div class="item-name">{{ item.get('name') or item.get('اسم') or '—' }}</div>
+                        <div class="item-qty">الكمية: {{ item.get('qty', 1) }} × {{ "%.2f"|format(item.get('price', 0)) }} {{ order.get('currency', 'SAR') }}</div>
+                    </div>
+                </div>
+                <div class="item-price">{{ "%.2f"|format(item.get('qty', 1) * item.get('price', 0)) }} {{ order.get('currency', 'SAR') }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="summary-card">
+            {% if order.get('subtotal') %}<div class="summary-line"><span>المجموع الفرعي</span><span class="val">{{ "%.2f"|format(order.subtotal) }}</span></div>{% endif %}
+            {% if order.get('discount_amount') %}<div class="summary-line"><span>الخصم</span><span class="val" style="color:#e74c3c;">- {{ "%.2f"|format(order.discount_amount) }}</span></div>{% endif %}
+            {% if order.get('tax_amount') %}<div class="summary-line"><span>الضريبة</span><span class="val">{{ "%.2f"|format(order.tax_amount) }}</span></div>{% endif %}
+        </div>
+        
+        <div class="grand-total">
+            <span class="lbl">💰 الإجمالي</span>
+            <span class="val">{{ "%.2f"|format(order.total_amount or 0) }} {{ order.currency or 'SAR' }}</span>
+        </div>
+        
+        <div class="delivery-info">
+            <div class="icon">⚡</div>
+            <div class="text"><strong>تسليم فوري —</strong> المنتجات الرقمية يتم تسليمها إلكترونياً عبر الرابط أو البريد الإلكتروني</div>
+        </div>
+        
+        <div class="bottom-area">
+            {% if show_qr %}
+            <div class="qr-area">
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ public_url | urlencode }}" alt="QR">
+                <p>امسح للتفاصيل</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="dg-footer">
+            <div class="msg">{{ footer or 'شكراً لشرائكم! منتجاتكم الرقمية جاهزة.' }}</div>
+            <p>Powered by AI Sales Agent</p>
+        </div>
+    </div>
+</div>
+
+<div class="print-actions">
+    <button class="btn-p" onclick="window.print()">🖨️ طباعة / حفظ PDF</button>
+    <button class="btn-b" onclick="history.back()">↩️ رجوع</button>
+</div>
+</body>
+</html>
