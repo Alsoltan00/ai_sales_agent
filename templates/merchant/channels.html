@@ -253,23 +253,6 @@
                         </div>
                     </div>
 
-                    <!-- Memory Management -->
-                    <div class="card border-warning card-body py-3 mb-4">
-                        <div class="row align-items-center">
-                            <div class="col-md-5">
-                                <h6 class="mb-1 fw-bold text-warning"><i class="ti ti-eraser me-2"></i>مسح ذاكرة عميل واتساب</h6>
-                                <p class="text-secondary small mb-0">لجعل الوكيل ينسى محادثة سابقة مع رقم معين.</p>
-                            </div>
-                            <div class="col-md-7 mt-3 mt-md-0">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="ti ti-phone"></i></span>
-                                    <input type="tel" id="clearMemoryPhone" class="form-control" placeholder="مثال: 966501234567" dir="ltr">
-                                    <button type="button" class="btn btn-warning" onclick="clearCustomerMemory()" id="clearMemoryBtn">مسح</button>
-                                </div>
-                                <small id="clearMemoryAlert" class="text-success mt-2 d-none fw-bold"><i class="ti ti-check me-1"></i>تم مسح الذاكرة</small>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Numbers List -->
                     <h6 class="fw-bold mb-3">قائمة الأرقام المصرحة</h6>
@@ -644,47 +627,6 @@
         }
     }
 
-    async function clearCustomerMemory() {
-        let phone = document.getElementById('clearMemoryPhone').value.trim();
-        const alertMsg = document.getElementById('clearMemoryAlert');
-        const btn = document.getElementById('clearMemoryBtn');
-
-        if (!phone) {
-            alert('يرجى إدخال رقم العميل أولاً');
-            return;
-        }
-
-        phone = phone.replace('+', '').split('@')[0];
-
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
-        alertMsg.classList.add('d-none');
-
-        try {
-            const res = await fetch('/merchant/api/clear-memory', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ phone_number: phone })
-            });
-            const data = await res.json();
-
-            if (data.status === 'success') {
-                alertMsg.innerText = data.message || 'تم مسح ذاكرة العميل بنجاح!';
-                alertMsg.className = 'text-success mt-2 fw-bold d-block';
-                document.getElementById('clearMemoryPhone').value = '';
-            } else {
-                alertMsg.innerText = data.message || 'حدث خطأ أثناء المسح';
-                alertMsg.className = 'text-danger mt-2 fw-bold d-block';
-            }
-        } catch (err) {
-            alertMsg.innerText = 'فشل الاتصال بالخادم';
-            alertMsg.className = 'text-danger mt-2 fw-bold d-block';
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = 'مسح';
-            setTimeout(() => { alertMsg.classList.add('d-none'); }, 5000);
-        }
-    }
 
     async function clearRowMemory(phone, btn) {
         const originalHtml = btn.innerHTML;
