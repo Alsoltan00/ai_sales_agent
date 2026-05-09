@@ -118,20 +118,7 @@
         <td>
             <div class="d-flex gap-1">
                 <button class="btn btn-sm btn-outline-primary" onclick="viewOrder('{{ o.id }}')" title="عرض"><i class="ti ti-eye"></i></button>
-                <div class="dropdown d-inline-block">
-                    <button class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown" title="طباعة"><i class="ti ti-printer"></i></button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0" style="min-width:220px;">
-                        <li><h6 class="dropdown-header"><i class="ti ti-file-text me-1"></i>نماذج A4</h6></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','invoice_a4')"><i class="ti ti-file-invoice me-2 text-primary"></i>فاتورة عادية A4</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','booking_a4')"><i class="ti ti-calendar-check me-2 text-success"></i>تأكيد حجز A4</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','digital_a4')"><i class="ti ti-device-mobile me-2 text-info"></i>منتج رقمي A4</a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><h6 class="dropdown-header"><i class="ti ti-receipt me-1"></i>إيصال حراري (80mm)</h6></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','invoice_thermal')"><i class="ti ti-receipt-2 me-2 text-warning"></i>إيصال فاتورة</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','booking_thermal')"><i class="ti ti-ticket me-2 text-success"></i>إيصال حجز</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="openPrint('{{ o.id }}','digital_thermal')"><i class="ti ti-qrcode me-2 text-info"></i>إيصال رقمي</a></li>
-                    </ul>
-                </div>
+                <button class="btn btn-sm btn-outline-success" onclick="openPrint('{{ o.id }}')" title="طباعة"><i class="ti ti-printer"></i></button>
                 <button class="btn btn-sm btn-outline-warning" onclick="editStatus('{{ o.id }}','{{ o.order_status }}','{{ o.payment_status }}')" title="تعديل"><i class="ti ti-edit"></i></button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteOrder('{{ o.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
             </div>
@@ -225,89 +212,102 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
     </div>
     <div class="modal-body p-4">
-        <h6 class="fw-bold mb-3">اختر تصميم الفاتورة</h6>
+        <h6 class="fw-bold mb-3"><i class="ti ti-layout me-1"></i>اختر نموذج الطباعة الافتراضي</h6>
+        <p class="text-secondary small mb-3">سيتم استخدام النموذج المختار عند الضغط على زر الطباعة في أي طلب</p>
+        
+        <!-- A4 Templates -->
+        <div class="mb-2"><span class="badge bg-primary">📄 نماذج A4</span></div>
         <div class="row g-3 mb-4">
-            <!-- Classic Template -->
             <div class="col-md-4">
-                <div class="template-option selected" id="tpl-classic" onclick="selectTemplate('classic')">
-                    <div class="template-preview" style="background: #f8f9fa;">
-                        <div style="width:80%; height:80%; border:1px solid #ccc; background:#fff; padding:5px;">
-                            <div style="border-bottom:1px solid #333; height:20%;"></div>
-                            <div style="background:#eee; height:10%; margin-top:5px;"></div>
-                            <div style="background:#eee; height:10%; margin-top:5px;"></div>
+                <div class="template-option selected" id="tpl-invoice_a4" onclick="selectTemplate('invoice_a4')">
+                    <div class="template-preview" style="background: #f0f2f5;">
+                        <div style="width:80%; height:85%; background:#fff; border-radius:4px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+                            <div style="background:var(--print-color, #4361ee); height:22%; padding:4px;"><div style="width:50%; height:60%; background:rgba(255,255,255,0.3); border-radius:2px;"></div></div>
+                            <div style="padding:4px;"><div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;"><div style="background:#f5f5f5; height:18px; border-radius:2px;"></div><div style="background:#f5f5f5; height:18px; border-radius:2px;"></div></div>
+                            <div style="background:#eee; height:8px; margin-top:4px; border-radius:1px;"></div><div style="background:#eee; height:8px; margin-top:2px; border-radius:1px; width:70%;"></div></div>
                         </div>
                     </div>
-                    <span class="fw-bold">كلاسيكي (الافتراضي)</span>
+                    <span class="fw-bold">🧾 فاتورة عادية</span>
                 </div>
             </div>
-            <!-- Modern Template -->
             <div class="col-md-4">
-                <div class="template-option" id="tpl-modern" onclick="selectTemplate('modern')">
-                    <div class="template-preview" style="background: #f1f5f9;">
-                        <div style="width:80%; height:80%; background:#fff; padding:5px; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
-                            <div style="display:flex; justify-content:space-between; height:20%;"><div style="width:30%; background:var(--print-color, #4361ee); border-radius:4px;"></div><div style="width:20%; background:#ddd;"></div></div>
-                            <div style="background:#f8f9fa; height:20%; margin-top:5px; border-radius:4px;"></div>
-                            <div style="background:#f8f9fa; height:20%; margin-top:5px; border-radius:4px;"></div>
+                <div class="template-option" id="tpl-booking_a4" onclick="selectTemplate('booking_a4')">
+                    <div class="template-preview" style="background: #eef7ff;">
+                        <div style="width:80%; height:85%; background:#fff; border-radius:4px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.1);">
+                            <div style="height:8%; background:var(--print-color, #4361ee);"></div>
+                            <div style="background:linear-gradient(135deg, var(--print-color, #4361ee), #6366f1); height:20%; display:flex; align-items:center; justify-content:center;"><span style="color:#fff; font-size:10px; font-weight:bold;">✅</span></div>
+                            <div style="padding:4px;"><div style="background:#e8f4fd; border:1px dashed var(--print-color, #4361ee); height:16px; border-radius:3px; margin-bottom:3px;"></div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:3px;"><div style="background:#f5f5f5; height:14px; border-radius:2px;"></div><div style="background:#f5f5f5; height:14px; border-radius:2px;"></div></div></div>
                         </div>
                     </div>
-                    <span class="fw-bold">عصري وحديث</span>
+                    <span class="fw-bold">📋 تأكيد حجز</span>
                 </div>
             </div>
-            <!-- Minimal Template -->
             <div class="col-md-4">
-                <div class="template-option" id="tpl-minimal" onclick="selectTemplate('minimal')">
-                    <div class="template-preview" style="background: #fff;">
-                        <div style="width:80%; height:80%; padding:5px; border: 1px dashed #ccc;">
-                            <div style="text-align:center; height:20%;"><div style="width:40%; height:100%; background:#333; margin:0 auto;"></div></div>
-                            <div style="text-align:center; height:10%; background:#eee; margin-top:10px; width:60%; margin-left:auto; margin-right:auto;"></div>
-                        </div>
-                    </div>
-                    <span class="fw-bold">بسيط (Minimal)</span>
-                </div>
-            </div>
-            <!-- Premium Corporate -->
-            <div class="col-md-4">
-                <div class="template-option" id="tpl-premium_corp" onclick="selectTemplate('premium_corp')">
-                    <div class="template-preview" style="background: #e9ecef;">
-                        <div style="width:80%; height:80%; background:#fff; padding:0; border-left: 4px solid var(--print-color, #4361ee); box-shadow:0 4px 10px rgba(0,0,0,0.05); display:flex; flex-direction:column;">
-                            <div style="height:25%; background:#f8f9fa; border-bottom:1px solid #eee; padding:5px;"><div style="width:40%; height:100%; background:#333;"></div></div>
-                            <div style="padding:5px; flex:1;">
-                                <div style="background:#eee; height:15%; margin-top:5px; width:80%;"></div>
-                                <div style="background:#eee; height:15%; margin-top:5px; width:60%;"></div>
+                <div class="template-option" id="tpl-digital_a4" onclick="selectTemplate('digital_a4')">
+                    <div class="template-preview" style="background: #0f0f1a;">
+                        <div style="width:80%; height:85%; background:#1a1a2e; border-radius:4px; overflow:hidden; position:relative;">
+                            <div style="position:absolute; top:-5px; right:-5px; width:30px; height:30px; background:var(--print-color, #4361ee); opacity:0.2; border-radius:50%; filter:blur(8px);"></div>
+                            <div style="padding:5px; position:relative;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;"><div style="width:30%; height:8px; background:#fff; opacity:0.8; border-radius:1px;"></div><div style="background:linear-gradient(135deg, var(--print-color, #4361ee), #8b5cf6); padding:1px 6px; border-radius:8px;"><span style="color:#fff; font-size:6px;">رقمي</span></div></div>
+                                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:3px; height:14px; margin-bottom:3px;"></div>
+                                <div style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:3px; height:14px; margin-bottom:3px;"></div>
+                                <div style="background:linear-gradient(135deg, var(--print-color, #4361ee), #8b5cf6); border-radius:3px; height:12px;"></div>
                             </div>
                         </div>
                     </div>
-                    <span class="fw-bold">شركات (احترافي)</span>
+                    <span class="fw-bold">💎 منتج رقمي</span>
                 </div>
             </div>
-            <!-- Elegant Retail -->
+        </div>
+        
+        <!-- Thermal Templates -->
+        <div class="mb-2"><span class="badge bg-warning text-dark">🧾 إيصال حراري (80mm)</span></div>
+        <div class="row g-3 mb-4">
             <div class="col-md-4">
-                <div class="template-option" id="tpl-elegant_retail" onclick="selectTemplate('elegant_retail')">
-                    <div class="template-preview" style="background: #fff0f3;">
-                        <div style="width:70%; height:90%; background:#fff; padding:10px; border: 1px solid #f8d0d6; text-align:center;">
-                            <div style="width:30%; height:15%; border:1px solid #333; border-radius:50%; margin:0 auto;"></div>
-                            <div style="width:50%; height:10%; background:#333; margin:5px auto;"></div>
-                            <div style="width:80%; border-top:1px dashed #ccc; margin:10px auto;"></div>
-                            <div style="width:60%; height:10%; background:#eee; margin:0 auto;"></div>
-                        </div>
-                    </div>
-                    <span class="fw-bold">أنيق (للمتاجر)</span>
-                </div>
-            </div>
-            <!-- Thermal Receipt -->
-            <div class="col-md-4">
-                <div class="template-option" id="tpl-thermal" onclick="selectTemplate('thermal')">
+                <div class="template-option" id="tpl-invoice_thermal" onclick="selectTemplate('invoice_thermal')">
                     <div class="template-preview" style="background: #333;">
-                        <div style="width:40%; height:100%; background:#fff; margin:0 auto; padding:5px; text-align:center; font-family:monospace;">
-                            <div style="width:60%; height:10%; background:#333; margin:0 auto 5px;"></div>
-                            <div style="width:100%; border-top:1px dashed #333; margin:5px 0;"></div>
-                            <div style="width:80%; height:5%; background:#ccc; margin:2px auto;"></div>
-                            <div style="width:80%; height:5%; background:#ccc; margin:2px auto;"></div>
-                            <div style="width:100%; border-top:1px dashed #333; margin:5px 0;"></div>
-                            <div style="width:50%; height:20%; background:#eee; margin:0 auto;"></div>
+                        <div style="width:38%; height:95%; background:#fff; margin:0 auto; padding:4px; font-family:monospace; text-align:center;">
+                            <div style="width:50%; height:8%; background:#333; margin:0 auto 3px;"></div>
+                            <div style="border-top:1px dashed #333; margin:3px 0;"></div>
+                            <div style="width:70%; height:4%; background:#ddd; margin:2px auto;"></div>
+                            <div style="width:70%; height:4%; background:#ddd; margin:2px auto;"></div>
+                            <div style="border-top:1px dashed #333; margin:3px 0;"></div>
+                            <div style="width:40%; height:12%; background:#eee; margin:2px auto;"></div>
                         </div>
                     </div>
-                    <span class="fw-bold">إيصال حراري</span>
+                    <span class="fw-bold">🧾 إيصال فاتورة</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-booking_thermal" onclick="selectTemplate('booking_thermal')">
+                    <div class="template-preview" style="background: #333;">
+                        <div style="width:38%; height:95%; background:#fff; margin:0 auto; padding:4px; font-family:monospace; text-align:center;">
+                            <div style="width:50%; height:8%; background:#333; margin:0 auto 2px;"></div>
+                            <div style="background:#000; color:#fff; font-size:5px; padding:1px; margin:2px 0;">حجز</div>
+                            <div style="border-top:1px dashed #333; margin:3px 0;"></div>
+                            <div style="font-size:7px; font-weight:bold;">✅</div>
+                            <div style="width:60%; height:4%; background:#ddd; margin:2px auto;"></div>
+                            <div style="border-top:1px dashed #333; margin:3px 0;"></div>
+                            <div style="background:#f9f9f0; border:1px dashed #ccc; height:10px; margin:2px;"></div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">📋 إيصال حجز</span>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="template-option" id="tpl-digital_thermal" onclick="selectTemplate('digital_thermal')">
+                    <div class="template-preview" style="background: #1a1a2e;">
+                        <div style="width:38%; height:95%; background:#fff; margin:0 auto; padding:4px; font-family:monospace; text-align:center;">
+                            <div style="width:50%; height:8%; background:#333; margin:0 auto 2px;"></div>
+                            <div style="background:#000; color:#fff; font-size:5px; padding:1px; margin:2px 0;">💎</div>
+                            <div style="border-top:1px dashed #333; margin:3px 0;"></div>
+                            <div style="border:1px solid #ddd; border-radius:2px; height:12px; margin:2px;"></div>
+                            <div style="border:1px solid #ddd; border-radius:2px; height:12px; margin:2px;"></div>
+                            <div style="background:#f0fff0; height:8px; margin:2px; font-size:4px;">⚡</div>
+                        </div>
+                    </div>
+                    <span class="fw-bold">💎 إيصال رقمي</span>
                 </div>
             </div>
         </div>
@@ -462,24 +462,10 @@ function savePrintSettings() {
     printSettingsModal.hide();
 }
 
-function printInvoice(id) {
-    const o = allOrders.find(x => x.id === id);
-    if (!o) return;
-    
-    const tpl = localStorage.getItem('print_template') || 'classic';
-    const color = localStorage.getItem('print_color') || '#4361ee';
-    const footer = localStorage.getItem('print_footer') || '';
-    const showLogo = localStorage.getItem('print_show_logo') !== 'false';
-    const showQR = localStorage.getItem('print_show_qr') === 'true';
-    
-    let url = window.location.origin + '/invoice/' + o.id;
-    url += `?tpl=${tpl}&color=${encodeURIComponent(color)}&show_logo=${showLogo}&show_qr=${showQR}`;
-    if (footer) url += `&footer=${encodeURIComponent(footer)}`;
-    
-    window.open(url, '_blank');
-}
-
-function openPrint(id, template) {
+function openPrint(id, template = null) {
+    if (!template) {
+        template = localStorage.getItem('print_template') || 'invoice_a4';
+    }
     const color = localStorage.getItem('print_color') || '#4361ee';
     const footer = localStorage.getItem('print_footer') || '';
     const showLogo = localStorage.getItem('print_show_logo') !== 'false';
