@@ -754,3 +754,24 @@ async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)
     except Exception as e:
         print(f"Error saving shipping config: {e}")
         return {"status": "error", "message": str(e)}
+
+# --- AI Insights ---
+
+@router.get("/insights", response_class=HTMLResponse)
+async def insights_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة رؤى العملاء المتقدمة"""
+    return templates.TemplateResponse("merchant/insights.html", {"request": request, "user": user})
+
+@router.get("/api/insights")
+async def api_get_insights(user: dict = Depends(verify_merchant)):
+    """جلب آخر رؤى تم توليدها"""
+    from merchant.insights import get_latest_insights
+    data = get_latest_insights(user["id"])
+    return {"status": "success", "data": data}
+
+@router.post("/api/insights/generate")
+async def api_generate_insights(user: dict = Depends(verify_merchant)):
+    """طلب توليد رؤى جديدة من المحادثات"""
+    from merchant.insights import generate_and_save_insights
+    res = await generate_and_save_insights(user["id"])
+    return res

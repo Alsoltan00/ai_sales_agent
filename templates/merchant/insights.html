@@ -1,0 +1,204 @@
+{% extends "merchant_base.html" %}
+
+{% block title %}رؤى العملاء الذكية{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="row align-items-center">
+        <div class="col">
+            <h1 class="page-title text-primary"><i class="ti ti-bulb me-2"></i>رؤى العملاء الذكية</h1>
+            <p class="text-secondary mt-1">
+                يقوم الذكاء الاصطناعي بقراءة محادثاتك الأخيرة واستخراج معلومات ذهبية لتطوير مبيعاتك.
+            </p>
+        </div>
+        <div class="col-auto">
+            <button id="generateBtn" class="btn btn-primary" onclick="generateInsights()">
+                <i class="ti ti-wand me-2"></i>استخراج الرؤى الآن
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="loadingState" class="text-center py-5 d-none">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+    <h3 class="mt-3 text-secondary">جاري قراءة المحادثات وتحليلها...</h3>
+    <p class="text-muted">قد يستغرق هذا دقيقة أو دقيقتين اعتماداً على حجم الرسائل.</p>
+</div>
+
+<div id="emptyState" class="text-center py-5 d-none">
+    <img src="https://illustrations.popsy.co/amber/digital-nomad.svg" alt="Empty" width="250" class="mb-4 opacity-50">
+    <h3 class="text-secondary">لا توجد رؤى حالية</h3>
+    <p class="text-muted">اضغط على زر (استخراج الرؤى الآن) لتبدأ سحر الذكاء الاصطناعي.</p>
+</div>
+
+<div id="insightsContainer" class="row row-cards d-none">
+    <!-- الملخص العام -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-status-top bg-purple"></div>
+            <div class="card-body">
+                <h3 class="card-title text-purple"><i class="ti ti-presentation-analytics me-2"></i>الملخص العام</h3>
+                <p class="text-secondary fs-4" id="valSummary">جاري التحميل...</p>
+                <div class="text-muted fs-5 mt-3"><i class="ti ti-clock me-1"></i>تاريخ آخر تحليل: <span id="valDate"></span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- المنتجات غير المتوفرة (الفرص الضائعة) -->
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header border-bottom-0 pb-0">
+                <h3 class="card-title text-danger"><i class="ti ti-shopping-cart-x me-2"></i>فرص ضائعة (منتجات مسألة عنها)</h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush" id="valProducts">
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- الأسئلة المتكررة -->
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header border-bottom-0 pb-0">
+                <h3 class="card-title text-info"><i class="ti ti-message-question me-2"></i>الأسئلة المتكررة</h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush" id="valQuestions">
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- الشكاوى والملاحظات -->
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header border-bottom-0 pb-0">
+                <h3 class="card-title text-warning"><i class="ti ti-alert-triangle me-2"></i>شكاوى وملاحظات شائعة</h3>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush" id="valComplaints">
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        loadLatestInsights();
+    });
+
+    async function loadLatestInsights() {
+        try {
+            const res = await fetch("/merchant/api/insights");
+            const json = await res.json();
+            
+            if (json.status === 'success' && json.data && Object.keys(json.data).length > 0) {
+                renderInsights(json.data.insights_data, json.data.created_at);
+            } else {
+                document.getElementById('emptyState').classList.remove('d-none');
+            }
+        } catch(e) {
+            console.error("Error loading insights", e);
+            document.getElementById('emptyState').classList.remove('d-none');
+        }
+    }
+
+    function renderInsights(data, dateStr) {
+        document.getElementById('emptyState').classList.add('d-none');
+        document.getElementById('loadingState').classList.add('d-none');
+        document.getElementById('insightsContainer').classList.remove('d-none');
+
+        // Date
+        const d = new Date(dateStr);
+        document.getElementById('valDate').textContent = d.toLocaleString('ar-SA');
+
+        // Summary
+        document.getElementById('valSummary').textContent = data.general_summary || "لا يوجد ملخص.";
+
+        // Products
+        const prodList = document.getElementById('valProducts');
+        prodList.innerHTML = '';
+        const prods = data.top_requested_missing_products || [];
+        if (prods.length === 0) {
+            prodList.innerHTML = '<li class="list-group-item text-secondary border-0 px-0">لا توجد منتجات مسجلة.</li>';
+        } else {
+            prods.forEach(p => {
+                prodList.innerHTML += `<li class="list-group-item border-0 px-0"><i class="ti ti-point-filled text-danger me-2"></i>${p}</li>`;
+            });
+        }
+
+        // Questions
+        const qList = document.getElementById('valQuestions');
+        qList.innerHTML = '';
+        const qs = data.frequently_asked_questions || [];
+        if (qs.length === 0) {
+            qList.innerHTML = '<li class="list-group-item text-secondary border-0 px-0">لا توجد أسئلة مسجلة.</li>';
+        } else {
+            qs.forEach(q => {
+                qList.innerHTML += `<li class="list-group-item border-0 px-0"><i class="ti ti-point-filled text-info me-2"></i>${q}</li>`;
+            });
+        }
+
+        // Complaints
+        const cList = document.getElementById('valComplaints');
+        cList.innerHTML = '';
+        const comps = data.common_complaints || [];
+        if (comps.length === 0) {
+            cList.innerHTML = '<li class="list-group-item text-secondary border-0 px-0">الأمور ممتازة، لا توجد شكاوى.</li>';
+        } else {
+            comps.forEach(c => {
+                cList.innerHTML += `<li class="list-group-item border-0 px-0"><i class="ti ti-point-filled text-warning me-2"></i>${c}</li>`;
+            });
+        }
+    }
+
+    async function generateInsights() {
+        const btn = document.getElementById('generateBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-2"></i>جاري التحليل...';
+        
+        document.getElementById('insightsContainer').classList.add('d-none');
+        document.getElementById('emptyState').classList.add('d-none');
+        document.getElementById('loadingState').classList.remove('d-none');
+
+        try {
+            const res = await fetch("/merchant/api/insights/generate", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"}
+            });
+            const json = await res.json();
+
+            if (json.status === 'success') {
+                // Show new data
+                renderInsights(json.data, new Date().toISOString());
+                // alert/toast
+                if(typeof window.showToast === 'function') {
+                    window.showToast("نجاح", "تم تحليل المحادثات واستخراج الرؤى بنجاح!", "success");
+                } else {
+                    alert("تم تحليل المحادثات واستخراج الرؤى بنجاح!");
+                }
+            } else {
+                if(typeof window.showToast === 'function') {
+                    window.showToast("خطأ", json.message || "حدث خطأ أثناء التحليل", "error");
+                } else {
+                    alert(json.message || "حدث خطأ");
+                }
+                loadLatestInsights(); // fallback
+            }
+        } catch (e) {
+            console.error(e);
+            alert("حدث خطأ بالاتصال");
+            loadLatestInsights(); // fallback
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-wand me-2"></i>استخراج الرؤى الآن';
+            document.getElementById('loadingState').classList.add('d-none');
+        }
+    }
+</script>
+{% endblock %}

@@ -186,3 +186,11 @@ CREATE TABLE IF NOT EXISTS merchant_manual_data (
     filename TEXT,
     updated_at TIMESTAMP DEFAULT NOW()
 );
+-- جدول استخراج رؤى العملاء (AI Insights)
+CREATE TABLE IF NOT EXISTS merchant_ai_insights (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    insights_data JSONB DEFAULT '{}',
+    period TEXT DEFAULT 'last_7_days',
+    created_at TIMESTAMP DEFAULT NOW()
+);
