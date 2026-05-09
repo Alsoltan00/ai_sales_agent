@@ -232,46 +232,7 @@
                 <!-- 2. Financial Logic -->
                 <div class="tab-pane fade" id="pane-finance" role="tabpanel">
                     <div class="card settings-card">
-                        <!-- Payment Methods (Chat Only) -->
-                        <div class="settings-group chat-only" style="display:none; background: rgba(37, 211, 102, 0.03);">
-                            <h5 class="fw-bold text-success mb-3"><i class="ti ti-cash me-2"></i>طرق الدفع المتاحة داخل المحادثة</h5>
-                            <div class="row g-3">
-                                <div class="col-sm-4">
-                                    <label class="radio-card bg-white">
-                                        <input type="checkbox" name="chat_payment_cod" {% if rules.chat_payment_cod %}checked{% endif %}>
-                                        <div class="radio-card-content">
-                                            <span class="radio-card-title"><i class="ti ti-truck-delivery me-1"></i> الدفع عند الاستلام</span>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="col-sm-4">
-                                    <label class="radio-card bg-white">
-                                        <input type="checkbox" id="chat_payment_transfer" name="chat_payment_transfer" {% if rules.chat_payment_transfer %}checked{% endif %}>
-                                        <div class="radio-card-content">
-                                            <span class="radio-card-title"><i class="ti ti-building-bank me-1"></i> تحويل بنكي</span>
-                                        </div>
-                                    </label>
-                                </div>
-                                <div class="col-sm-4">
-                                    <label class="radio-card bg-white">
-                                        <input type="checkbox" id="chat_payment_link" name="chat_payment_link" {% if rules.chat_payment_link %}checked{% endif %}>
-                                        <div class="radio-card-content">
-                                            <span class="radio-card-title"><i class="ti ti-link me-1"></i> روابط دفع خارجية</span>
-                                        </div>
-                                    </label>
-                                </div>
-                            </div>
 
-                            <div class="mt-3 p-3 bg-white rounded border" id="transfer_details" style="display: {% if rules.chat_payment_transfer %}block{% else %}none{% endif %}; border-right: 4px solid #25D366 !important;">
-                                <label class="form-label fw-bold small">أرقام الحسابات البنكية المتاحة:</label>
-                                <textarea name="bank_accounts" class="form-control" rows="2" placeholder="مثال: بنك الراجحي: SA1234567890123456789012">{{ rules.bank_accounts or '' }}</textarea>
-                            </div>
-
-                            <div class="mt-3 p-3 bg-white rounded border" id="link_details" style="display: {% if rules.chat_payment_link %}block{% else %}none{% endif %}; border-right: 4px solid #25D366 !important;">
-                                <label class="form-label fw-bold small">روابط الدفع (Stripe, MyFatoorah...):</label>
-                                <textarea name="payment_links" class="form-control" rows="2" placeholder="أدخل روابط الدفع هنا...">{{ rules.payment_links or '' }}</textarea>
-                            </div>
-                        </div>
 
                         <!-- Store Guidance -->
                         <div class="settings-group store-only" style="background: rgba(var(--bs-primary-rgb), 0.03);">

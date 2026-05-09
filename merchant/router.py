@@ -230,6 +230,37 @@ async def api_update_business_rules(payload: dict, user: dict = Depends(verify_m
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
+@router.post("/api/business-rules/payment")
+async def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
+    """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
+    supabase = get_supabase_client()
+    try:
+        # جلب القواعد الحالية
+        existing = supabase.table("business_rules").select("id, rules_data").eq("client_id", user["id"]).execute()
+        current_rules = {}
+        if existing.data:
+            current_rules = existing.data[0].get("rules_data", {})
+            
+        # دمج الإعدادات الجديدة
+        for k, v in payload.items():
+            current_rules[k] = v
+            
+        if existing.data:
+            supabase.table("business_rules").update({
+                "rules_data": current_rules,
+                "updated_at": datetime.now().isoformat()
+            }).eq("client_id", user["id"]).execute()
+        else:
+            supabase.table("business_rules").insert({
+                "client_id": user["id"],
+                "rules_data": current_rules,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
+            
+        return {"status": "success", "message": "تم تحديث إعدادات الدفع والضريبة بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
+
 
 
 # --- Data Sync ---
@@ -491,6 +522,12 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     except:
         orders = []
         
+    try:
+        res_rules = supabase.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        rules = res_rules.data.get("rules_data", {}) if res_rules.data else {}
+    except:
+        rules = {}
+
     # Safe stats calculation
     total_revenue = 0
     pending_count = 0
@@ -544,6 +581,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
         "confirmed_count": confirmed_count,
         "completed_count": completed_count,
         "settings": settings,
+        "rules": rules,
         "orders_json": _json.dumps(orders, ensure_ascii=False, default=str)
     })
 

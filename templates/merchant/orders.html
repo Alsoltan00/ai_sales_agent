@@ -53,6 +53,7 @@
             <p class="text-secondary mb-0 mt-1">متابعة وإدارة جميع الطلبات والحجوزات والفواتير</p>
         </div>
         <div class="d-flex gap-2">
+            <button class="btn btn-outline-success" onclick="openPaymentSettings()"><i class="ti ti-cash me-1"></i>إعدادات الدفع والضريبة</button>
             <button class="btn btn-outline-secondary" onclick="openPrintSettings()"><i class="ti ti-printer-cog me-1"></i>إعدادات الطباعة</button>
             <button class="btn btn-primary" onclick="openAddOrder()"><i class="ti ti-plus me-1"></i> طلب يدوي</button>
         </div>
@@ -201,6 +202,84 @@
     <div class="modal-footer border-top p-3">
         <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
         <button class="btn btn-primary" onclick="saveOrder()"><i class="ti ti-check me-1"></i>حفظ الطلب</button>
+    </div>
+</div></div></div>
+
+<!-- Payment Settings Modal -->
+<div class="modal fade" id="paymentSettingsModal" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-centered">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4">
+        <h5 class="modal-title text-success"><i class="ti ti-cash me-2"></i>إعدادات الدفع والضريبة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body p-4 bg-light">
+        <form id="paymentSettingsForm">
+            <!-- الضريبة -->
+            <div class="card mb-4 border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold mb-3"><i class="ti ti-receipt-tax me-1 text-primary"></i> إعدادات الضريبة (VAT)</h6>
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label text-muted small">نسبة الضريبة المضافة (%)</label>
+                            <input type="number" name="tax_percent" class="form-control" placeholder="مثال: 15" value="{{ rules.tax_percent or '0' }}">
+                        </div>
+                        <div class="col-md-6">
+                            <p class="small text-muted mb-0 mt-3 mt-md-0"><i class="ti ti-info-circle me-1"></i> سيقوم النظام باحتساب هذه النسبة كضريبة مضافة على إجمالي المنتجات في الفواتير الصادرة.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- طرق الدفع داخل المحادثة -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h6 class="fw-bold text-success mb-3"><i class="ti ti-wallet me-1"></i> طرق الدفع المتاحة للعملاء</h6>
+                    <div class="row g-3 mb-4">
+                        <div class="col-sm-4">
+                            <label class="radio-card bg-white h-100 p-3 border rounded d-block position-relative" style="cursor:pointer">
+                                <input type="checkbox" name="chat_payment_cod" class="position-absolute" style="top:15px; right:15px;" {% if rules.chat_payment_cod %}checked{% endif %}>
+                                <div class="text-center mt-3">
+                                    <i class="ti ti-truck-delivery fs-3 text-secondary mb-2 d-block"></i>
+                                    <span class="fw-bold d-block">عند الاستلام</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="radio-card bg-white h-100 p-3 border rounded d-block position-relative" style="cursor:pointer" onclick="document.getElementById('transfer_details').style.display = document.getElementById('chat_payment_transfer').checked ? 'block' : 'none'">
+                                <input type="checkbox" id="chat_payment_transfer" name="chat_payment_transfer" class="position-absolute" style="top:15px; right:15px;" {% if rules.chat_payment_transfer %}checked{% endif %}>
+                                <div class="text-center mt-3">
+                                    <i class="ti ti-building-bank fs-3 text-primary mb-2 d-block"></i>
+                                    <span class="fw-bold d-block">تحويل بنكي</span>
+                                </div>
+                            </label>
+                        </div>
+                        <div class="col-sm-4">
+                            <label class="radio-card bg-white h-100 p-3 border rounded d-block position-relative" style="cursor:pointer" onclick="document.getElementById('link_details').style.display = document.getElementById('chat_payment_link').checked ? 'block' : 'none'">
+                                <input type="checkbox" id="chat_payment_link" name="chat_payment_link" class="position-absolute" style="top:15px; right:15px;" {% if rules.chat_payment_link %}checked{% endif %}>
+                                <div class="text-center mt-3">
+                                    <i class="ti ti-link fs-3 text-info mb-2 d-block"></i>
+                                    <span class="fw-bold d-block">روابط دفع خارجية</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="p-3 bg-white rounded border mb-3" id="transfer_details" style="display: {% if rules.chat_payment_transfer %}block{% else %}none{% endif %}; border-right: 4px solid #4361ee !important;">
+                        <label class="form-label fw-bold small">أرقام الحسابات البنكية المتاحة:</label>
+                        <textarea name="bank_accounts" class="form-control" rows="2" placeholder="مثال: بنك الراجحي: SA1234567890123456789012">{{ rules.bank_accounts or '' }}</textarea>
+                    </div>
+
+                    <div class="p-3 bg-white rounded border" id="link_details" style="display: {% if rules.chat_payment_link %}block{% else %}none{% endif %}; border-right: 4px solid #0dcaf0 !important;">
+                        <label class="form-label fw-bold small">روابط الدفع (Stripe, MyFatoorah...):</label>
+                        <textarea name="payment_links" class="form-control" rows="2" placeholder="أدخل روابط الدفع هنا...">{{ rules.payment_links or '' }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer border-top p-3 bg-white">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-success" id="btnSavePaymentSettings" onclick="savePaymentSettings()"><i class="ti ti-device-floppy me-1"></i>حفظ الإعدادات</button>
     </div>
 </div></div></div>
 
@@ -437,6 +516,51 @@ document.addEventListener('DOMContentLoaded', () => {
     const showQR = localStorage.getItem('print_show_qr');
     if(showQR !== null) document.getElementById('printShowQR').checked = showQR === 'true';
 });
+
+let paymentSettingsModal;
+
+document.addEventListener('DOMContentLoaded', () => {
+    paymentSettingsModal = new bootstrap.Modal(document.getElementById('paymentSettingsModal'));
+});
+
+function openPaymentSettings() {
+    paymentSettingsModal.show();
+}
+
+async function savePaymentSettings() {
+    const btn = document.getElementById('btnSavePaymentSettings');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
+    
+    const form = document.getElementById('paymentSettingsForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Fix checkboxes
+    form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        data[cb.name] = cb.checked;
+    });
+
+    try {
+        const res = await fetch('/merchant/api/business-rules/payment', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.status === 'success') {
+            alert('تم حفظ إعدادات الدفع بنجاح');
+            paymentSettingsModal.hide();
+        } else {
+            alert(result.message);
+        }
+    } catch(err) {
+        alert('حدث خطأ في الاتصال');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>حفظ الإعدادات';
+    }
+}
 
 function openPrintSettings() {
     printSettingsModal.show();
