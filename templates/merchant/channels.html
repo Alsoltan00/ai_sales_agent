@@ -133,7 +133,12 @@
                     <!-- Evolution API Fields -->
                     <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
                         <div class="mb-4">
-                            <label class="form-label fw-600">رابط خادم Evolution (URL الإرسال)</label>
+                            <label class="form-label fw-600 d-flex justify-content-between align-items-center">
+                                <span>رابط خادم Evolution (URL الإرسال)</span>
+                                <a href="https://evolution-api.com/" target="_blank" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.7rem;">
+                                    <i class="ti ti-external-link"></i> الموقع الرسمي
+                                </a>
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="ti ti-link"></i></span>
                                 <input type="url" id="evolution_api_url" class="form-control" 
@@ -181,7 +186,12 @@
                     <!-- Meta Official API Fields -->
                     <div id="wa-official" class="dynamic-form {% if channels_config.whatsapp_provider == 'official' %}active{% endif %}">
                         <div class="mb-4">
-                            <label class="form-label fw-600">Phone Number ID</label>
+                            <label class="form-label fw-600 d-flex justify-content-between align-items-center">
+                                <span>Phone Number ID</span>
+                                <a href="https://developers.facebook.com/apps/" target="_blank" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.7rem;">
+                                    <i class="ti ti-external-link"></i> استخراج من Meta
+                                </a>
+                            </label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="ti ti-hash"></i></span>
                                 <input type="text" id="meta_phone_number_id" class="form-control" 
@@ -311,7 +321,12 @@
                     <p class="text-secondary small mb-4">اربط حساب إنستقرام للرد على التعليقات والرسائل المباشرة (DM) عبر الذكاء الاصطناعي (مباشرة دون جدار حماية).</p>
                     
                     <div class="mb-4">
-                        <label class="form-label fw-600">Instagram Access Token</label>
+                        <label class="form-label fw-600 d-flex justify-content-between align-items-center">
+                            <span>Instagram Access Token</span>
+                            <a href="https://developers.facebook.com/apps/" target="_blank" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.7rem;">
+                                <i class="ti ti-external-link"></i> استخراج من Meta
+                            </a>
+                        </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-key"></i></span>
                             <input type="password" id="instagram_access_token" class="form-control" 
@@ -343,7 +358,12 @@
                     <p class="text-secondary small mb-4">اربط متجر تيك توك الخاص بك (TikTok Shop / Messaging) عبر الذكاء الاصطناعي (مباشرة دون جدار حماية).</p>
                     
                     <div class="mb-4">
-                        <label class="form-label fw-600">TikTok Access Token</label>
+                        <label class="form-label fw-600 d-flex justify-content-between align-items-center">
+                            <span>TikTok Access Token</span>
+                            <a href="https://developers.tiktok.com/console/" target="_blank" class="badge bg-light text-dark border text-decoration-none" style="font-size: 0.7rem;">
+                                <i class="ti ti-external-link"></i> TikTok Console
+                            </a>
+                        </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-key"></i></span>
                             <input type="password" id="tiktok_access_token" class="form-control" 
@@ -374,7 +394,12 @@
                 <div class="card-body">
                     <p class="text-secondary small mb-4">قم بإدخال مفتاح البوت (Token) الخاص بتيليجرام (يعمل مباشرة دون جدار حماية).</p>
                     <div class="mb-2">
-                        <label class="form-label fw-600">Telegram Bot Token (من BotFather)</label>
+                        <label class="form-label fw-600 d-flex justify-content-between align-items-center">
+                            <span>Telegram Bot Token (من BotFather)</span>
+                            <a href="https://t.me/BotFather" target="_blank" class="badge bg-light text-info border text-decoration-none" style="font-size: 0.7rem;">
+                                <i class="ti ti-brand-telegram"></i> @BotFather
+                            </a>
+                        </label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-robot"></i></span>
                             <input type="password" id="telegram_bot_token" class="form-control" 
