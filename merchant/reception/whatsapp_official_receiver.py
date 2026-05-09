@@ -87,11 +87,24 @@ async def official_webhook(request: Request):
                 phone_number_id = value.get("metadata", {}).get("phone_number_id", "")
 
                 for msg in messages:
-                    if msg.get("type") != "text":
-                        continue
-
+                    msg_type = msg.get("type", "")
                     from_phone = msg.get("from", "")
-                    text       = msg.get("text", {}).get("body", "")
+                    text = ""
+
+                    if msg_type == "text":
+                        text = msg.get("text", {}).get("body", "")
+                    elif msg_type == "interactive":
+                        # معالجة ضغطات الأزرار التفاعلية
+                        interactive = msg.get("interactive", {})
+                        int_type = interactive.get("type", "")
+                        if int_type == "button_reply":
+                            text = interactive.get("button_reply", {}).get("title", "")
+                        elif int_type == "list_reply":
+                            text = interactive.get("list_reply", {}).get("title", "")
+                    elif msg_type == "button":
+                        text = msg.get("button", {}).get("text", "")
+                    else:
+                        continue
 
                     if not text or not from_phone:
                         continue
@@ -130,8 +143,17 @@ async def official_webhook(request: Request):
                             print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
                     # ----------------------------------
 
+                    # اكتشاف الأزرار التفاعلية
+                    from merchant.reception.buttons_handler import extract_buttons_from_reply, send_official_buttons
+                    clean_reply, buttons = extract_buttons_from_reply(ai_reply)
+
                     # إرسال الرد
-                    await _send_official_message(access_token, phone_number_id, from_phone, ai_reply)
+                    if buttons:
+                        btn_sent = await send_official_buttons(access_token, phone_number_id, from_phone, clean_reply, buttons)
+                        if not btn_sent:
+                            await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
+                    else:
+                        await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
 
     except Exception as e:
         print(f"Official WhatsApp webhook error: {e}")

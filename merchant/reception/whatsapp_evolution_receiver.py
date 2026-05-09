@@ -145,6 +145,18 @@ async def evolution_webhook(instance_name: str, request: Request):
         if msg_type == "text":
             text = msg_content.get("conversation") or \
                    msg_content.get("extendedTextMessage", {}).get("text") or ""
+            
+            # معالجة ضغطات الأزرار التفاعلية
+            if not text and "buttonsResponseMessage" in msg_content:
+                text = msg_content["buttonsResponseMessage"].get("selectedDisplayText") or \
+                       msg_content["buttonsResponseMessage"].get("selectedButtonId") or ""
+            if not text and "buttonResponseMessage" in msg_content:
+                text = msg_content["buttonResponseMessage"].get("selectedDisplayText") or \
+                       msg_content["buttonResponseMessage"].get("selectedButtonId") or ""
+            # معالجة ردود القوائم التفاعلية
+            if not text and "listResponseMessage" in msg_content:
+                text = msg_content["listResponseMessage"].get("title") or \
+                       msg_content["listResponseMessage"].get("singleSelectReply", {}).get("selectedRowId") or ""
         else:
             # للرسائل غير النصية، نأخذ الوصف (Caption) فقط إذا وجد
             text = msg_content.get("imageMessage", {}).get("caption") or \
@@ -263,16 +275,26 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         print(f"[AI] Reply: {ai_reply}")
 
+        # اكتشاف الأزرار التفاعلية من رد الذكاء الاصطناعي
+        from merchant.reception.buttons_handler import extract_buttons_from_reply, send_evolution_buttons
+        clean_reply, buttons = extract_buttons_from_reply(ai_reply)
+
         # إرسال الرد
         if msg_type == "audio":
             from utils.tts import text_to_speech_b64
-            audio_b64 = await text_to_speech_b64(ai_reply)
+            audio_b64 = await text_to_speech_b64(clean_reply)
             if audio_b64:
                 status = await _send_evolution_audio(api_url, api_key, instance_name, phone, audio_b64)
             else:
-                status = await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
+                status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
+        elif buttons:
+            # محاولة إرسال أزرار تفاعلية
+            status = await send_evolution_buttons(api_url, api_key, instance_name, phone, clean_reply, buttons)
+            if not status:
+                # Fallback: إرسال كنص عادي إذا فشلت الأزرار
+                status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
         else:
-            status = await _send_evolution_message(api_url, api_key, instance_name, phone, ai_reply)
+            status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
 
         if status:
             print(f"[SUCCESS] Reply sent to {phone}")

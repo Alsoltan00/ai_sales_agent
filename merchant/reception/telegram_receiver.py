@@ -46,6 +46,43 @@ async def telegram_webhook(bot_token: str, request: Request):
     """Webhook ظ„ط§ط³طھظ‚ط¨ط§ظ„ ط±ط³ط§ط¦ظ„ طھظٹظ„ظٹط¬ط±ط§ظ…"""
     try:
         body = await request.json()
+        
+        # معالجة ضغطات الأزرار التفاعلية (Callback Query)
+        callback = body.get("callback_query")
+        if callback:
+            cb_data = callback.get("data", "")
+            cb_message = callback.get("message", {})
+            chat_id = cb_message.get("chat", {}).get("id")
+            if chat_id and cb_data:
+                # إرسال تأكيد الضغطة لتيليجرام
+                try:
+                    async with httpx.AsyncClient() as client:
+                        await client.post(
+                            f"https://api.telegram.org/bot{bot_token}/answerCallbackQuery",
+                            json={"callback_query_id": callback["id"]},
+                            timeout=5
+                        )
+                except: pass
+                
+                # تحويل نص الزر المعروض إلى رسالة عادية
+                # نبحث عن نص الزر من inline_keyboard
+                button_text = cb_data
+                try:
+                    reply_markup = cb_message.get("reply_markup", {})
+                    for row in reply_markup.get("inline_keyboard", []):
+                        for btn in row:
+                            if btn.get("callback_data") == cb_data:
+                                button_text = btn.get("text", cb_data)
+                                break
+                except: pass
+                
+                # إعادة معالجة كرسالة نصية عادية
+                body["message"] = {
+                    "chat": {"id": chat_id},
+                    "from": callback.get("from", {}),
+                    "text": button_text
+                }
+        
         message = body.get("message", {})
         if not message:
             return Response(status_code=200)
@@ -91,8 +128,17 @@ async def telegram_webhook(bot_token: str, request: Request):
                 print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
         # ----------------------------------
 
+        # اكتشاف الأزرار التفاعلية
+        from merchant.reception.buttons_handler import extract_buttons_from_reply, send_telegram_buttons
+        clean_reply, buttons = extract_buttons_from_reply(ai_reply)
+
         # إرسال الرد
-        await _send_telegram_message(bot_token, chat_id, ai_reply)
+        if buttons:
+            btn_sent = await send_telegram_buttons(bot_token, chat_id, clean_reply, buttons)
+            if not btn_sent:
+                await _send_telegram_message(bot_token, chat_id, clean_reply)
+        else:
+            await _send_telegram_message(bot_token, chat_id, clean_reply)
 
     except Exception as e:
         print(f"Telegram webhook error: {e}")
