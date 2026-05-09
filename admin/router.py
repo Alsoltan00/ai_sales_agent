@@ -390,43 +390,6 @@ async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admi
         return {"status": "error", "message": str(e)}
 
 
-@router.get("/clients/{client_id}/ai", response_class=HTMLResponse)
-async def admin_client_ai_config(client_id: str, request: Request, user: dict = Depends(verify_admin)):
-    """إدارة إعدادات الذكاء الاصطناعي لعميل محدد من قبل الأدمن"""
-    supabase = get_supabase_client()
-    # جلب بيانات العميل للتأكد من وجوده
-    client_res = supabase.table("clients").select("company_name").eq("id", client_id).single().execute()
-    if not client_res.data:
-        raise HTTPException(status_code=404, detail="العميل غير موجود")
-    
-    ai_config = get_ai_config(client_id)
-    all_models = get_all_ai_configs(client_id)
-    
-    return templates.TemplateResponse("admin/client_ai_config.html", {
-        "request": request,
-        "user": user,
-        "client_name": client_res.data["company_name"],
-        "client_id": client_id,
-        "ai_config": ai_config,
-        "all_models": all_models
-    })
-
-@router.post("/api/clients/{client_id}/ai")
-async def admin_api_update_ai(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
-    """تحديث إعدادات الذكاء لعميل من قبل الأدمن"""
-    success = update_ai_config(client_id, payload)
-    if success:
-        return {"status": "success", "message": "تم حفظ الإعدادات للعميل بنجاح"}
-    return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
-
-@router.post("/api/clients/{client_id}/ai/activate/{model_id_pk}")
-async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict = Depends(verify_admin)):
-    """تفعيل نموذج لعميل من قبل الأدمن"""
-    success = activate_ai_model(client_id, model_id_pk)
-    if success:
-        return {"status": "success", "message": "تم تفعيل النموذج للعميل بنجاح"}
-    return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}
-
 @router.get("/api/clients/{client_id}/onboarding-settings")
 async def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
     """جلب إعدادات نوع النشاط ومسار الطلب للعميل"""

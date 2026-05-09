@@ -42,12 +42,9 @@
                         {{ client.created_at.strftime('%Y-%m-%d') if client.created_at and client.created_at.strftime else (client.created_at[:10] if client.created_at else '---') }}
                     </td>
                     <td class="text-end">
-                        <button class="btn btn-outline-info btn-icon btn-sm me-1" title="إعدادات النشاط" onclick="openOnboardingModal('{{ client.id }}', '{{ client.company_name }}')">
+                        <button class="btn btn-outline-info btn-icon btn-sm" title="إعدادات النشاط" onclick="openOnboardingModal('{{ client.id }}', '{{ client.company_name }}')">
                             <i class="ti ti-settings"></i>
                         </button>
-                        <a href="/admin/clients/{{ client.id }}/ai" class="btn btn-outline-primary btn-icon btn-sm" title="إعدادات الذكاء">
-                            <i class="ti ti-robot"></i>
-                        </a>
                     </td>
                 </tr>
                 {% else %}
