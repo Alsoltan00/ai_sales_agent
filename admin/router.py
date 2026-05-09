@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from auth.session_manager import get_current_user
 from database.db_client import get_supabase_client
 from merchant.ai_training.ai_config import get_ai_config, update_ai_config, get_all_ai_configs, activate_ai_model
+from merchant.planning.planning_config import get_planning_config, update_planning_config
 
 router = APIRouter(prefix="/admin", tags=["Admin Dashboard"])
 templates = Jinja2Templates(directory="templates")
@@ -425,6 +426,26 @@ async def admin_api_activate_model(client_id: str, model_id_pk: str, user: dict 
     if success:
         return {"status": "success", "message": "تم تفعيل النموذج للعميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التفعيل"}
+
+@router.get("/api/clients/{client_id}/onboarding-settings")
+async def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
+    """جلب إعدادات نوع النشاط ومسار الطلب للعميل"""
+    config = get_planning_config(client_id)
+    return {"status": "success", "data": {
+        "sales_type": config.get("sales_type"),
+        "order_flow": config.get("order_flow")
+    }}
+
+@router.put("/api/clients/{client_id}/onboarding-settings")
+async def update_client_onboarding_settings(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+    """تحديث إعدادات نوع النشاط ومسار الطلب للعميل"""
+    success = update_planning_config(client_id, {
+        "sales_type": payload.get("sales_type"),
+        "order_flow": payload.get("order_flow")
+    })
+    if success:
+        return {"status": "success", "message": "تم تحديث إعدادات نشاط العميل بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
 @router.get("/models-pool", response_class=HTMLResponse)
 async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):

@@ -42,6 +42,9 @@
                         {{ client.created_at.strftime('%Y-%m-%d') if client.created_at and client.created_at.strftime else (client.created_at[:10] if client.created_at else '---') }}
                     </td>
                     <td class="text-end">
+                        <button class="btn btn-outline-info btn-icon btn-sm me-1" title="إعدادات النشاط" onclick="openOnboardingModal('{{ client.id }}', '{{ client.company_name }}')">
+                            <i class="ti ti-settings"></i>
+                        </button>
                         <a href="/admin/clients/{{ client.id }}/ai" class="btn btn-outline-primary btn-icon btn-sm" title="إعدادات الذكاء">
                             <i class="ti ti-robot"></i>
                         </a>
@@ -56,4 +59,119 @@
         </table>
     </div>
 </div>
+
+<!-- Onboarding Settings Modal -->
+<div class="modal fade" id="onboardingModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title text-primary"><i class="ti ti-settings me-2"></i>إعدادات النشاط - <span id="modalClientName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="onboardingForm">
+                    <input type="hidden" id="modalClientId">
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">نوع النشاط</label>
+                        <select class="form-select" id="salesType" required>
+                            <option value="">اختر...</option>
+                            <option value="products">منتجات</option>
+                            <option value="services">خدمات</option>
+                            <option value="reservations">حجوزات</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">توجيه الطلبات</label>
+                        <select class="form-select" id="orderFlow" required>
+                            <option value="">اختر...</option>
+                            <option value="in_chat">داخل المحادثة (واتساب)</option>
+                            <option value="online_store">عبر المتجر الإلكتروني</option>
+                        </select>
+                    </div>
+
+                    <div class="text-end">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-primary" id="saveOnboardingBtn">
+                            <i class="ti ti-device-floppy me-1"></i>حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    const onboardingModal = new bootstrap.Modal(document.getElementById('onboardingModal'));
+
+    async function openOnboardingModal(clientId, clientName) {
+        document.getElementById('modalClientId').value = clientId;
+        document.getElementById('modalClientName').textContent = clientName;
+        
+        // Reset form
+        document.getElementById('salesType').value = '';
+        document.getElementById('orderFlow').value = '';
+
+        // Fetch current settings
+        try {
+            const res = await fetch(`/admin/api/clients/${clientId}/onboarding-settings`);
+            const json = await res.json();
+            if (json.status === 'success') {
+                if (json.data.sales_type) document.getElementById('salesType').value = json.data.sales_type;
+                if (json.data.order_flow) document.getElementById('orderFlow').value = json.data.order_flow;
+            }
+        } catch(e) {
+            console.error('Error fetching settings:', e);
+        }
+
+        onboardingModal.show();
+    }
+
+    document.getElementById('onboardingForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const clientId = document.getElementById('modalClientId').value;
+        const btn = document.getElementById('saveOnboardingBtn');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i>جاري الحفظ...';
+
+        try {
+            const res = await fetch(`/admin/api/clients/${clientId}/onboarding-settings`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sales_type: document.getElementById('salesType').value,
+                    order_flow: document.getElementById('orderFlow').value
+                })
+            });
+            const json = await res.json();
+            if (json.status === 'success') {
+                showToast('نجاح', 'تم حفظ إعدادات النشاط بنجاح!', 'success');
+                onboardingModal.hide();
+            } else {
+                showToast('خطأ', json.message || 'حدث خطأ', 'error');
+            }
+        } catch(err) {
+            showToast('خطأ', 'حدث خطأ أثناء الاتصال بالخادم', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>حفظ التعديلات';
+        }
+    });
+
+    function showToast(title, message, type='success') {
+        // Fallback to alert if showToast is not globally defined in admin_base.html
+        if (typeof window.showToast === 'function') {
+            window.showToast(title, message, type);
+        } else {
+            alert(message);
+        }
+    }
+</script>
 {% endblock %}
