@@ -122,7 +122,15 @@ async def telegram_webhook(bot_token: str, request: Request):
         if order_data:
             try:
                 final_order = build_order_record(order_data, client_id, phone_str, "telegram", "TG")
-                supabase.table("orders").insert(final_order).execute()
+                res = supabase.table("orders").insert(final_order).execute()
+                if res.data:
+                    order_id = res.data[0]["id"]
+                    host = request.headers.get("host", request.url.hostname)
+                    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+                    if host and ":" not in host and host != "localhost":
+                        scheme = "https"
+                    invoice_url = f"{scheme}://{host}/invoice/{order_id}"
+                    ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
                 print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
             except Exception as e:
                 print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
