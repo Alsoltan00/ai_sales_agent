@@ -2,8 +2,8 @@ services:
   - type: web
     name: ai-sales-agent
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: python setup_db.py && uvicorn main:app --host 0.0.0.0 --port $PORT
+    buildCommand: pip install -r requirements.txt && python setup_db.py
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: SUPABASE_URL
         sync: false
