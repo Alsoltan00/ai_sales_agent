@@ -346,8 +346,20 @@ class ChannelsConfigRequest(BaseModel):
 @router.get("/channels", response_class=HTMLResponse)
 async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الاستقبال والإرسال"""
+    from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
     channels_config = get_channels_config(user["id"])
-    return templates.TemplateResponse("merchant/channels.html", {"request": request, "user": user, "channels_config": channels_config})
+    numbers = get_authorized_numbers(user["id"])
+    allow_all = get_allow_all_status(user["id"])
+    ignore_groups = get_ignore_groups_status(user["id"])
+    
+    return templates.TemplateResponse("merchant/channels.html", {
+        "request": request, 
+        "user": user, 
+        "channels_config": channels_config,
+        "numbers": numbers,
+        "allow_all": allow_all,
+        "ignore_groups": ignore_groups
+    })
 
 @router.post("/api/channels")
 async def api_update_channels(payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
@@ -399,21 +411,6 @@ class AuthorizedNumberRequest(BaseModel):
 
 class AllowAllRequest(BaseModel):
     allow_all: bool
-
-@router.get("/authorized-numbers", response_class=HTMLResponse)
-async def authorized_numbers_page(request: Request, user: dict = Depends(verify_merchant)):
-    """صفحة الأرقام المصرّحة"""
-    from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
-    numbers = get_authorized_numbers(user["id"])
-    allow_all = get_allow_all_status(user["id"])
-    ignore_groups = get_ignore_groups_status(user["id"])
-    return templates.TemplateResponse("merchant/authorized_numbers.html", {
-        "request": request, 
-        "user": user, 
-        "numbers": numbers,
-        "allow_all": allow_all,
-        "ignore_groups": ignore_groups
-    })
 
 @router.post("/api/authorized-numbers")
 async def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):

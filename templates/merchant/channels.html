@@ -37,7 +37,15 @@
     font-weight: 700;
 }
 .channel-title.whatsapp { color: #25D366; }
-.channel-title.telegram { color: #0088cc; }
+/* Firewall CSS */
+.form-check-input:checked { background-color: var(--bs-primary); border-color: var(--bs-primary); }
+.form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
+.form-check-label { cursor: pointer; }
+.number-row { display: flex; align-items: center; justify-content: space-between; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 12px; padding: 15px 20px; margin-bottom: 12px; transition: all 0.2s ease; }
+.number-row:hover { border-color: var(--bs-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.number-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(var(--bs-primary-rgb), 0.1); color: var(--bs-primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
+.empty-state { text-align: center; padding: 40px; color: var(--bs-secondary-color); }
+.empty-state i { font-size: 3rem; margin-bottom: 15px; display: block; opacity: 0.5; }
 {% endblock %}
 
 {% block content %}
@@ -156,6 +164,110 @@
                 </div>
             </div>
             
+        </div>
+    </div>
+
+    <!-- WhatsApp Firewall Panel -->
+    <div class="card card-lg mb-4 border-success">
+        <div class="card-header border-bottom d-flex align-items-center pb-3 bg-success-subtle">
+            <h5 class="mb-0 channel-title text-success"><i class="ti ti-shield-check"></i> جدار حماية واتساب (الأرقام المصرّحة)</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-secondary small mb-4">يُطبق هذا الجدار حصرياً على واتساب للتحكم بمن يمكنه التحدث مع الوكيل الذكي.</p>
+            
+            <!-- Global Settings -->
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <div class="card card-body h-100 py-3 bg-light border-0">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <h6 class="mb-1 fw-bold">السماح لجميع الأرقام</h6>
+                                <p class="text-secondary small mb-0 pe-4">عند التفعيل، سيستجيب الوكيل لأي رقم يتواصل معه.</p>
+                            </div>
+                            <div class="form-check form-switch m-0 mt-1">
+                                <input class="form-check-input" type="checkbox" role="switch" id="allowAllToggle" 
+                                    {% if allow_all %}checked{% endif %} onchange="updateAllowAll(this.checked)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card card-body h-100 py-3 bg-light border-0">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <div>
+                                <h6 class="mb-1 fw-bold">تجاهل المجموعات</h6>
+                                <p class="text-secondary small mb-0 pe-4">لن يستجيب الوكيل للرسائل القادمة من مجموعات واتساب.</p>
+                            </div>
+                            <div class="form-check form-switch m-0 mt-1">
+                                <input class="form-check-input" type="checkbox" role="switch" id="ignoreGroupsToggle" 
+                                    {% if ignore_groups %}checked{% endif %} onchange="updateIgnoreGroups(this.checked)">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Memory Management -->
+            <div class="card border-warning card-body py-3 mb-4">
+                <div class="row align-items-center">
+                    <div class="col-md-5">
+                        <h6 class="mb-1 fw-bold text-warning"><i class="ti ti-eraser me-2"></i>مسح ذاكرة عميل واتساب</h6>
+                        <p class="text-secondary small mb-0">لجعل الوكيل ينسى محادثة سابقة مع رقم معين.</p>
+                    </div>
+                    <div class="col-md-7 mt-3 mt-md-0">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
+                            <input type="tel" id="clearMemoryPhone" class="form-control" placeholder="مثال: 966501234567" dir="ltr">
+                            <button type="button" class="btn btn-warning" onclick="clearCustomerMemory()" id="clearMemoryBtn">مسح</button>
+                        </div>
+                        <small id="clearMemoryAlert" class="text-success mt-2 d-none fw-bold"><i class="ti ti-check me-1"></i>تم مسح الذاكرة</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Numbers List -->
+            <h6 class="fw-bold mb-3">قائمة الأرقام المصرحة</h6>
+            <div id="alertBoxFirewall" class="alert" style="display:none;"></div>
+            <div class="row g-2 mb-3">
+                <div class="col-md-5">
+                    <input type="tel" id="phoneInput" class="form-control form-control-sm" placeholder="الرقم (مثال: 966501234567)" dir="ltr">
+                </div>
+                <div class="col-md-5">
+                    <input type="text" id="labelInput" class="form-control form-control-sm" placeholder="اسم أو وصف (اختياري)">
+                </div>
+                <div class="col-md-2">
+                    <button type="button" class="btn btn-primary btn-sm w-100" onclick="addNumber()" id="addBtn">إضافة</button>
+                </div>
+            </div>
+
+            <div id="numbersGrid">
+                {% if numbers %}
+                    {% for num in numbers %}
+                    <div class="number-row py-2 px-3 mb-2" id="row-{{ num.id }}">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="number-icon" style="width:32px;height:32px;font-size:1rem;"><i class="ti ti-device-mobile"></i></div>
+                            <div>
+                                <strong class="d-block mb-0" dir="ltr" style="text-align: right; font-size: 0.9rem;">{{ num.phone_number }}</strong>
+                                <span class="text-secondary" style="font-size: 0.75rem;">{{ num.label if num.label else 'بدون وصف' }}</span>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-outline-warning btn-sm py-1 px-2" onclick="clearRowMemory('{{ num.phone_number }}', this)" title="مسح الذاكرة">
+                                <i class="ti ti-eraser"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="deleteNumber('{{ num.id }}')" title="حذف">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state py-3" id="emptyState">
+                        <i class="ti ti-shield-x fs-1 mb-2"></i>
+                        <p class="mb-0 small">لا توجد أرقام مضافة بعد</p>
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 
@@ -297,6 +409,197 @@
         } finally {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
+        }
+    }
+    // --- Firewall Functions ---
+    async function updateAllowAll(checked) {
+        try {
+            await fetch('/merchant/api/authorized-numbers/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ allow_all: checked })
+            });
+        } catch(err) {
+            console.error('Error updating allow_all:', err);
+        }
+    }
+
+    async function updateIgnoreGroups(checked) {
+        try {
+            await fetch('/merchant/api/authorized-numbers/settings', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ ignore_groups: checked })
+            });
+        } catch(err) {
+            console.error('Error updating ignore_groups:', err);
+        }
+    }
+
+    async function addNumber() {
+        const phone = document.getElementById('phoneInput').value.trim();
+        const label = document.getElementById('labelInput').value.trim();
+        const alertBox = document.getElementById('alertBoxFirewall');
+        const btn = document.getElementById('addBtn');
+
+        if (!phone) {
+            alertBox.className = 'alert alert-danger mb-3';
+            alertBox.innerText = 'يرجى إدخال رقم الهاتف';
+            alertBox.style.display = 'block';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+        alertBox.style.display = 'none';
+
+        try {
+            const res = await fetch('/merchant/api/authorized-numbers', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ phone_number: phone, label: label })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                alertBox.className = 'alert alert-success mb-3';
+                alertBox.innerText = data.message;
+                
+                // Add to DOM
+                const grid = document.getElementById('numbersGrid');
+                const empty = document.getElementById('emptyState');
+                if (empty) empty.remove();
+
+                grid.insertAdjacentHTML('afterbegin', `
+                    <div class="number-row py-2 px-3 mb-2" id="row-new-${Date.now()}">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="number-icon" style="width:32px;height:32px;font-size:1rem;"><i class="ti ti-device-mobile"></i></div>
+                            <div>
+                                <strong class="d-block mb-0" dir="ltr" style="text-align: right; font-size: 0.9rem;">${phone}</strong>
+                                <span class="text-secondary" style="font-size: 0.75rem;">${label || 'بدون وصف'}</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="location.reload()" title="تفعيل الحذف (يرجى التحديث)">
+                            <i class="ti ti-trash"></i>
+                        </button>
+                    </div>
+                `);
+
+                document.getElementById('phoneInput').value = '';
+                document.getElementById('labelInput').value = '';
+            } else {
+                alertBox.className = 'alert alert-danger mb-3';
+                alertBox.innerText = data.message;
+            }
+            alertBox.style.display = 'block';
+        } catch(err) {
+            alertBox.className = 'alert alert-danger mb-3';
+            alertBox.innerText = 'حدث خطأ في الاتصال';
+            alertBox.style.display = 'block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'إضافة';
+        }
+    }
+
+    async function deleteNumber(id) {
+        if (!confirm('هل أنت متأكد من حذف هذا الرقم؟')) return;
+        if (!id) return;
+        
+        try {
+            const res = await fetch(`/merchant/api/authorized-numbers/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                const row = document.getElementById('row-' + id);
+                if (row) {
+                    row.style.opacity = '0';
+                    row.style.transition = 'opacity 0.3s';
+                    setTimeout(() => row.remove(), 300);
+                }
+            } else {
+                alert(data.message);
+            }
+        } catch(err) {
+            alert('حدث خطأ في الاتصال');
+        }
+    }
+
+    async function clearCustomerMemory() {
+        let phone = document.getElementById('clearMemoryPhone').value.trim();
+        const alertMsg = document.getElementById('clearMemoryAlert');
+        const btn = document.getElementById('clearMemoryBtn');
+
+        if (!phone) {
+            alert('يرجى إدخال رقم العميل أولاً');
+            return;
+        }
+
+        phone = phone.replace('+', '').split('@')[0];
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+        alertMsg.classList.add('d-none');
+
+        try {
+            const res = await fetch('/merchant/api/clear-memory', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ phone_number: phone })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                alertMsg.innerText = data.message || 'تم مسح ذاكرة العميل بنجاح!';
+                alertMsg.className = 'text-success mt-2 fw-bold d-block';
+                document.getElementById('clearMemoryPhone').value = '';
+            } else {
+                alertMsg.innerText = data.message || 'حدث خطأ أثناء المسح';
+                alertMsg.className = 'text-danger mt-2 fw-bold d-block';
+            }
+        } catch (err) {
+            alertMsg.innerText = 'فشل الاتصال بالخادم';
+            alertMsg.className = 'text-danger mt-2 fw-bold d-block';
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'مسح';
+            setTimeout(() => { alertMsg.classList.add('d-none'); }, 5000);
+        }
+    }
+
+    async function clearRowMemory(phone, btn) {
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+
+        try {
+            const res = await fetch('/merchant/api/clear-memory', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ phone_number: phone })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success') {
+                btn.innerHTML = '<i class="ti ti-check"></i>';
+                btn.className = 'btn btn-success btn-sm py-1 px-2';
+            } else {
+                alert(data.message);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            }
+        } catch (err) {
+            alert('فشل الاتصال');
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        } finally {
+            setTimeout(() => {
+                if (btn.className.includes('btn-success')) {
+                    btn.innerHTML = originalHtml;
+                    btn.className = 'btn btn-outline-warning btn-sm py-1 px-2';
+                    btn.disabled = false;
+                }
+            }, 3000);
         }
     }
 </script>
