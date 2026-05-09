@@ -778,31 +778,28 @@ async def api_get_insights(user: dict = Depends(verify_merchant)):
 async def api_generate_insights(user: dict = Depends(verify_merchant)):
     """طلب توليد رؤى جديدة من المحادثات"""
     from merchant.insights import generate_and_save_insights
+    from database.db_client import get_db_engine
+    from sqlalchemy import text
+    
+    # محاولة إنشاء الجدول بشكل استباقي قبل البدء
+    engine = get_db_engine()
+    if engine:
+        try:
+            with engine.begin() as conn:
+                conn.execute(text("""
+                    CREATE TABLE IF NOT EXISTS merchant_ai_insights (
+                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+                        insights_data JSONB DEFAULT '{}',
+                        period TEXT DEFAULT 'last_7_days',
+                        created_at TIMESTAMP DEFAULT NOW()
+                    );
+                """))
+        except Exception as e:
+            print(f"Pre-emptive table creation warning: {e}")
+
     try:
         res = await generate_and_save_insights(user["id"])
         return res
     except Exception as e:
-        # إذا كان الخطأ هو عدم وجود الجدول، نحاول إنشاؤه مرة واحدة
-        if "merchant_ai_insights" in str(e) and "does not exist" in str(e):
-            from database.db_client import get_db_engine
-            from sqlalchemy import text
-            engine = get_db_engine()
-            if engine:
-                try:
-                    with engine.begin() as conn:
-                        conn.execute(text("""
-                            CREATE TABLE IF NOT EXISTS merchant_ai_insights (
-                                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                                client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-                                insights_data JSONB DEFAULT '{}',
-                                period TEXT DEFAULT 'last_7_days',
-                                created_at TIMESTAMP DEFAULT NOW()
-                            );
-                        """))
-                    # إعادة المحاولة بعد إنشاء الجدول
-                    res = await generate_and_save_insights(user["id"])
-                    return res
-                except Exception as create_e:
-                    return {"status": "error", "message": f"فشل في إنشاء الجدول تلقائياً: {str(create_e)}"}
-        
         return {"status": "error", "message": str(e)}
