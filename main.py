@@ -55,7 +55,7 @@ async def startup_event():
 
 def _migrate_database():
     """تحديث قاعدة البيانات في الخلفية لضمان سرعة استجابة الخادم عند بدء التشغيل"""
-    print("[DB] Starting database schema verification...")
+    print("[DB] Starting database schema verification (forgetting Supabase)...")
     try:
         from database.db_client import get_db_engine
         from sqlalchemy import text, inspect
@@ -203,8 +203,22 @@ def _migrate_database():
                     conn.execute(text("ALTER TABLE shipping_zones ADD COLUMN free_shipping_min NUMERIC(12,2) DEFAULT 0;"))
             except: pass
 
+            # 8. تحديث جدول قنوات التواصل (WhatsApp, Instagram, TikTok, Telegram)
+            try:
+                ch_columns = [c['name'] for c in inspector.get_columns('channels_config')]
+                if 'instagram_access_token' not in ch_columns:
+                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN instagram_access_token TEXT;"))
+                if 'instagram_page_id' not in ch_columns:
+                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN instagram_page_id TEXT;"))
+                if 'tiktok_access_token' not in ch_columns:
+                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN tiktok_access_token TEXT;"))
+                if 'tiktok_shop_id' not in ch_columns:
+                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN tiktok_shop_id TEXT;"))
+            except Exception as e:
+                print(f"[DB] Error migrating channels_config: {e}")
+
             conn.commit()
-            print("[DB] Database schema verified successfully.")
+            print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:
         print(f"[DB ERROR] Background migration failed: {e}")
 

@@ -37,15 +37,35 @@
     font-weight: 700;
 }
 .channel-title.whatsapp { color: #25D366; }
+/* Custom Tabs Styling */
+.nav-pills .nav-link {
+    color: var(--bs-secondary-color);
+    background: var(--bs-secondary-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 12px;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+    margin-right: 8px;
+}
+.nav-pills .nav-link:hover {
+    background: var(--bs-tertiary-bg);
+}
+.nav-pills .nav-link.active {
+    background: var(--bs-primary);
+    color: #white;
+    border-color: var(--bs-primary);
+    box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.2);
+}
+
 /* Firewall CSS */
 .form-check-input:checked { background-color: var(--bs-primary); border-color: var(--bs-primary); }
 .form-switch .form-check-input { width: 3em; height: 1.5em; cursor: pointer; }
 .form-check-label { cursor: pointer; }
-.number-row { display: flex; align-items: center; justify-content: space-between; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 12px; padding: 15px 20px; margin-bottom: 12px; transition: all 0.2s ease; }
+.number-row { display: flex; align-items: center; justify-content: space-between; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 12px; padding: 12px 18px; margin-bottom: 10px; transition: all 0.2s ease; }
 .number-row:hover { border-color: var(--bs-primary); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-.number-icon { width: 42px; height: 42px; border-radius: 10px; background: rgba(var(--bs-primary-rgb), 0.1); color: var(--bs-primary); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0; }
-.empty-state { text-align: center; padding: 40px; color: var(--bs-secondary-color); }
-.empty-state i { font-size: 3rem; margin-bottom: 15px; display: block; opacity: 0.5; }
+.number-icon { width: 36px; height: 36px; border-radius: 8px; background: rgba(var(--bs-primary-rgb), 0.1); color: var(--bs-primary); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+.empty-state { text-align: center; padding: 30px; color: var(--bs-secondary-color); }
+.empty-state i { font-size: 2.5rem; margin-bottom: 12px; display: block; opacity: 0.5; }
 {% endblock %}
 
 {% block content %}
@@ -62,231 +82,326 @@
     </div>
 </div>
 
-<div class="webhook-info">
-    <div class="fw-bold text-info mb-2"><i class="ti ti-info-circle me-1"></i> رابط استقبال الرسائل (Webhook)</div>
-    <p class="small text-secondary mb-0">انسخ هذا الرابط وضعه في إعدادات Webhook بداخل لوحة Evolution API لاستقبال الرسائل:</p>
-    <div class="webhook-url-box">
-        <span id="webhookUrlDisplay" class="text-break">جاري التحميل...</span>
-        <button class="btn btn-sm btn-info text-white ms-3 flex-shrink-0" onclick="copyWebhook()">
-            <i class="ti ti-copy"></i> نسخ الرابط
-        </button>
-    </div>
-</div>
+
 
 <form id="channelsForm" onsubmit="saveChannelsConfig(event)">
     <div id="alertBox" class="alert" style="display:none;"></div>
 
-    <!-- WhatsApp Panel -->
-    <div class="card card-lg mb-4">
-        <div class="card-header border-bottom d-flex align-items-center pb-3">
-            <h5 class="mb-0 channel-title whatsapp"><i class="ti ti-brand-whatsapp"></i> إعدادات واتساب</h5>
-        </div>
-        <div class="card-body">
-            
-            <div class="mb-4">
-                <label class="form-label fw-600">مزود خدمة الواتساب</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-server"></i></span>
-                    <select id="whatsapp_provider" class="form-select" onchange="toggleWhatsAppProvider()" disabled>
-                        <option value="evolution" {% if channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>Evolution API (QR Code)</option>
-                        <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>Official Meta Cloud API</option>
-                    </select>
-                </div>
-            </div>
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-pills mb-4" id="channelsTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="wa-tab" data-bs-toggle="tab" data-bs-target="#wa-pane" type="button" role="tab">
+                <i class="ti ti-brand-whatsapp me-1"></i> واتساب
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="ig-tab" data-bs-toggle="tab" data-bs-target="#ig-pane" type="button" role="tab">
+                <i class="ti ti-brand-instagram me-1"></i> إنستقرام
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="tt-tab" data-bs-toggle="tab" data-bs-target="#tt-pane" type="button" role="tab">
+                <i class="ti ti-brand-tiktok me-1"></i> تيك توك
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="tg-tab" data-bs-toggle="tab" data-bs-target="#tg-pane" type="button" role="tab">
+                <i class="ti ti-brand-telegram me-1"></i> تيليجرام
+            </button>
+        </li>
+    </ul>
 
-            <!-- Evolution API Fields -->
-            <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
-                <div class="mb-4">
-                    <label class="form-label fw-600">رابط خادم Evolution (URL الإرسال)</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-link"></i></span>
-                        <input type="url" id="evolution_api_url" class="form-control" 
-                            value="{{ channels_config.evolution_api_url or '' }}" 
-                            placeholder="https://api.evolution.com" dir="ltr" disabled>
-                    </div>
+    <div class="tab-content" id="channelsTabsContent">
+        <!-- WhatsApp Panel -->
+        <div class="tab-pane fade show active" id="wa-pane" role="tabpanel">
+            <div class="card card-lg mb-4 border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom d-flex align-items-center pb-3">
+                    <h5 class="mb-0 channel-title whatsapp"><i class="ti ti-brand-whatsapp"></i> إعدادات واتساب</h5>
                 </div>
-                
-                <div class="mb-4">
-                    <label class="form-label fw-600">Global API Key</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-key"></i></span>
-                        <input type="password" id="evolution_api_key" class="form-control" 
-                            value="{{ channels_config.evolution_api_key or '' }}" 
-                            placeholder="8A9B..." dir="ltr" disabled>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label fw-600">اسم الجلسة (Instance Name)</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-device-mobile"></i></span>
-                        <input type="text" id="evolution_instance_name" class="form-control" 
-                            value="{{ channels_config.evolution_instance_name or '' }}" 
-                            placeholder="instance1" dir="ltr" disabled oninput="updateWebhookDisplay()">
-                    </div>
-                </div>
-                
-                <button type="button" class="btn btn-outline-success mt-2" id="testWaBtn" onclick="testWhatsApp()">
-                    <i class="ti ti-send me-1"></i> إرسال رسالة تجربة لرقمي المصرح
-                </button>
-            </div>
-
-            <!-- Meta Official API Fields -->
-            <div id="wa-official" class="dynamic-form {% if channels_config.whatsapp_provider == 'official' %}active{% endif %}">
-                <div class="mb-4">
-                    <label class="form-label fw-600">Phone Number ID</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-hash"></i></span>
-                        <input type="text" id="meta_phone_number_id" class="form-control" 
-                            value="{{ channels_config.meta_phone_number_id or '' }}" 
-                            placeholder="123456789" dir="ltr" disabled>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label fw-600">Access Token (Permanent)</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-key"></i></span>
-                        <input type="password" id="meta_access_token" class="form-control" 
-                            value="{{ channels_config.meta_access_token or '' }}" 
-                            placeholder="EAAG..." dir="ltr" disabled>
-                    </div>
-                </div>
-                
-                <div class="mb-4">
-                    <label class="form-label fw-600">Webhook Verify Token</label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="ti ti-shield-check"></i></span>
-                        <input type="text" id="meta_verify_token" class="form-control" 
-                            value="{{ channels_config.meta_verify_token or '' }}" 
-                            placeholder="my_secret_token" dir="ltr" disabled>
-                    </div>
-                </div>
-            </div>
-            
-        </div>
-    </div>
-
-    <!-- WhatsApp Firewall Panel -->
-    <div class="card card-lg mb-4 border-success">
-        <div class="card-header border-bottom d-flex align-items-center pb-3 bg-success-subtle">
-            <h5 class="mb-0 channel-title text-success"><i class="ti ti-shield-check"></i> جدار حماية واتساب (الأرقام المصرّحة)</h5>
-        </div>
-        <div class="card-body">
-            <p class="text-secondary small mb-4">يُطبق هذا الجدار حصرياً على واتساب للتحكم بمن يمكنه التحدث مع الوكيل الذكي.</p>
-            
-            <!-- Global Settings -->
-            <div class="row g-4 mb-4">
-                <div class="col-md-6">
-                    <div class="card card-body h-100 py-3 bg-light border-0">
-                        <div class="d-flex align-items-start justify-content-between">
-                            <div>
-                                <h6 class="mb-1 fw-bold">السماح لجميع الأرقام</h6>
-                                <p class="text-secondary small mb-0 pe-4">عند التفعيل، سيستجيب الوكيل لأي رقم يتواصل معه.</p>
-                            </div>
-                            <div class="form-check form-switch m-0 mt-1">
-                                <input class="form-check-input" type="checkbox" role="switch" id="allowAllToggle" 
-                                    {% if allow_all %}checked{% endif %} onchange="updateAllowAll(this.checked)">
-                            </div>
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label class="form-label fw-600">مزود خدمة الواتساب</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-server"></i></span>
+                            <select id="whatsapp_provider" class="form-select" onchange="toggleWhatsAppProvider()" disabled>
+                                <option value="evolution" {% if channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>Evolution API (QR Code)</option>
+                                <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>Official Meta Cloud API</option>
+                            </select>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card card-body h-100 py-3 bg-light border-0">
-                        <div class="d-flex align-items-start justify-content-between">
-                            <div>
-                                <h6 class="mb-1 fw-bold">تجاهل المجموعات</h6>
-                                <p class="text-secondary small mb-0 pe-4">لن يستجيب الوكيل للرسائل القادمة من مجموعات واتساب.</p>
+
+                    <!-- Evolution API Fields -->
+                    <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
+                        <div class="mb-4">
+                            <label class="form-label fw-600">رابط خادم Evolution (URL الإرسال)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-link"></i></span>
+                                <input type="url" id="evolution_api_url" class="form-control" 
+                                    value="{{ channels_config.evolution_api_url or '' }}" 
+                                    placeholder="https://api.evolution.com" dir="ltr" disabled>
                             </div>
-                            <div class="form-check form-switch m-0 mt-1">
-                                <input class="form-check-input" type="checkbox" role="switch" id="ignoreGroupsToggle" 
-                                    {% if ignore_groups %}checked{% endif %} onchange="updateIgnoreGroups(this.checked)">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-600">Global API Key</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-key"></i></span>
+                                <input type="password" id="evolution_api_key" class="form-control" 
+                                    value="{{ channels_config.evolution_api_key or '' }}" 
+                                    placeholder="8A9B..." dir="ltr" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-600">اسم الجلسة (Instance Name)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-device-mobile"></i></span>
+                                <input type="text" id="evolution_instance_name" class="form-control" 
+                                    value="{{ channels_config.evolution_instance_name or '' }}" 
+                                    placeholder="instance1" dir="ltr" disabled oninput="updateWebhookDisplay()">
+                            </div>
+                        </div>
+
+                        <div class="webhook-info mb-4">
+                            <div class="fw-bold text-info mb-2 small"><i class="ti ti-info-circle me-1"></i> رابط استقبال الرسائل (Webhook)</div>
+                            <p class="x-small text-secondary mb-2" style="font-size: 0.8rem;">انسخ هذا الرابط وضعه في إعدادات Webhook بداخل لوحة Evolution API:</p>
+                            <div class="webhook-url-box py-2 px-3">
+                                <span id="webhookUrlDisplay" class="text-break small">جاري التحميل...</span>
+                                <button type="button" class="btn btn-sm btn-info text-white ms-2 flex-shrink-0" onclick="copyWebhook()">
+                                    <i class="ti ti-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-outline-success w-100" id="testWaBtn" onclick="testWhatsApp()">
+                            <i class="ti ti-send me-1"></i> إرسال رسالة تجربة لرقمي المصرح
+                        </button>
+                    </div>
+
+                    <!-- Meta Official API Fields -->
+                    <div id="wa-official" class="dynamic-form {% if channels_config.whatsapp_provider == 'official' %}active{% endif %}">
+                        <div class="mb-4">
+                            <label class="form-label fw-600">Phone Number ID</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-hash"></i></span>
+                                <input type="text" id="meta_phone_number_id" class="form-control" 
+                                    value="{{ channels_config.meta_phone_number_id or '' }}" 
+                                    placeholder="123456789" dir="ltr" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-600">Access Token (Permanent)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-key"></i></span>
+                                <input type="password" id="meta_access_token" class="form-control" 
+                                    value="{{ channels_config.meta_access_token or '' }}" 
+                                    placeholder="EAAG..." dir="ltr" disabled>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-600">Webhook Verify Token</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="ti ti-shield-check"></i></span>
+                                <input type="text" id="meta_verify_token" class="form-control" 
+                                    value="{{ channels_config.meta_verify_token or '' }}" 
+                                    placeholder="my_secret_token" dir="ltr" disabled>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Memory Management -->
-            <div class="card border-warning card-body py-3 mb-4">
-                <div class="row align-items-center">
-                    <div class="col-md-5">
-                        <h6 class="mb-1 fw-bold text-warning"><i class="ti ti-eraser me-2"></i>مسح ذاكرة عميل واتساب</h6>
-                        <p class="text-secondary small mb-0">لجعل الوكيل ينسى محادثة سابقة مع رقم معين.</p>
-                    </div>
-                    <div class="col-md-7 mt-3 mt-md-0">
-                        <div class="input-group input-group-sm">
-                            <span class="input-group-text"><i class="ti ti-phone"></i></span>
-                            <input type="tel" id="clearMemoryPhone" class="form-control" placeholder="مثال: 966501234567" dir="ltr">
-                            <button type="button" class="btn btn-warning" onclick="clearCustomerMemory()" id="clearMemoryBtn">مسح</button>
-                        </div>
-                        <small id="clearMemoryAlert" class="text-success mt-2 d-none fw-bold"><i class="ti ti-check me-1"></i>تم مسح الذاكرة</small>
-                    </div>
+            <!-- WhatsApp Firewall Panel -->
+            <div class="card card-lg mb-4 border-success shadow-sm">
+                <div class="card-header border-bottom d-flex align-items-center pb-3 bg-success-subtle">
+                    <h5 class="mb-0 channel-title text-success"><i class="ti ti-shield-check"></i> جدار حماية واتساب (الأرقام المصرّحة)</h5>
                 </div>
-            </div>
-
-            <!-- Numbers List -->
-            <h6 class="fw-bold mb-3">قائمة الأرقام المصرحة</h6>
-            <div id="alertBoxFirewall" class="alert" style="display:none;"></div>
-            <div class="row g-2 mb-3">
-                <div class="col-md-5">
-                    <input type="tel" id="phoneInput" class="form-control form-control-sm" placeholder="الرقم (مثال: 966501234567)" dir="ltr">
-                </div>
-                <div class="col-md-5">
-                    <input type="text" id="labelInput" class="form-control form-control-sm" placeholder="اسم أو وصف (اختياري)">
-                </div>
-                <div class="col-md-2">
-                    <button type="button" class="btn btn-primary btn-sm w-100" onclick="addNumber()" id="addBtn">إضافة</button>
-                </div>
-            </div>
-
-            <div id="numbersGrid">
-                {% if numbers %}
-                    {% for num in numbers %}
-                    <div class="number-row py-2 px-3 mb-2" id="row-{{ num.id }}">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="number-icon" style="width:32px;height:32px;font-size:1rem;"><i class="ti ti-device-mobile"></i></div>
-                            <div>
-                                <strong class="d-block mb-0" dir="ltr" style="text-align: right; font-size: 0.9rem;">{{ num.phone_number }}</strong>
-                                <span class="text-secondary" style="font-size: 0.75rem;">{{ num.label if num.label else 'بدون وصف' }}</span>
+                <div class="card-body">
+                    <p class="text-secondary small mb-4">يُطبق هذا الجدار حصرياً على واتساب للتحكم بمن يمكنه التحدث مع الوكيل الذكي.</p>
+                    
+                    <!-- Global Settings -->
+                    <div class="row g-4 mb-4">
+                        <div class="col-md-6">
+                            <div class="card card-body h-100 py-3 bg-light border-0">
+                                <div class="d-flex align-items-start justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">السماح لجميع الأرقام</h6>
+                                        <p class="text-secondary small mb-0 pe-4">عند التفعيل، سيستجيب الوكيل لأي رقم يتواصل معه.</p>
+                                    </div>
+                                    <div class="form-check form-switch m-0 mt-1">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="allowAllToggle" 
+                                            {% if allow_all %}checked{% endif %} onchange="updateAllowAll(this.checked)">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div class="d-flex gap-1">
-                            <button type="button" class="btn btn-outline-warning btn-sm py-1 px-2" onclick="clearRowMemory('{{ num.phone_number }}', this)" title="مسح الذاكرة">
-                                <i class="ti ti-eraser"></i>
-                            </button>
-                            <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="deleteNumber('{{ num.id }}')" title="حذف">
-                                <i class="ti ti-trash"></i>
-                            </button>
+                        <div class="col-md-6">
+                            <div class="card card-body h-100 py-3 bg-light border-0">
+                                <div class="d-flex align-items-start justify-content-between">
+                                    <div>
+                                        <h6 class="mb-1 fw-bold">تجاهل المجموعات</h6>
+                                        <p class="text-secondary small mb-0 pe-4">لن يستجيب الوكيل للرسائل القادمة من مجموعات واتساب.</p>
+                                    </div>
+                                    <div class="form-check form-switch m-0 mt-1">
+                                        <input class="form-check-input" type="checkbox" role="switch" id="ignoreGroupsToggle" 
+                                            {% if ignore_groups %}checked{% endif %} onchange="updateIgnoreGroups(this.checked)">
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    {% endfor %}
-                {% else %}
-                    <div class="empty-state py-3" id="emptyState">
-                        <i class="ti ti-shield-x fs-1 mb-2"></i>
-                        <p class="mb-0 small">لا توجد أرقام مضافة بعد</p>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
 
-    <!-- Telegram Panel -->
-    <div class="card card-lg mb-4">
-        <div class="card-header border-bottom d-flex align-items-center pb-3">
-            <h5 class="mb-0 channel-title telegram"><i class="ti ti-brand-telegram"></i> إعدادات تيليجرام</h5>
-        </div>
-        <div class="card-body">
-            <div class="mb-2">
-                <label class="form-label fw-600">Telegram Bot Token (من BotFather)</label>
-                <div class="input-group">
-                    <span class="input-group-text"><i class="ti ti-robot"></i></span>
-                    <input type="password" id="telegram_bot_token" class="form-control" 
-                        value="{{ channels_config.telegram_bot_token or '' }}" 
-                        placeholder="123456789:ABCDefgh..." dir="ltr" disabled>
+                    <!-- Memory Management -->
+                    <div class="card border-warning card-body py-3 mb-4">
+                        <div class="row align-items-center">
+                            <div class="col-md-5">
+                                <h6 class="mb-1 fw-bold text-warning"><i class="ti ti-eraser me-2"></i>مسح ذاكرة عميل واتساب</h6>
+                                <p class="text-secondary small mb-0">لجعل الوكيل ينسى محادثة سابقة مع رقم معين.</p>
+                            </div>
+                            <div class="col-md-7 mt-3 mt-md-0">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text"><i class="ti ti-phone"></i></span>
+                                    <input type="tel" id="clearMemoryPhone" class="form-control" placeholder="مثال: 966501234567" dir="ltr">
+                                    <button type="button" class="btn btn-warning" onclick="clearCustomerMemory()" id="clearMemoryBtn">مسح</button>
+                                </div>
+                                <small id="clearMemoryAlert" class="text-success mt-2 d-none fw-bold"><i class="ti ti-check me-1"></i>تم مسح الذاكرة</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Numbers List -->
+                    <h6 class="fw-bold mb-3">قائمة الأرقام المصرحة</h6>
+                    <div id="alertBoxFirewall" class="alert" style="display:none;"></div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <input type="tel" id="phoneInput" class="form-control form-control-sm" placeholder="الرقم (مثال: 966501234567)" dir="ltr">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" id="labelInput" class="form-control form-control-sm" placeholder="اسم أو وصف (اختياري)">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-primary btn-sm w-100" onclick="addNumber()" id="addBtn">إضافة</button>
+                        </div>
+                    </div>
+
+                    <div id="numbersGrid">
+                        {% if numbers %}
+                            {% for num in numbers %}
+                            <div class="number-row py-2 px-3 mb-2" id="row-{{ num.id }}">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="number-icon" style="width:32px;height:32px;font-size:1rem;"><i class="ti ti-device-mobile"></i></div>
+                                    <div>
+                                        <strong class="d-block mb-0" dir="ltr" style="text-align: right; font-size: 0.9rem;">{{ num.phone_number }}</strong>
+                                        <span class="text-secondary" style="font-size: 0.75rem;">{{ num.label if num.label else 'بدون وصف' }}</span>
+                                    </div>
+                                </div>
+                                <div class="d-flex gap-1">
+                                    <button type="button" class="btn btn-outline-warning btn-sm py-1 px-2" onclick="clearRowMemory('{{ num.phone_number }}', this)" title="مسح الذاكرة">
+                                        <i class="ti ti-eraser"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="deleteNumber('{{ num.id }}')" title="حذف">
+                                        <i class="ti ti-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="empty-state py-3" id="emptyState">
+                                <i class="ti ti-shield-x fs-1 mb-2"></i>
+                                <p class="mb-0 small">لا توجد أرقام مضافة بعد</p>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
-            <p class="text-secondary small mt-2 mb-0">اترك هذا الحقل فارغاً إذا كنت لا ترغب بتفعيل بوت تيليجرام.</p>
+        </div>
+
+        <!-- Instagram Panel -->
+        <div class="tab-pane fade" id="ig-pane" role="tabpanel">
+            <div class="card card-lg mb-4 border-0 shadow-sm" style="border-top: 4px solid #E1306C !important;">
+                <div class="card-header bg-white border-bottom d-flex align-items-center pb-3">
+                    <h5 class="mb-0 channel-title" style="color: #E1306C;"><i class="ti ti-brand-instagram"></i> إعدادات إنستقرام</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-secondary small mb-4">اربط حساب إنستقرام للرد على التعليقات والرسائل المباشرة (DM) عبر الذكاء الاصطناعي (مباشرة دون جدار حماية).</p>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Instagram Access Token</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-key"></i></span>
+                            <input type="password" id="instagram_access_token" class="form-control" 
+                                value="{{ channels_config.instagram_access_token or '' }}" 
+                                placeholder="EAA..." dir="ltr" disabled>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-600">Instagram Page ID / Account ID</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-id"></i></span>
+                            <input type="text" id="instagram_page_id" class="form-control" 
+                                value="{{ channels_config.instagram_page_id or '' }}" 
+                                placeholder="178414..." dir="ltr" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TikTok Panel -->
+        <div class="tab-pane fade" id="tt-pane" role="tabpanel">
+            <div class="card card-lg mb-4 border-0 shadow-sm" style="border-top: 4px solid #000000 !important;">
+                <div class="card-header bg-white border-bottom d-flex align-items-center pb-3">
+                    <h5 class="mb-0 channel-title" style="color: #000000;"><i class="ti ti-brand-tiktok"></i> إعدادات تيك توك</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-secondary small mb-4">اربط متجر تيك توك الخاص بك (TikTok Shop / Messaging) عبر الذكاء الاصطناعي (مباشرة دون جدار حماية).</p>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-600">TikTok Access Token</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-key"></i></span>
+                            <input type="password" id="tiktok_access_token" class="form-control" 
+                                value="{{ channels_config.tiktok_access_token or '' }}" 
+                                placeholder="TKTK..." dir="ltr" disabled>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-600">TikTok Shop ID / App Key</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-id"></i></span>
+                            <input type="text" id="tiktok_shop_id" class="form-control" 
+                                value="{{ channels_config.tiktok_shop_id or '' }}" 
+                                placeholder="shop_..." dir="ltr" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Telegram Panel -->
+        <div class="tab-pane fade" id="tg-pane" role="tabpanel">
+            <div class="card card-lg mb-4 border-0 shadow-sm" style="border-top: 4px solid #0088cc !important;">
+                <div class="card-header bg-white border-bottom d-flex align-items-center pb-3">
+                    <h5 class="mb-0 channel-title telegram"><i class="ti ti-brand-telegram"></i> إعدادات تيليجرام</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-secondary small mb-4">قم بإدخال مفتاح البوت (Token) الخاص بتيليجرام (يعمل مباشرة دون جدار حماية).</p>
+                    <div class="mb-2">
+                        <label class="form-label fw-600">Telegram Bot Token (من BotFather)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-robot"></i></span>
+                            <input type="password" id="telegram_bot_token" class="form-control" 
+                                value="{{ channels_config.telegram_bot_token or '' }}" 
+                                placeholder="123456789:ABCDefgh..." dir="ltr" disabled>
+                        </div>
+                    </div>
+                    <p class="text-secondary small mt-2 mb-0">اترك هذا الحقل فارغاً إذا كنت لا ترغب بتفعيل بوت تيليجرام.</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -354,7 +469,11 @@
             meta_phone_number_id: document.getElementById('meta_phone_number_id').value,
             meta_access_token: document.getElementById('meta_access_token').value,
             meta_verify_token: document.getElementById('meta_verify_token').value,
-            telegram_bot_token: document.getElementById('telegram_bot_token').value
+            telegram_bot_token: document.getElementById('telegram_bot_token').value,
+            instagram_access_token: document.getElementById('instagram_access_token').value,
+            instagram_page_id: document.getElementById('instagram_page_id').value,
+            tiktok_access_token: document.getElementById('tiktok_access_token').value,
+            tiktok_shop_id: document.getElementById('tiktok_shop_id').value
         };
 
         try {

@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel
 from auth.session_manager import get_current_user
-from database.db_client import get_supabase_client
+from database.db_client import get_db_client
 
 from merchant.store_management.store_settings import get_store_settings, update_store_settings
 from merchant.planning.planning_config import get_planning_config, update_planning_config
@@ -97,9 +97,9 @@ async def api_change_password(payload: PasswordChangeRequest, user: dict = Depen
     if len(payload.new_password) < 6:
         return {"status": "error", "message": "كلمة المرور يجب أن تكون 6 أحرف على الأقل"}
     hashed = hashlib.sha256(payload.new_password.encode()).hexdigest()
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
-        supabase.table("clients").update({"password_hash": hashed}).eq("id", user["id"]).execute()
+        db.table("clients").update({"password_hash": hashed}).eq("id", user["id"]).execute()
         return {"status": "success", "message": "تم تحديث كلمة المرور بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -129,10 +129,10 @@ async def api_update_planning(payload: PlanningRequest, user: dict = Depends(ver
 @router.get("/api/planning/columns")
 async def api_get_columns(user: dict = Depends(verify_merchant)):
     """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # جلب البيانات المخزنة
-        data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
+        data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
         if not data_res.data or not data_res.data.get("data"):
             return {"columns": []}
         rows = data_res.data["data"]
@@ -141,7 +141,7 @@ async def api_get_columns(user: dict = Depends(verify_merchant)):
         col_names = list(rows[0].keys()) if rows else []
 
         # جلب إعدادات التدريب المحفوظة
-        saved_res = supabase.table("column_training").select("*").eq("client_id", user["id"]).execute()
+        saved_res = db.table("column_training").select("*").eq("client_id", user["id"]).execute()
         saved_map = {r["column_name"]: r for r in (saved_res.data or [])}
 
         columns = [{
@@ -166,19 +166,19 @@ class ColumnTrainingRequest(BaseModel):
 @router.post("/api/planning/columns")
 async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
     """حفظ إعدادات الأعمدة"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         for col in payload.columns:
             # جرب تحديث أولاً، ثم إدراج إذا لم يوجد
-            existing = supabase.table("column_training").select("id").eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
+            existing = db.table("column_training").select("id").eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
             if existing.data:
-                supabase.table("column_training").update({
+                db.table("column_training").update({
                     "note": col.note,
                     "is_disabled": col.is_disabled,
                     "on_request": col.on_request
                 }).eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
             else:
-                supabase.table("column_training").insert({
+                db.table("column_training").insert({
                     "client_id": user["id"],
                     "column_name": col.column_name,
                     "note": col.note,
@@ -196,10 +196,10 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
 @router.get("/business-rules", response_class=HTMLResponse)
 async def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة قواعد العمل (Business Rules)"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     rules = {}
     try:
-        res = supabase.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
         if res.data:
             rules = res.data.get("rules_data", {})
     except:
@@ -209,18 +209,18 @@ async def business_rules_page(request: Request, user: dict = Depends(verify_merc
 @router.post("/api/business-rules")
 async def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث قواعد العمل"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # التحقق من وجود سجل سابق
-        existing = supabase.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
         
         if existing.data:
-            supabase.table("business_rules").update({
+            db.table("business_rules").update({
                 "rules_data": payload,
                 "updated_at": datetime.now().isoformat()
             }).eq("client_id", user["id"]).execute()
         else:
-            supabase.table("business_rules").insert({
+            db.table("business_rules").insert({
                 "client_id": user["id"],
                 "rules_data": payload,
                 "updated_at": datetime.now().isoformat()
@@ -233,10 +233,10 @@ async def api_update_business_rules(payload: dict, user: dict = Depends(verify_m
 @router.post("/api/business-rules/payment")
 async def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # جلب القواعد الحالية
-        existing = supabase.table("business_rules").select("id, rules_data").eq("client_id", user["id"]).execute()
+        existing = db.table("business_rules").select("id, rules_data").eq("client_id", user["id"]).execute()
         current_rules = {}
         if existing.data:
             current_rules = existing.data[0].get("rules_data", {})
@@ -246,12 +246,12 @@ async def api_update_payment_settings(payload: dict, user: dict = Depends(verify
             current_rules[k] = v
             
         if existing.data:
-            supabase.table("business_rules").update({
+            db.table("business_rules").update({
                 "rules_data": current_rules,
                 "updated_at": datetime.now().isoformat()
             }).eq("client_id", user["id"]).execute()
         else:
-            supabase.table("business_rules").insert({
+            db.table("business_rules").insert({
                 "client_id": user["id"],
                 "rules_data": current_rules,
                 "updated_at": datetime.now().isoformat()
@@ -304,7 +304,7 @@ async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depend
         # تحويل البيانات إلى JSON
         data_json = df.to_json(orient="records", force_ascii=False)
         
-        supabase = get_supabase_client()
+        db = get_db_client()
         
         # 1. تحديث إعدادات المزامنة لتكون excel
         update_sync_config(user["id"], {
@@ -314,11 +314,11 @@ async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depend
         
         # 2. حفظ البيانات في الجدول الجديد
         try:
-            supabase.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute()
+            db.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute()
         except:
             pass
             
-        supabase.table("merchant_manual_data").insert({
+        db.table("merchant_manual_data").insert({
             "client_id": user["id"],
             "data": json.loads(data_json),
             "filename": filename,
@@ -342,6 +342,10 @@ class ChannelsConfigRequest(BaseModel):
     meta_phone_number_id: str = None
     meta_access_token: str = None
     meta_verify_token: str = None
+    instagram_access_token: str = None
+    instagram_page_id: str = None
+    tiktok_access_token: str = None
+    tiktok_shop_id: str = None
 
 @router.get("/channels", response_class=HTMLResponse)
 async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
@@ -447,7 +451,7 @@ class ClearMemoryRequest(BaseModel):
 @router.post("/api/clear-memory")
 async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
     """مسح سجل المحادثات لعميل محدد (تصفير الذاكرة)"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         raw_phone = payload.phone_number.strip()
         # التنظيف: إزالة + و 00 و أي لواحق واتساب أو أجهزة مرتبطة (:1)
@@ -467,7 +471,7 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
         or_filter = ",".join([f"phone_number.eq.{v}" for v in variations])
         
         # تنفيذ الحذف
-        res = supabase.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute()
+        res = db.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute()
         
         deleted_count = len(res.data) if res.data else 0
         
@@ -490,16 +494,16 @@ async def data_view_page(request: Request, user: dict = Depends(verify_merchant)
 @router.get("/api/data-view")
 async def api_get_data_view(user: dict = Depends(verify_merchant)):
     """جلب البيانات المزامنة للعرض"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # جلب البيانات اليدوية (Excel/CSV)
-        data_res = supabase.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute()
+        data_res = db.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute()
         if data_res.data and data_res.data.get("data"):
             rows = data_res.data["data"]
             return {"status": "ok", "data": rows, "source_type": "excel"}
 
         # جلب إعدادات المزامنة لمعرفة المصدر
-        sync_res = supabase.table("sync_config").select("source_type").eq("client_id", user["id"]).single().execute()
+        sync_res = db.table("sync_config").select("source_type").eq("client_id", user["id"]).single().execute()
         source = sync_res.data.get("source_type", "") if sync_res.data else ""
         return {"status": "no_data", "data": [], "source_type": source}
     except Exception as e:
@@ -510,17 +514,17 @@ async def api_get_data_view(user: dict = Depends(verify_merchant)):
 @router.get("/orders", response_class=HTMLResponse)
 async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة الطلبات"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     from merchant.store_management.store_settings import get_store_settings
     settings = get_store_settings(user["id"])
     try:
-        res = supabase.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
+        res = db.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
         orders = res.data or []
     except:
         orders = []
         
     try:
-        res_rules = supabase.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        res_rules = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
         rules = res_rules.data.get("rules_data", {}) if res_rules.data else {}
     except:
         rules = {}
@@ -585,7 +589,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
 @router.post("/api/orders")
 async def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
     """إنشاء طلب يدوي جديد"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # توليد رقم طلب فريد
         import random
@@ -609,7 +613,7 @@ async def api_create_order(payload: dict, user: dict = Depends(verify_merchant))
             "internal_notes": payload.get("internal_notes", ""),
             "currency": payload.get("currency", "SAR")
         }
-        supabase.table("orders").insert(order_data).execute()
+        db.table("orders").insert(order_data).execute()
         return {"status": "success", "message": "تم إنشاء الطلب بنجاح", "order_number": order_num}
     except Exception as e:
         print(f"Error creating order: {e}")
@@ -618,7 +622,7 @@ async def api_create_order(payload: dict, user: dict = Depends(verify_merchant))
 @router.put("/api/orders/{order_id}/status")
 async def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث حالة الطلب والدفع"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         update = {}
         if "order_status" in payload:
@@ -630,7 +634,7 @@ async def api_update_order_status(order_id: str, payload: dict, user: dict = Dep
         if "payment_status" in payload:
             update["payment_status"] = payload["payment_status"]
         
-        supabase.table("orders").update(update).eq("id", order_id).eq("client_id", user["id"]).execute()
+        db.table("orders").update(update).eq("id", order_id).eq("client_id", user["id"]).execute()
         return {"status": "success", "message": "تم تحديث الحالة"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -638,9 +642,9 @@ async def api_update_order_status(order_id: str, payload: dict, user: dict = Dep
 @router.delete("/api/orders/{order_id}")
 async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
     """حذف طلب"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
-        supabase.table("orders").delete().eq("id", order_id).eq("client_id", user["id"]).execute()
+        db.table("orders").delete().eq("id", order_id).eq("client_id", user["id"]).execute()
         return {"status": "success", "message": "تم حذف الطلب"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -650,17 +654,17 @@ async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant))
 @router.get("/shipping", response_class=HTMLResponse)
 async def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات الشحن"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     config = {}
     zones = []
     try:
-        cfg_res = supabase.table("shipping_config").select("*").eq("client_id", user["id"]).single().execute()
+        cfg_res = db.table("shipping_config").select("*").eq("client_id", user["id"]).single().execute()
         if cfg_res.data:
             config = cfg_res.data
     except:
         pass
     try:
-        z_res = supabase.table("shipping_zones").select("*").eq("client_id", user["id"]).order("created_at").execute()
+        z_res = db.table("shipping_zones").select("*").eq("client_id", user["id"]).order("created_at").execute()
         zones = z_res.data or []
     except:
         pass
@@ -671,7 +675,7 @@ async def shipping_page(request: Request, user: dict = Depends(verify_merchant))
 @router.post("/api/shipping")
 async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
     """حفظ إعدادات الشحن ومناطق الشحن"""
-    supabase = get_supabase_client()
+    db = get_db_client()
     try:
         # 1. حفظ الإعدادات العامة (رسالة المناطق غير المتاحة)
         config_data = {
@@ -680,20 +684,20 @@ async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)
             "updated_at": datetime.now().isoformat()
         }
         
-        existing = supabase.table("shipping_config").select("id").eq("client_id", user["id"]).execute()
+        existing = db.table("shipping_config").select("id").eq("client_id", user["id"]).execute()
         if existing.data:
-            supabase.table("shipping_config").update(config_data).eq("client_id", user["id"]).execute()
+            db.table("shipping_config").update(config_data).eq("client_id", user["id"]).execute()
         else:
-            supabase.table("shipping_config").insert(config_data).execute()
+            db.table("shipping_config").insert(config_data).execute()
         
         # 2. حذف المناطق القديمة وإضافة الجديدة
-        supabase.table("shipping_zones").delete().eq("client_id", user["id"]).execute()
+        db.table("shipping_zones").delete().eq("client_id", user["id"]).execute()
         
         zones = payload.get("zones", [])
         for z in zones:
             zone_name = z.get("zone_name", "").strip()
             if zone_name:
-                supabase.table("shipping_zones").insert({
+                db.table("shipping_zones").insert({
                     "client_id": user["id"],
                     "zone_name": zone_name,
                     "shipping_price": float(z.get("shipping_price", 0)),

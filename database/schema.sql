@@ -1,5 +1,8 @@
 -- database/schema.sql
--- هيكل قاعدة بيانات Supabase الكاملة
+-- هيكل قاعدة بيانات النظام الكاملة (PostgreSQL)
+
+-- تفعيل إضافة UUID إذا لم تكن مفعلة
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- جدول المستخدمين (الموظفين)
 CREATE TABLE IF NOT EXISTS sales_admin_users (
@@ -25,6 +28,8 @@ CREATE TABLE IF NOT EXISTS clients (
     password_hash TEXT,
     store_url TEXT,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'paused', 'cancelled')),
+    allow_all_numbers BOOLEAN DEFAULT FALSE,
+    ignore_groups BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -51,7 +56,7 @@ CREATE TABLE IF NOT EXISTS new_client_requests (
     created_at TIMESTAMP DEFAULT NOW()
 );
 
--- جدول الأرقام المصرّحة
+-- جدول الأرقام المصرّحة (للواتساب)
 CREATE TABLE IF NOT EXISTS authorized_numbers (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
@@ -114,14 +119,47 @@ CREATE TABLE IF NOT EXISTS column_training (
 CREATE TABLE IF NOT EXISTS message_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-    channel TEXT CHECK (channel IN ('telegram', 'whatsapp_evolution', 'whatsapp_official')),
+    channel TEXT CHECK (channel IN ('telegram', 'whatsapp_evolution', 'whatsapp_official', 'instagram', 'tiktok')),
     direction TEXT CHECK (direction IN ('in', 'out')),
     phone_number TEXT NOT NULL,
     message_text TEXT,
     ai_response TEXT,
     timestamp TIMESTAMP DEFAULT NOW()
 );
--- جدول إعدادات قنوات التواصل (الواتساب وتيليجرام)
+
+-- جدول قواعد العمل
+CREATE TABLE IF NOT EXISTS business_rules (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE UNIQUE,
+    rules_data JSONB DEFAULT '{}',
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- جدول الطلبات
+CREATE TABLE IF NOT EXISTS orders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+    order_number TEXT NOT NULL,
+    order_type TEXT DEFAULT 'purchase',
+    order_status TEXT DEFAULT 'pending',
+    customer_name TEXT,
+    customer_phone TEXT,
+    customer_address TEXT,
+    customer_city TEXT,
+    items JSONB DEFAULT '[]',
+    total_amount DECIMAL(12,2) DEFAULT 0,
+    payment_method TEXT,
+    payment_status TEXT DEFAULT 'pending',
+    delivery_method TEXT,
+    channel TEXT DEFAULT 'manual',
+    internal_notes TEXT,
+    currency TEXT DEFAULT 'SAR',
+    created_at TIMESTAMP DEFAULT NOW(),
+    confirmed_at TIMESTAMP,
+    completed_at TIMESTAMP
+);
+
+-- جدول إعدادات قنوات التواصل (الواتساب وتيليجرام وإنستقرام وتيك توك)
 CREATE TABLE IF NOT EXISTS channels_config (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id UUID REFERENCES clients(id) ON DELETE CASCADE UNIQUE,
@@ -133,10 +171,12 @@ CREATE TABLE IF NOT EXISTS channels_config (
     meta_phone_number_id TEXT,
     meta_access_token TEXT,
     meta_verify_token TEXT,
+    instagram_access_token TEXT,
+    instagram_page_id TEXT,
+    tiktok_access_token TEXT,
+    tiktok_shop_id TEXT,
     updated_at TIMESTAMP DEFAULT NOW()
 );
--- تحديث جدول العملاء لإضافة خيار السماح للجميع
-ALTER TABLE clients ADD COLUMN IF NOT EXISTS allow_all_numbers BOOLEAN DEFAULT FALSE;
 
 -- جدول تخزين البيانات اليدوية (Excel/CSV)
 CREATE TABLE IF NOT EXISTS merchant_manual_data (
