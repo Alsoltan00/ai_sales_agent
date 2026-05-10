@@ -52,6 +52,7 @@ async def _send_official_message(access_token: str, phone_number_id: str, to_pho
 from fastapi.responses import PlainTextResponse
 
 @router.get("/whatsapp/official")
+@router.get("/whatsapp/official/")
 async def verify_official_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
     hub_challenge: str = Query(None, alias="hub.challenge"),
