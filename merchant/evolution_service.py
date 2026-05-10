@@ -298,6 +298,13 @@ def _save_instance_config(client_id: str, instance_name: str):
             db.table("channels_config").update(update_data).eq("client_id", client_id).execute()
         else:
             db.table("channels_config").insert(update_data).execute()
+            
+        # بناءً على طلب التاجر: تلقائياً فور الربط (المسح الضوئي) لا يرد على المجموعات ويرد على الأرقام المصرحة فقط
+        db.table("clients").update({
+            "allow_all_numbers": False,
+            "ignore_groups": True
+        }).eq("id", client_id).execute()
+
     except Exception as e:
         print(f"[EVOLUTION] Save config error: {e}")
 
