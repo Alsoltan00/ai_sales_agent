@@ -37,15 +37,23 @@ def _is_authorized(client_id: str, phone: str) -> bool:
             print(f"[AUTH] Ignoring GROUP message from {phone}")
             return False
 
-        # 2. If allow_all is ON, ALLOW (both private and groups if not ignored)
-        if allow_all:
-            return True
-
-        # 3. Check authorized numbers list (for private messages or groups if allow_all is off)
         # Normalize phone: remove suffix
         clean_phone = phone.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@g.us", "")
         res = supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", clean_phone).execute()
-        return bool(res.data)
+        is_in_list = bool(res.data)
+
+        if allow_all:
+            # القائمة تعمل كـ "قائمة حظر" (Blacklist)
+            if is_in_list:
+                print(f"[AUTH] Number {phone} is BLACKLISTED.")
+                return False
+            return True
+        else:
+            # القائمة تعمل كـ "قائمة بيضاء" (Whitelist)
+            if is_in_list:
+                return True
+            print(f"[AUTH] Number {phone} is NOT in the whitelist.")
+            return False
     except Exception as e:
         print(f"[AUTH ERROR] {e}")
         return False

@@ -22,11 +22,30 @@ def _find_client_by_phone_id(phone_number_id: str) -> dict | None:
 def _is_authorized(client_id: str, phone: str) -> bool:
     supabase = get_supabase_client()
     try:
-        client = supabase.table("clients").select("allow_all_numbers").eq("id", client_id).single().execute()
-        if client.data and client.data.get("allow_all_numbers"):
+        # Fetch client settings
+        client = supabase.table("clients").select("allow_all_numbers, ignore_groups").eq("id", client_id).single().execute()
+        allow_all = client.data.get("allow_all_numbers", False) if client.data else False
+        ignore_groups = client.data.get("ignore_groups", True) if client.data else True
+
+        # Check if it's a group message
+        is_group = phone.endswith("@g.us")
+        
+        # 1. If it's a group and ignore_groups is ON, DENY
+        if is_group and ignore_groups:
+            return False
+
+        clean_phone = phone.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@g.us", "")
+        res = supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", clean_phone).execute()
+        is_in_list = bool(res.data)
+
+        if allow_all:
+            if is_in_list:
+                return False
             return True
-        res = supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", phone).execute()
-        return bool(res.data)
+        else:
+            if is_in_list:
+                return True
+            return False
     except Exception:
         return False
 

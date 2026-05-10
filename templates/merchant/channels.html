@@ -289,7 +289,16 @@
 
 
                     <!-- Numbers List -->
-                    <h6 class="fw-bold mb-3">قائمة الأرقام المصرحة</h6>
+                    <h6 class="fw-bold mb-1" id="firewallListTitle">
+                        {% if allow_all %}قائمة الأرقام المحظورة{% else %}قائمة الأرقام المصرحة{% endif %}
+                    </h6>
+                    <p class="text-secondary small mb-3" id="firewallListDesc">
+                        {% if allow_all %}
+                        لن يرد الوكيل على الأرقام المضافة هنا (سيتم حظرهم).
+                        {% else %}
+                        لن يرد الوكيل إلا على الأرقام المضافة هنا.
+                        {% endif %}
+                    </p>
                     <div id="alertBoxFirewall" class="alert" style="display:none;"></div>
                     <div class="row g-2 mb-3">
                         <div class="col-md-5">
@@ -728,6 +737,17 @@
 
     // --- Firewall Functions ---
     async function updateAllowAll(checked) {
+        // Update UI dynamically
+        const titleEl = document.getElementById('firewallListTitle');
+        const descEl = document.getElementById('firewallListDesc');
+        if (checked) {
+            titleEl.innerText = 'قائمة الأرقام المحظورة';
+            descEl.innerText = 'لن يرد الوكيل على الأرقام المضافة هنا (سيتم حظرهم).';
+        } else {
+            titleEl.innerText = 'قائمة الأرقام المصرحة';
+            descEl.innerText = 'لن يرد الوكيل إلا على الأرقام المضافة هنا.';
+        }
+
         try {
             await fetch('/merchant/api/authorized-numbers/settings', {
                 method: 'POST',
