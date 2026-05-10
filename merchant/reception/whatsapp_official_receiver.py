@@ -53,12 +53,12 @@ from fastapi.responses import PlainTextResponse
 
 @router.get("/whatsapp/official")
 @router.get("/whatsapp/official/")
-async def verify_official_webhook(
-    hub_mode: str = Query(None, alias="hub.mode"),
-    hub_challenge: str = Query(None, alias="hub.challenge"),
-    hub_verify_token: str = Query(None, alias="hub.verify.token")
-):
+async def verify_official_webhook(request: Request):
     """التحقق من Webhook عند ربطه مع Meta"""
+    hub_mode = request.query_params.get("hub.mode")
+    hub_challenge = request.query_params.get("hub.challenge")
+    hub_verify_token = request.query_params.get("hub.verify.token")
+
     supabase = get_supabase_client()
     try:
         # البحث عن تاجر يملك هذا الـ verify_token
