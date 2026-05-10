@@ -120,67 +120,49 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-4">
-                        <label class="form-label fw-600">مزود خدمة الواتساب</label>
+                        <label class="form-label fw-600">طريقة الربط</label>
                         <div class="input-group">
                             <span class="input-group-text"><i class="ti ti-server"></i></span>
                             <select id="whatsapp_provider" class="form-select" onchange="toggleWhatsAppProvider()" disabled>
-                                <option value="evolution" {% if channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>Evolution API (QR Code)</option>
-                                <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>Official Meta Cloud API</option>
+                                <option value="evolution" {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}selected{% endif %}>📱 ربط مباشر (مسح QR Code)</option>
+                                <option value="official" {% if channels_config.whatsapp_provider == 'official' %}selected{% endif %}>🏢 واتساب رسمي (Meta Cloud API)</option>
                             </select>
                         </div>
                     </div>
 
-                    <!-- Evolution API Fields -->
+                    <!-- QR Code Connection (Evolution API - مخفي عن التاجر) -->
                     <div id="wa-evolution" class="dynamic-form {% if not channels_config.whatsapp_provider or channels_config.whatsapp_provider == 'evolution' %}active{% endif %}">
-                        <div class="mb-4">
-                            <label class="form-label fw-600 d-flex justify-content-between align-items-center">
-                                <span>رابط خادم Evolution (URL الإرسال)</span>
-                                <a href="https://evolution-api.com/" target="_blank" class="badge bg-light text-primary border text-decoration-none" style="font-size: 0.7rem;">
-                                    <i class="ti ti-external-link"></i> الموقع الرسمي
-                                </a>
-                            </label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="ti ti-link"></i></span>
-                                <input type="url" id="evolution_api_url" class="form-control" 
-                                    value="{{ channels_config.evolution_api_url or '' }}" 
-                                    placeholder="https://api.evolution.com" dir="ltr" disabled>
-                            </div>
-                        </div>
                         
-                        <div class="mb-4">
-                            <label class="form-label fw-600">Global API Key</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="ti ti-key"></i></span>
-                                <input type="password" id="evolution_api_key" class="form-control" 
-                                    value="{{ channels_config.evolution_api_key or '' }}" 
-                                    placeholder="8A9B..." dir="ltr" disabled>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-600">اسم الجلسة (Instance Name)</label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="ti ti-device-mobile"></i></span>
-                                <input type="text" id="evolution_instance_name" class="form-control" 
-                                    value="{{ channels_config.evolution_instance_name or '' }}" 
-                                    placeholder="instance1" dir="ltr" disabled oninput="updateWebhookDisplay()">
-                            </div>
-                        </div>
-
-                        <div class="webhook-info mb-4">
-                            <div class="fw-bold text-info mb-2 small"><i class="ti ti-info-circle me-1"></i> رابط استقبال الرسائل (Webhook)</div>
-                            <p class="x-small text-secondary mb-2" style="font-size: 0.8rem;">انسخ هذا الرابط وضعه في إعدادات Webhook بداخل لوحة Evolution API:</p>
-                            <div class="webhook-url-box py-2 px-3">
-                                <span id="webhookUrlDisplay" class="text-break small">جاري التحميل...</span>
-                                <button type="button" class="btn btn-sm btn-info text-white ms-2 flex-shrink-0" onclick="copyWebhook()">
-                                    <i class="ti ti-copy"></i>
+                        <!-- حالة الاتصال -->
+                        <div id="wa-status-card" class="mb-4">
+                            <div id="wa-disconnected" class="text-center py-4" style="display:none;">
+                                <div style="width:80px;height:80px;border-radius:50%;background:rgba(37,211,102,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                                    <i class="ti ti-brand-whatsapp" style="font-size:2.5rem;color:#25D366;"></i>
+                                </div>
+                                <h5 class="fw-bold mb-2">واتساب غير متصل</h5>
+                                <p class="text-secondary small mb-4">اربط رقم واتساب الخاص بك لتفعيل الوكيل الذكي.<br>ستحتاج لمسح كود QR من هاتفك فقط.</p>
+                                <button type="button" class="btn btn-success btn-lg px-5" onclick="connectWhatsApp()">
+                                    <i class="ti ti-qrcode me-2"></i> ربط واتساب الآن
                                 </button>
                             </div>
+
+                            <div id="wa-connected" class="text-center py-4" style="display:none;">
+                                <div style="width:80px;height:80px;border-radius:50%;background:rgba(37,211,102,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;border:3px solid #25D366;">
+                                    <i class="ti ti-check" style="font-size:2.5rem;color:#25D366;"></i>
+                                </div>
+                                <h5 class="fw-bold mb-1 text-success">واتساب متصل ✓</h5>
+                                <p class="text-secondary small mb-1" id="wa-connected-phone"></p>
+                                <p class="text-secondary small mb-4" id="wa-connected-name"></p>
+                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="disconnectWhatsApp()">
+                                    <i class="ti ti-unlink me-1"></i> قطع الاتصال
+                                </button>
+                            </div>
+
+                            <div id="wa-loading" class="text-center py-5">
+                                <div class="spinner-border text-success" role="status" style="width:3rem;height:3rem;"></div>
+                                <p class="text-secondary small mt-3 mb-0">جاري التحقق من حالة الاتصال...</p>
+                            </div>
                         </div>
-                        
-                        <button type="button" class="btn btn-outline-success w-100" id="testWaBtn" onclick="testWhatsApp()">
-                            <i class="ti ti-send me-1"></i> إرسال رسالة تجربة لرقمي المصرح
-                        </button>
                     </div>
 
                     <!-- Meta Official API Fields -->
@@ -222,6 +204,48 @@
                     </div>
                 </div>
             </div>
+
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius:20px;overflow:hidden;border:0;">
+            <div class="modal-header border-0 pb-0" style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);">
+                <h5 class="modal-title text-white fw-bold"><i class="ti ti-brand-whatsapp me-2"></i> مسح كود QR</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="stopQrPolling()"></button>
+            </div>
+            <div class="modal-body text-center py-4">
+                <div id="qr-loading" class="py-5">
+                    <div class="spinner-border text-success" style="width:3rem;height:3rem;"></div>
+                    <p class="text-secondary mt-3 mb-0">جاري تجهيز كود QR...</p>
+                </div>
+                <div id="qr-display" style="display:none;">
+                    <p class="text-secondary small mb-3">افتح واتساب على هاتفك > الإعدادات > الأجهزة المرتبطة > ربط جهاز</p>
+                    <div style="background:#fff;padding:16px;border-radius:16px;display:inline-block;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+                        <img id="qr-image" src="" alt="QR Code" style="max-width:260px;max-height:260px;">
+                    </div>
+                    <p class="text-secondary small mt-3 mb-0"><i class="ti ti-refresh me-1"></i> يتم تحديث الكود تلقائياً...</p>
+                </div>
+                <div id="qr-success" style="display:none;" class="py-4">
+                    <div style="width:80px;height:80px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                        <i class="ti ti-check" style="font-size:2.5rem;color:#fff;"></i>
+                    </div>
+                    <h4 class="fw-bold text-success mb-2">تم الربط بنجاح! 🎉</h4>
+                    <p class="text-secondary small mb-0">واتساب متصل الآن. سيتم إغلاق هذه النافذة تلقائياً...</p>
+                </div>
+                <div id="qr-error" style="display:none;" class="py-4">
+                    <div style="width:80px;height:80px;border-radius:50%;background:rgba(220,53,69,0.1);display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                        <i class="ti ti-alert-triangle" style="font-size:2.5rem;color:#dc3545;"></i>
+                    </div>
+                    <h5 class="fw-bold text-danger mb-2">حدث خطأ</h5>
+                    <p class="text-secondary small mb-3" id="qr-error-msg"></p>
+                    <button type="button" class="btn btn-outline-success" onclick="connectWhatsApp()">
+                        <i class="ti ti-refresh me-1"></i> إعادة المحاولة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
             <!-- WhatsApp Firewall Panel -->
             <div class="card card-lg mb-4 border-success shadow-sm">
@@ -421,26 +445,215 @@
 
 {% block extra_scripts %}
 <script>
+    let qrPollTimer = null;
+    let statusPollTimer = null;
+
     document.addEventListener('DOMContentLoaded', () => {
-        updateWebhookDisplay();
-        // Check if fields are empty, if so, enable editing
-        const instance = document.getElementById('evolution_instance_name').value;
-        if (!instance) enableEditing();
+        // تحقق من حالة الاتصال عند تحميل الصفحة
+        checkWhatsAppStatus();
     });
 
-    function updateWebhookDisplay() {
-        const instance = document.getElementById('evolution_instance_name').value || '{instance_name}';
-        const origin = window.location.origin;
-        const webhookUrl = `${origin}/webhook/whatsapp/evolution/${instance}`;
-        document.getElementById('webhookUrlDisplay').innerText = webhookUrl;
+    // --- WhatsApp QR Code Connection ---
+
+    async function checkWhatsAppStatus() {
+        const provider = document.getElementById('whatsapp_provider').value;
+        if (provider !== 'evolution') {
+            document.getElementById('wa-loading').style.display = 'none';
+            return;
+        }
+
+        try {
+            const res = await fetch('/merchant/api/whatsapp/status');
+            const data = await res.json();
+
+            document.getElementById('wa-loading').style.display = 'none';
+
+            if (data.connected) {
+                showConnectedState(data.phone, data.name);
+            } else {
+                showDisconnectedState();
+            }
+        } catch (err) {
+            document.getElementById('wa-loading').style.display = 'none';
+            showDisconnectedState();
+        }
     }
 
-    function copyWebhook() {
-        const url = document.getElementById('webhookUrlDisplay').innerText;
-        navigator.clipboard.writeText(url);
-        // Could use a toast notification here instead of alert
-        alert('تم نسخ رابط الويب هوك بنجاح');
+    function showConnectedState(phone, name) {
+        document.getElementById('wa-disconnected').style.display = 'none';
+        document.getElementById('wa-connected').style.display = 'block';
+        document.getElementById('wa-loading').style.display = 'none';
+
+        if (phone) {
+            document.getElementById('wa-connected-phone').innerHTML = `<i class="ti ti-phone me-1"></i> الرقم: <strong dir="ltr">${phone}</strong>`;
+        }
+        if (name) {
+            document.getElementById('wa-connected-name').innerHTML = `<i class="ti ti-user me-1"></i> الاسم: <strong>${name}</strong>`;
+        }
     }
+
+    function showDisconnectedState() {
+        document.getElementById('wa-disconnected').style.display = 'block';
+        document.getElementById('wa-connected').style.display = 'none';
+        document.getElementById('wa-loading').style.display = 'none';
+    }
+
+    async function connectWhatsApp() {
+        // فتح المودال
+        const modal = new bootstrap.Modal(document.getElementById('qrModal'));
+        modal.show();
+
+        // إظهار التحميل
+        document.getElementById('qr-loading').style.display = 'block';
+        document.getElementById('qr-display').style.display = 'none';
+        document.getElementById('qr-success').style.display = 'none';
+        document.getElementById('qr-error').style.display = 'none';
+
+        try {
+            const res = await fetch('/merchant/api/whatsapp/connect', { method: 'POST' });
+            const data = await res.json();
+
+            if (data.success && data.qrcode) {
+                showQrCode(data.qrcode);
+                startQrPolling();
+            } else if (data.success && !data.qrcode) {
+                // ربما متصل مسبقاً، نتحقق من الحالة
+                const statusRes = await fetch('/merchant/api/whatsapp/status');
+                const statusData = await statusRes.json();
+                if (statusData.connected) {
+                    showQrSuccess();
+                } else {
+                    // نحتاج QR Code جديد
+                    await refreshQrCode();
+                }
+            } else {
+                showQrError(data.message || 'فشل إنشاء الجلسة');
+            }
+        } catch (err) {
+            showQrError('فشل الاتصال بالخادم. يرجى المحاولة لاحقاً.');
+        }
+    }
+
+    async function refreshQrCode() {
+        try {
+            const res = await fetch('/merchant/api/whatsapp/qr');
+            const data = await res.json();
+            if (data.success && data.qrcode) {
+                showQrCode(data.qrcode);
+            }
+        } catch (err) {
+            console.error('QR refresh error:', err);
+        }
+    }
+
+    function showQrCode(base64) {
+        document.getElementById('qr-loading').style.display = 'none';
+        document.getElementById('qr-display').style.display = 'block';
+        document.getElementById('qr-success').style.display = 'none';
+        document.getElementById('qr-error').style.display = 'none';
+
+        const img = document.getElementById('qr-image');
+        // دعم الصيغ المختلفة للـ base64
+        if (base64.startsWith('data:')) {
+            img.src = base64;
+        } else {
+            img.src = `data:image/png;base64,${base64}`;
+        }
+    }
+
+    function showQrSuccess() {
+        document.getElementById('qr-loading').style.display = 'none';
+        document.getElementById('qr-display').style.display = 'none';
+        document.getElementById('qr-success').style.display = 'block';
+        document.getElementById('qr-error').style.display = 'none';
+
+        stopQrPolling();
+
+        // تسجيل Webhook تلقائياً
+        fetch('/merchant/api/whatsapp/setup-webhook', { method: 'POST' });
+
+        // إغلاق المودال بعد 2 ثانية وتحديث الحالة
+        setTimeout(() => {
+            const modalEl = document.getElementById('qrModal');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+            checkWhatsAppStatus();
+        }, 2500);
+    }
+
+    function showQrError(message) {
+        document.getElementById('qr-loading').style.display = 'none';
+        document.getElementById('qr-display').style.display = 'none';
+        document.getElementById('qr-success').style.display = 'none';
+        document.getElementById('qr-error').style.display = 'block';
+        document.getElementById('qr-error-msg').innerText = message;
+        stopQrPolling();
+    }
+
+    function startQrPolling() {
+        stopQrPolling();
+        let attempts = 0;
+        const maxAttempts = 40; // ~2 دقيقة
+
+        qrPollTimer = setInterval(async () => {
+            attempts++;
+            if (attempts > maxAttempts) {
+                stopQrPolling();
+                showQrError('انتهت مهلة مسح الكود. يرجى المحاولة مرة أخرى.');
+                return;
+            }
+
+            try {
+                // التحقق من الاتصال
+                const statusRes = await fetch('/merchant/api/whatsapp/status');
+                const statusData = await statusRes.json();
+
+                if (statusData.connected) {
+                    showQrSuccess();
+                    return;
+                }
+
+                // تحديث QR Code كل 15 ثانية
+                if (attempts % 5 === 0) {
+                    await refreshQrCode();
+                }
+            } catch (err) {
+                console.error('Polling error:', err);
+            }
+        }, 3000);
+    }
+
+    function stopQrPolling() {
+        if (qrPollTimer) {
+            clearInterval(qrPollTimer);
+            qrPollTimer = null;
+        }
+    }
+
+    async function disconnectWhatsApp() {
+        if (!confirm('هل أنت متأكد من قطع اتصال واتساب؟ سيتوقف الوكيل الذكي عن استقبال الرسائل.')) return;
+
+        const btn = event.target;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري قطع الاتصال...';
+
+        try {
+            const res = await fetch('/merchant/api/whatsapp/disconnect', { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showDisconnectedState();
+            } else {
+                alert(data.message || 'فشل قطع الاتصال');
+            }
+        } catch (err) {
+            alert('حدث خطأ');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-unlink me-1"></i> قطع الاتصال';
+        }
+    }
+
+    // --- Original Functions (kept for Official Meta API) ---
 
     function enableEditing() {
         document.querySelectorAll('#channelsForm input, #channelsForm select').forEach(el => el.disabled = false);
@@ -458,6 +671,9 @@
         const provider = document.getElementById('whatsapp_provider').value;
         document.querySelectorAll('#wa-evolution, #wa-official').forEach(el => el.classList.remove('active'));
         document.getElementById('wa-' + provider).classList.add('active');
+        if (provider === 'evolution') {
+            checkWhatsAppStatus();
+        }
     }
 
     async function saveChannelsConfig(e) {
@@ -471,9 +687,9 @@
 
         const payload = {
             whatsapp_provider: document.getElementById('whatsapp_provider').value,
-            evolution_api_url: document.getElementById('evolution_api_url').value,
-            evolution_api_key: document.getElementById('evolution_api_key').value,
-            evolution_instance_name: document.getElementById('evolution_instance_name').value,
+            evolution_api_url: '',
+            evolution_api_key: '',
+            evolution_instance_name: '',
             meta_phone_number_id: document.getElementById('meta_phone_number_id').value,
             meta_access_token: document.getElementById('meta_access_token').value,
             meta_verify_token: document.getElementById('meta_verify_token').value,
@@ -498,7 +714,6 @@
             
             if (data.status === 'success') {
                 disableEditing();
-                updateWebhookDisplay();
             }
         } catch(err) {
             alertBox.className = 'alert alert-danger';
@@ -511,33 +726,6 @@
         }
     }
 
-    async function testWhatsApp() {
-        const btn = document.getElementById('testWaBtn');
-        const alertBox = document.getElementById('alertBox');
-        const originalHtml = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الإرسال...';
-        alertBox.style.display = 'none';
-
-        try {
-            const res = await fetch('/merchant/api/channels/test-whatsapp', { method: 'POST' });
-            const data = await res.json();
-            
-            alertBox.className = `alert alert-${data.status === 'success' ? 'success' : 'danger'}`;
-            alertBox.innerText = data.message;
-            alertBox.style.display = 'block';
-            
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch(err) {
-            alertBox.className = 'alert alert-danger';
-            alertBox.innerText = 'حدث خطأ أثناء محاولة الإرسال';
-            alertBox.style.display = 'block';
-        } finally {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-        }
-    }
     // --- Firewall Functions ---
     async function updateAllowAll(checked) {
         try {
@@ -592,7 +780,6 @@
                 alertBox.className = 'alert alert-success mb-3';
                 alertBox.innerText = data.message;
                 
-                // Add to DOM
                 const grid = document.getElementById('numbersGrid');
                 const empty = document.getElementById('emptyState');
                 if (empty) empty.remove();
@@ -651,7 +838,6 @@
             alert('حدث خطأ في الاتصال');
         }
     }
-
 
     async function clearRowMemory(phone, btn) {
         const originalHtml = btn.innerHTML;

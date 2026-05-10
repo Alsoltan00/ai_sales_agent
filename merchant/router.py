@@ -469,7 +469,57 @@ async def api_test_whatsapp(user: dict = Depends(verify_merchant)):
     else:
         return {"status": "error", "message": "فشل الإرسال. تأكد من صحة الرابط، الـ API Key، واسم الجلسة."}
 
+# --- WhatsApp QR Code Connection ---
+
+@router.post("/api/whatsapp/connect")
+async def api_whatsapp_connect(request: Request, user: dict = Depends(verify_merchant)):
+    """إنشاء جلسة واتساب جديدة وجلب QR Code"""
+    from merchant.evolution_service import create_instance
+    host = request.headers.get("host", request.url.hostname)
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if host and ":" not in host and host != "localhost":
+        scheme = "https"
+    webhook_base = f"{scheme}://{host}"
+
+    result = await create_instance(user["id"], webhook_base)
+    return result
+
+@router.get("/api/whatsapp/qr")
+async def api_whatsapp_qr(user: dict = Depends(verify_merchant)):
+    """جلب QR Code جديد للجلسة الحالية"""
+    from merchant.evolution_service import get_qr_code
+    result = await get_qr_code(user["id"])
+    return result
+
+@router.get("/api/whatsapp/status")
+async def api_whatsapp_status(user: dict = Depends(verify_merchant)):
+    """التحقق من حالة اتصال واتساب"""
+    from merchant.evolution_service import check_connection_status
+    result = await check_connection_status(user["id"])
+    return result
+
+@router.post("/api/whatsapp/disconnect")
+async def api_whatsapp_disconnect(user: dict = Depends(verify_merchant)):
+    """قطع اتصال واتساب"""
+    from merchant.evolution_service import disconnect_instance
+    result = await disconnect_instance(user["id"])
+    return result
+
+@router.post("/api/whatsapp/setup-webhook")
+async def api_whatsapp_setup_webhook(request: Request, user: dict = Depends(verify_merchant)):
+    """تسجيل Webhook تلقائياً بعد الاتصال"""
+    from merchant.evolution_service import set_webhook
+    host = request.headers.get("host", request.url.hostname)
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    if host and ":" not in host and host != "localhost":
+        scheme = "https"
+    webhook_base = f"{scheme}://{host}"
+
+    result = await set_webhook(user["id"], webhook_base)
+    return result
+
 # --- Authorized Numbers ---
+
 
 class AuthorizedNumberRequest(BaseModel):
     phone_number: str
