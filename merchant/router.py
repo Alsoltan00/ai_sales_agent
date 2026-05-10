@@ -411,10 +411,27 @@ async def channels_page(request: Request, user: dict = Depends(verify_merchant))
     })
 
 @router.post("/api/channels")
-async def api_update_channels(payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
-    """تحديث إعدادات القنوات"""
+async def api_update_channels(request: Request, payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
+    """تحديث إعدادات القنوات والتسجيل التلقائي للويب هوك"""
     success = update_channels_config(user["id"], payload.model_dump())
     if success:
+        if payload.telegram_bot_token:
+            try:
+                import httpx
+                host = request.headers.get("host", request.url.hostname)
+                scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+                if host and ":" not in host and host != "localhost":
+                    scheme = "https"
+                webhook_url = f"{scheme}://{host}/webhook/telegram/{payload.telegram_bot_token}"
+                
+                async with httpx.AsyncClient() as client:
+                    await client.post(
+                        f"https://api.telegram.org/bot{payload.telegram_bot_token}/setWebhook",
+                        json={"url": webhook_url}
+                    )
+            except Exception as e:
+                print(f"Error setting Telegram webhook: {e}")
+                
         return {"status": "success", "message": "تم حفظ إعدادات القنوات بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الحفظ"}
 
