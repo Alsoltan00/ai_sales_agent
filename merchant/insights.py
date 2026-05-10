@@ -30,8 +30,8 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
     """
     db = get_db_client()
     
-    # 1. جلب الرسائل الأخيرة (اخر 200 رسالة كمثال)
-    res = db.table("message_logs").select("message_text, ai_response").eq("client_id", client_id).order("timestamp", desc=True).limit(200).execute()
+    # 1. جلب الرسائل الأخيرة (اخر 100 رسالة كحد أقصى لتجنب قطع النص)
+    res = db.table("message_logs").select("message_text, ai_response").eq("client_id", client_id).order("timestamp", desc=True).limit(100).execute()
     messages = res.data or []
     
     if len(messages) < 5:
@@ -74,14 +74,14 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
     # 3. صياغة الـ Prompt للتحليل
     system_prompt = """أنت محلل بيانات أعمال خبير.
 مهمتك قراءة نصوص المحادثات التالية بين العملاء والذكاء الاصطناعي الخاص بالمتجر.
-استخرج الرؤى التالية وقم بإرجاعها بصيغة JSON حصرية، بدون أي نصوص إضافية، بحيث تحتوي على المفاتيح التالية:
+استخرج الرؤى التالية باختصار شديد وقم بإرجاعها بصيغة JSON حصرية، بدون أي نصوص إضافية، بحيث تحتوي على المفاتيح التالية:
 {
-    "top_requested_missing_products": ["منتج غير متوفر 1", "منتج غير متوفر 2"],
+    "top_requested_missing_products": ["منتج 1", "منتج 2"],
     "common_complaints": ["شكوى 1", "شكوى 2"],
     "frequently_asked_questions": ["سؤال 1", "سؤال 2"],
-    "general_summary": "ملخص عام وشامل عن سلوك العملاء وانطباعاتهم بناءً على المحادثات"
+    "general_summary": "ملخص عام ومختصر جداً عن سلوك العملاء"
 }
-تأكد أن النص المردود هو كائن JSON صالح فقط (Valid JSON)."""
+ملاحظة هامة: يجب أن تكون المخرجات JSON صالح (Valid JSON) فقط، وتجنب الإطالة في الملخص لتجنب قطع النص."""
 
     llm_messages = [
         {"role": "system", "content": system_prompt},
@@ -101,7 +101,16 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
         
         # تنظيف الإجابة (إذا كان هناك markdown json block)
         clean_json = response_text.replace("```json", "").replace("```", "").strip()
-        insights_data = json.loads(clean_json)
+        start = clean_json.find('{')
+        end = clean_json.rfind('}')
+        if start != -1 and end != -1:
+            clean_json = clean_json[start:end+1]
+            
+        try:
+            insights_data = json.loads(clean_json)
+        except Exception as e:
+            print(f"Insights Parse Error: {e} | Text: {clean_json}")
+            return {"status": "error", "message": "حدث خطأ في صياغة الرؤى من الذكاء الاصطناعي (رد غير مكتمل أو غير صالح). يرجى المحاولة مرة أخرى."}
         
         # 5. الحفظ في قاعدة البيانات
         # نحذف القديم لنفس الـ period إن وجد، أو نضيف سجل جديد
