@@ -140,6 +140,15 @@
     </li>
     {% endif %}
 
+    {% if is_admin %}
+    <li class="nav-item">
+      <a class="nav-link {% if 'settings' in request.url.path %}active{% endif %}" href="/admin/settings">
+        <span class="nav-icon"><i class="ti ti-settings"></i></span>
+        <span class="text">الإعدادات العامة</span>
+      </a>
+    </li>
+    {% endif %}
+
     <!-- Divider -->
     <li class="nav-item">
       <div class="nav-heading">الحساب</div>
@@ -256,6 +265,13 @@
       <li class="nav-item">
         <a class="nav-link {% if 'users' in request.url.path %}active{% endif %}" href="/admin/users">
           <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">إدارة المستخدمين</span>
+        </a>
+      </li>
+      {% endif %}
+      {% if is_admin %}
+      <li class="nav-item">
+        <a class="nav-link {% if 'settings' in request.url.path %}active{% endif %}" href="/admin/settings">
+          <span class="nav-icon"><i class="ti ti-settings"></i></span> <span class="text">الإعدادات العامة</span>
         </a>
       </li>
       {% endif %}

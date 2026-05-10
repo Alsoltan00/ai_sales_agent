@@ -235,6 +235,16 @@ def _migrate_database():
             except Exception as e:
                 print(f"[DB] Error adding planning columns: {e}")
 
+            # 11. جدول الإعدادات العامة (Evolution API, etc.)
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS global_settings (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    key TEXT UNIQUE NOT NULL,
+                    value JSONB DEFAULT '{}',
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            """))
+
             conn.commit()
             print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:

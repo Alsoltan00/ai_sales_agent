@@ -569,3 +569,74 @@ async def admin_api_delete_global_model(model_id: str, user: dict = Depends(veri
         return {"status": "success", "message": "تم حذف النموذج من المكتبة"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# --- إعدادات خادم واتساب (Evolution API) ---
+
+@router.get("/settings", response_class=HTMLResponse)
+async def admin_settings(request: Request, user: dict = Depends(verify_admin)):
+    """صفحة الإعدادات العامة"""
+    supabase = get_supabase_client()
+    evolution_settings = {}
+    try:
+        res = supabase.table("global_settings").select("*").eq("key", "evolution_api").single().execute()
+        if res.data:
+            evolution_settings = res.data.get("value", {})
+    except:
+        pass
+    return templates.TemplateResponse("admin/settings.html", {
+        "request": request, "user": user, "evolution_settings": evolution_settings
+    })
+
+@router.get("/api/settings/evolution")
+async def get_evolution_settings(user: dict = Depends(verify_admin)):
+    """جلب إعدادات Evolution API"""
+    supabase = get_supabase_client()
+    try:
+        res = supabase.table("global_settings").select("*").eq("key", "evolution_api").single().execute()
+        if res.data:
+            return {"status": "success", "data": res.data.get("value", {})}
+    except:
+        pass
+    return {"status": "success", "data": {}}
+
+@router.post("/api/settings/evolution")
+async def save_evolution_settings(payload: dict, user: dict = Depends(verify_admin)):
+    """حفظ إعدادات Evolution API"""
+    supabase = get_supabase_client()
+    value = {
+        "url": (payload.get("url") or "").strip().rstrip("/"),
+        "api_key": (payload.get("api_key") or "").strip()
+    }
+    try:
+        existing = supabase.table("global_settings").select("id").eq("key", "evolution_api").execute()
+        if existing.data:
+            supabase.table("global_settings").update({"value": value}).eq("key", "evolution_api").execute()
+        else:
+            supabase.table("global_settings").insert({"key": "evolution_api", "value": value}).execute()
+        return {"status": "success", "message": "تم حفظ إعدادات خادم واتساب بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"خطأ: {e}"}
+
+@router.post("/api/settings/evolution/test")
+async def test_evolution_connection(payload: dict, user: dict = Depends(verify_admin)):
+    """اختبار الاتصال بخادم Evolution API"""
+    url = (payload.get("url") or "").strip().rstrip("/")
+    api_key = (payload.get("api_key") or "").strip()
+    if not url or not api_key:
+        return {"status": "error", "message": "يرجى إدخال الرابط والمفتاح"}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(
+                f"{url}/instance/fetchInstances",
+                headers={"apikey": api_key}
+            )
+            if res.status_code == 200:
+                data = res.json()
+                count = len(data) if isinstance(data, list) else 0
+                return {"status": "success", "message": f"✅ الاتصال ناجح! عدد الجلسات النشطة: {count}"}
+            else:
+                return {"status": "error", "message": f"فشل الاتصال. رمز الحالة: {res.status_code}"}
+    except Exception as e:
+        return {"status": "error", "message": f"فشل الاتصال: {e}"}
+

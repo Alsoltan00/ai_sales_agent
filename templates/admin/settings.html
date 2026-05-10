@@ -1,0 +1,154 @@
+{% extends "admin_base.html" %}
+
+{% block title %}الإعدادات العامة{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1>الإعدادات العامة</h1>
+            <p class="text-secondary mb-0 mt-1">إعدادات الخوادم والخدمات المركزية للنظام.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Evolution API Server Settings -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-bottom d-flex align-items-center pb-3">
+        <div class="avatar avatar-sm bg-success-subtle text-success rounded-circle me-3">
+            <i class="ti ti-brand-whatsapp"></i>
+        </div>
+        <div>
+            <h5 class="mb-0 fw-bold">خادم واتساب (Evolution API)</h5>
+            <p class="text-secondary small mb-0">إعداد الخادم الذي يستخدمه التجار لربط واتساب عبر مسح QR Code.</p>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <div id="evoAlertBox" class="alert" style="display:none;"></div>
+        
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-uppercase text-secondary">رابط الخادم (Server URL)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="ti ti-link"></i></span>
+                    <input type="url" id="evo_url" class="form-control" dir="ltr"
+                        value="{{ evolution_settings.get('url', '') if evolution_settings else '' }}" 
+                        placeholder="https://evolution-api-xxxxx.onrender.com">
+                </div>
+                <small class="text-secondary mt-1 d-block">رابط خادم Evolution API المنشور على Render أو أي خدمة أخرى.</small>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-uppercase text-secondary">مفتاح API العام (Global API Key)</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="ti ti-key"></i></span>
+                    <input type="password" id="evo_api_key" class="form-control" dir="ltr"
+                        value="{{ evolution_settings.get('api_key', '') if evolution_settings else '' }}" 
+                        placeholder="أدخل المفتاح" autocomplete="new-password">
+                    <button class="btn btn-outline-secondary" type="button" onclick="togglePassword(this)">
+                        <i class="ti ti-eye"></i>
+                    </button>
+                </div>
+                <small class="text-secondary mt-1 d-block">المفتاح المستخدم لتسجيل الدخول في Evolution Manager.</small>
+            </div>
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+            <button type="button" class="btn btn-outline-success" id="testEvoBtn" onclick="testEvolution()">
+                <i class="ti ti-plug-connected me-1"></i> اختبار الاتصال
+            </button>
+            <button type="button" class="btn btn-primary" id="saveEvoBtn" onclick="saveEvolution()">
+                <i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- More settings sections can be added here later -->
+<div class="card border-0 shadow-sm mb-4 bg-secondary-bg-subtle border-dashed">
+    <div class="card-body text-center py-5">
+        <i class="ti ti-settings-2 fs-1 text-secondary opacity-25 mb-2 d-block"></i>
+        <p class="text-secondary mb-0">يمكن إضافة إعدادات أخرى هنا مستقبلاً (إعدادات البريد، الرسائل، الإشعارات...).</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function togglePassword(btn) {
+        const input = btn.parentElement.querySelector('input');
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.innerHTML = '<i class="ti ti-eye-off"></i>';
+        } else {
+            input.type = 'password';
+            btn.innerHTML = '<i class="ti ti-eye"></i>';
+        }
+    }
+
+    function showAlert(msg, type) {
+        const box = document.getElementById('evoAlertBox');
+        box.className = `alert alert-${type}`;
+        box.innerText = msg;
+        box.style.display = 'block';
+    }
+
+    async function testEvolution() {
+        const btn = document.getElementById('testEvoBtn');
+        const url = document.getElementById('evo_url').value.trim();
+        const apiKey = document.getElementById('evo_api_key').value.trim();
+
+        if (!url || !apiKey) {
+            showAlert('يرجى إدخال الرابط والمفتاح أولاً', 'warning');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري الاختبار...';
+        document.getElementById('evoAlertBox').style.display = 'none';
+
+        try {
+            const res = await fetch('/admin/api/settings/evolution/test', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url, api_key: apiKey })
+            });
+            const data = await res.json();
+            showAlert(data.message, data.status === 'success' ? 'success' : 'danger');
+        } catch (err) {
+            showAlert('فشل الاتصال بالخادم', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-plug-connected me-1"></i> اختبار الاتصال';
+        }
+    }
+
+    async function saveEvolution() {
+        const btn = document.getElementById('saveEvoBtn');
+        const url = document.getElementById('evo_url').value.trim();
+        const apiKey = document.getElementById('evo_api_key').value.trim();
+
+        if (!url || !apiKey) {
+            showAlert('يرجى إدخال الرابط والمفتاح أولاً', 'warning');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> جاري الحفظ...';
+
+        try {
+            const res = await fetch('/admin/api/settings/evolution', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ url, api_key: apiKey })
+            });
+            const data = await res.json();
+            showAlert(data.message, data.status === 'success' ? 'success' : 'danger');
+        } catch (err) {
+            showAlert('فشل الحفظ', 'danger');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i> حفظ الإعدادات';
+        }
+    }
+</script>
+{% endblock %}

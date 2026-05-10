@@ -10,15 +10,37 @@ import os
 import httpx
 from database.db_client import get_db_client
 
-# إعدادات خادم Evolution API (يضبطها المسؤول)
-EVOLUTION_SERVER_URL = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
-EVOLUTION_GLOBAL_KEY = os.getenv("EVOLUTION_API_KEY", "")
+
+def _get_evolution_credentials() -> tuple:
+    """
+    جلب بيانات خادم Evolution API.
+    الأولوية: قاعدة البيانات (global_settings) > متغيرات البيئة
+    """
+    # 1. محاولة القراءة من قاعدة البيانات
+    try:
+        db = get_db_client()
+        res = db.table("global_settings").select("value").eq("key", "evolution_api").single().execute()
+        if res.data:
+            value = res.data.get("value", {})
+            url = value.get("url", "").rstrip("/")
+            key = value.get("api_key", "")
+            if url and key:
+                return url, key
+    except Exception:
+        pass
+
+    # 2. Fallback: متغيرات البيئة
+    url = os.getenv("EVOLUTION_API_URL", "").rstrip("/")
+    key = os.getenv("EVOLUTION_API_KEY", "")
+    return url, key
 
 
-def _headers():
+def _headers(api_key: str = None):
     """ترويسات الطلبات لخادم Evolution"""
+    if not api_key:
+        _, api_key = _get_evolution_credentials()
     return {
-        "apikey": EVOLUTION_GLOBAL_KEY,
+        "apikey": api_key,
         "Content-Type": "application/json"
     }
 
@@ -53,12 +75,16 @@ async def create_instance(client_id: str, webhook_base_url: str) -> dict:
     }
 
     try:
+        server_url, api_key = _get_evolution_credentials()
+        if not server_url:
+            return {"success": False, "message": "لم يتم إعداد خادم واتساب بعد. يرجى التواصل مع المسؤول."}
+
         async with httpx.AsyncClient(timeout=30) as client:
             # محاولة إنشاء الجلسة
             res = await client.post(
-                f"{EVOLUTION_SERVER_URL}/instance/create",
+                f"{server_url}/instance/create",
                 json=create_payload,
-                headers=_headers()
+                headers=_headers(api_key)
             )
 
             data = res.json()
@@ -102,10 +128,14 @@ async def get_qr_code(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
+        server_url, api_key = _get_evolution_credentials()
+        if not server_url:
+            return {"success": False, "message": "خادم واتساب غير مُعد"}
+
         async with httpx.AsyncClient(timeout=20) as client:
             res = await client.get(
-                f"{EVOLUTION_SERVER_URL}/instance/connect/{instance}",
-                headers=_headers()
+                f"{server_url}/instance/connect/{instance}",
+                headers=_headers(api_key)
             )
 
             if res.status_code == 200:
@@ -142,10 +172,14 @@ async def check_connection_status(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
+        server_url, api_key = _get_evolution_credentials()
+        if not server_url:
+            return {"success": False, "connected": False, "state": "not_configured"}
+
         async with httpx.AsyncClient(timeout=15) as client:
             res = await client.get(
-                f"{EVOLUTION_SERVER_URL}/instance/connectionState/{instance}",
-                headers=_headers()
+                f"{server_url}/instance/connectionState/{instance}",
+                headers=_headers(api_key)
             )
 
             if res.status_code == 200:
@@ -167,8 +201,8 @@ async def check_connection_status(client_id: str) -> dict:
                 if is_connected:
                     try:
                         info_res = await client.get(
-                            f"{EVOLUTION_SERVER_URL}/instance/fetchInstances",
-                            headers=_headers(),
+                            f"{server_url}/instance/fetchInstances",
+                            headers=_headers(api_key),
                             params={"instanceName": instance}
                         )
                         if info_res.status_code == 200:
@@ -196,16 +230,17 @@ async def disconnect_instance(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
+        server_url, api_key = _get_evolution_credentials()
         async with httpx.AsyncClient(timeout=15) as client:
             # تسجيل خروج أولاً
             await client.delete(
-                f"{EVOLUTION_SERVER_URL}/instance/logout/{instance}",
-                headers=_headers()
+                f"{server_url}/instance/logout/{instance}",
+                headers=_headers(api_key)
             )
             # ثم حذف الجلسة
             await client.delete(
-                f"{EVOLUTION_SERVER_URL}/instance/delete/{instance}",
-                headers=_headers()
+                f"{server_url}/instance/delete/{instance}",
+                headers=_headers(api_key)
             )
 
         # مسح البيانات من قاعدة البيانات
@@ -226,16 +261,17 @@ async def set_webhook(client_id: str, webhook_base_url: str) -> dict:
     webhook_url = f"{webhook_base_url}/webhook/whatsapp/evolution/{instance}"
 
     try:
+        server_url, api_key = _get_evolution_credentials()
         async with httpx.AsyncClient(timeout=15) as client:
             res = await client.post(
-                f"{EVOLUTION_SERVER_URL}/webhook/set/{instance}",
+                f"{server_url}/webhook/set/{instance}",
                 json={
                     "url": webhook_url,
                     "webhook_by_events": False,
                     "webhook_base64": True,
                     "events": ["MESSAGES_UPSERT"]
                 },
-                headers=_headers()
+                headers=_headers(api_key)
             )
             return {"success": res.status_code in (200, 201)}
     except Exception as e:
@@ -249,11 +285,12 @@ def _save_instance_config(client_id: str, instance_name: str):
     try:
         existing = db.table("channels_config").select("id").eq("client_id", client_id).execute()
 
+        server_url, api_key = _get_evolution_credentials()
         update_data = {
             "client_id": client_id,
             "whatsapp_provider": "evolution",
-            "evolution_api_url": EVOLUTION_SERVER_URL,
-            "evolution_api_key": EVOLUTION_GLOBAL_KEY,
+            "evolution_api_url": server_url,
+            "evolution_api_key": api_key,
             "evolution_instance_name": instance_name
         }
 
