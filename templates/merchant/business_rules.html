@@ -126,33 +126,14 @@
 </div>
 
 <form id="businessRulesForm">
-    <div class="row g-4">
-        <!-- Sidebar Navigation -->
-        <div class="col-lg-3 col-md-4">
-            <div class="nav flex-column nav-pills rules-sidebar sticky-top" style="top: 20px;" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-
-                <button class="nav-link active text-start" id="tab-finance" data-bs-toggle="pill" data-bs-target="#pane-finance" type="button" role="tab">
-                    <i class="ti ti-cash me-2 fs-5"></i> 1. السياسات المالية
-                </button>
-                <button class="nav-link text-start" id="tab-sales" data-bs-toggle="pill" data-bs-target="#pane-sales" type="button" role="tab">
-                    <i class="ti ti-chart-line me-2 fs-5"></i> 2. المبيعات والمخزون
-                </button>
-                <button class="nav-link text-start" id="tab-service" data-bs-toggle="pill" data-bs-target="#pane-service" type="button" role="tab">
-                    <i class="ti ti-headset me-2 fs-5"></i> 3. خدمة العملاء
-                </button>
-                <button class="nav-link text-start text-danger" id="tab-guardrails" data-bs-toggle="pill" data-bs-target="#pane-guardrails" type="button" role="tab">
-                    <i class="ti ti-shield-lock me-2 fs-5"></i> 4. حواجز الحماية
-                </button>
-            </div>
-        </div>
-
+    <div class="row g-4 justify-content-center">
         <!-- Content Area -->
-        <div class="col-lg-9 col-md-8">
-            <div class="tab-content" id="v-pills-tabContent">
+        <div class="col-lg-10">
+            <div class="d-flex flex-column gap-5">
                 
-
-                <!-- 2. Financial Logic -->
-                <div class="tab-pane fade show active" id="pane-finance" role="tabpanel">
+                <!-- 1. Financial Logic -->
+                <div class="rules-section">
+                    <h4 class="fw-bold mb-3 text-primary"><i class="ti ti-cash me-2"></i> 1. السياسات المالية</h4>
                     <div class="card settings-card">
 
 
@@ -214,8 +195,9 @@
                     </div>
                 </div>
 
-                <!-- 3. Sales & Inventory -->
-                <div class="tab-pane fade" id="pane-sales" role="tabpanel">
+                <!-- 2. Sales & Inventory -->
+                <div class="rules-section">
+                    <h4 class="fw-bold mb-3 text-primary"><i class="ti ti-chart-line me-2"></i> 2. المبيعات والمخزون</h4>
                     <div class="card settings-card">
                         <div class="settings-group">
                             <h5 class="fw-bold mb-3"><i class="ti ti-trending-up text-primary me-2"></i>استراتيجية زيادة المبيعات (Upselling)</h5>
@@ -306,8 +288,9 @@
                     </div>
                 </div>
 
-                <!-- 4. Customer Service -->
-                <div class="tab-pane fade" id="pane-service" role="tabpanel">
+                <!-- 3. Customer Service -->
+                <div class="rules-section">
+                    <h4 class="fw-bold mb-3 text-primary"><i class="ti ti-headset me-2"></i> 3. خدمة العملاء</h4>
                     <div class="card settings-card">
                         <div class="settings-group">
                             <h5 class="fw-bold mb-3"><i class="ti ti-messages text-primary me-2"></i>أسلوب الرد والترحيب (Tone)</h5>
@@ -468,8 +451,9 @@
                     </div>
                 </div>
 
-                <!-- 5. Guardrails -->
-                <div class="tab-pane fade" id="pane-guardrails" role="tabpanel">
+                <!-- 4. Guardrails -->
+                <div class="rules-section">
+                    <h4 class="fw-bold mb-3 text-danger"><i class="ti ti-shield-lock me-2"></i> 4. حواجز الحماية</h4>
                     <div class="card settings-card border-danger border-opacity-25 shadow-sm">
                         <div class="settings-group">
                             <h5 class="fw-bold text-danger mb-3"><i class="ti ti-barrier-block me-2"></i>المواضيع الممنوع التحدث فيها قطعيًا (الخطوط الحمراء)</h5>
@@ -545,18 +529,18 @@
                     </div>
                 </div>
 
-            </div> <!-- end tab-content -->
-        </div> <!-- end col-9 -->
+            </div> <!-- end d-flex -->
+        </div> <!-- end col-10 -->
     </div> <!-- end row -->
 
     <!-- Floating Save Button -->
-    <div class="floating-save mt-3">
+    <div class="floating-save mt-4">
         <div>
             <h5 class="mb-1 fw-bold">تحديث الإعدادات</h5>
             <span class="small text-muted">سيتم تطبيق هذه القواعد فوراً على المحادثات القادمة.</span>
         </div>
-        <button type="submit" class="btn btn-primary btn-lg px-4 shadow" id="saveBtn">
-            حفظ واعتماد الدستور <i class="ti ti-check ms-2"></i>
+        <button type="submit" class="btn btn-success btn-lg px-4 shadow" id="saveBtn">
+            <i class="ti ti-check me-2"></i> حفظ واعتماد الدستور
         </button>
     </div>
 </form>
