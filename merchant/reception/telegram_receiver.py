@@ -21,17 +21,7 @@ def _find_client_by_token(bot_token: str) -> dict | None:
         return None
 
 
-def _is_authorized(client_id: str, phone: str) -> bool:
-    """ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† طµظ„ط§ط­ظٹط© ط§ظ„ط±ظ‚ظ…"""
-    supabase = get_supabase_client()
-    try:
-        client = supabase.table("clients").select("allow_all_numbers").eq("id", client_id).single().execute()
-        if client.data and client.data.get("allow_all_numbers"):
-            return True
-        res = supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", str(phone)).execute()
-        return bool(res.data)
-    except Exception:
-        return False
+
 
 
 async def _send_telegram_message(bot_token: str, chat_id: int, text: str):
@@ -102,9 +92,7 @@ async def telegram_webhook(bot_token: str, request: Request):
 
         client_id = client_cfg["client_id"]
 
-        # ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„طµظ„ط§ط­ظٹط©
-        if not _is_authorized(client_id, phone_str):
-            return Response(status_code=200)
+
 
         # توليد الرد
         ai_reply = await get_ai_response(
