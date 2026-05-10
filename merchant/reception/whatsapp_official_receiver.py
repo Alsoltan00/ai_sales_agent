@@ -49,21 +49,23 @@ async def _send_official_message(access_token: str, phone_number_id: str, to_pho
         await client.post(url, headers=headers, json=payload, timeout=15)
 
 
+from fastapi.responses import PlainTextResponse
+
 @router.get("/whatsapp/official")
 async def verify_official_webhook(
     hub_mode: str = Query(None, alias="hub.mode"),
     hub_challenge: str = Query(None, alias="hub.challenge"),
     hub_verify_token: str = Query(None, alias="hub.verify.token")
 ):
-    """ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† Webhook ط¹ظ†ط¯ ط±ط¨ط·ظ‡ ظ…ط¹ Meta"""
+    """التحقق من Webhook عند ربطه مع Meta"""
     supabase = get_supabase_client()
     try:
-        # ط§ظ„ط¨ط­ط« ط¹ظ† طھط§ط¬ط± ظٹظ…ظ„ظƒ ظ‡ط°ط§ ط§ظ„ظ€ verify_token
+        # البحث عن تاجر يملك هذا الـ verify_token
         res = supabase.table("channels_config").select("meta_verify_token").execute()
         valid_tokens = [row["meta_verify_token"] for row in (res.data or []) if row.get("meta_verify_token")]
 
         if hub_mode == "subscribe" and hub_verify_token in valid_tokens:
-            return Response(content=hub_challenge, status_code=200)
+            return PlainTextResponse(content=hub_challenge, status_code=200)
     except Exception as e:
         print(f"Webhook verification error: {e}")
 
