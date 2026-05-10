@@ -3,7 +3,7 @@ merchant/reception/whatsapp_official_receiver.py
 ط§ط³طھظ‚ط¨ط§ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ط¹ط¨ط± WhatsApp Cloud API ط§ظ„ط±ط³ظ…ظٹ ظ…ظ† Meta
 """
 import httpx
-from fastapi import APIRouter, Request, Response, Query
+from fastapi import APIRouter, Request, Response, Query, BackgroundTasks
 from database.db_client import get_supabase_client
 from merchant.ai_engine import get_ai_response
 
@@ -93,7 +93,7 @@ async def verify_official_webhook(request: Request):
 
 
 @router.post("/whatsapp/official")
-async def official_webhook(request: Request):
+async def official_webhook(request: Request, background_tasks: BackgroundTasks):
     """Webhook ظ„ط§ط³طھظ‚ط¨ط§ظ„ ط±ط³ط§ط¦ظ„ ظˆط§طھط³ط§ط¨ ط§ظ„ط±ط³ظ…ظٹ"""
     try:
         body = await request.json()
@@ -102,6 +102,21 @@ async def official_webhook(request: Request):
         if not entry:
             return Response(status_code=200)
 
+        host = request.headers.get("host", request.url.hostname)
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if host and ":" not in host and host != "localhost":
+            scheme = "https"
+
+        background_tasks.add_task(_process_official_webhook, body, host, scheme)
+
+    except Exception as e:
+        print(f"Official WhatsApp webhook routing error: {e}")
+
+    return Response(status_code=200)
+
+async def _process_official_webhook(body: dict, host: str, scheme: str):
+    try:
+        entry = body.get("entry", [])
         for ent in entry:
             for change in ent.get("changes", []):
                 value = change.get("value", {})
@@ -162,10 +177,6 @@ async def official_webhook(request: Request):
                             res = supabase.table("orders").insert(final_order).execute()
                             if res.data:
                                 order_id = res.data[0]["id"]
-                                host = request.headers.get("host", request.url.hostname)
-                                scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-                                if host and ":" not in host and host != "localhost":
-                                    scheme = "https"
                                 invoice_url = f"{scheme}://{host}/invoice/{order_id}"
                                 ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
                             print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
@@ -186,6 +197,4 @@ async def official_webhook(request: Request):
                         await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
 
     except Exception as e:
-        print(f"Official WhatsApp webhook error: {e}")
-
-    return Response(status_code=200)
+        print(f"Official WhatsApp webhook background task error: {e}")

@@ -257,8 +257,22 @@ async def root_redirect():
 
 @app.get("/health")
 async def health_check():
-    """مسار للتحقق من صحة الخادم (Render Health Check)"""
-    return {"status": "ok"}
+    """مسار للتحقق من صحة الخادم وقاعدة البيانات (Keep-Alive)"""
+    db_status = "unknown"
+    try:
+        from database.db_client import get_db_engine
+        from sqlalchemy import text
+        engine = get_db_engine()
+        if engine:
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            db_status = "ok"
+        else:
+            db_status = "no_engine"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+        
+    return {"status": "ok", "db": db_status}
 
 if __name__ == "__main__":
     print(f"Server is starting on {HOST}:{PORT}...")

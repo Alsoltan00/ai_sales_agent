@@ -3,7 +3,7 @@ merchant/reception/whatsapp_evolution_receiver.py
 استقبال الرسائل من واتساب عبر Evolution API
 """
 import httpx
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, BackgroundTasks
 from database.db_client import get_supabase_client
 from merchant.ai_engine import get_ai_response
 
@@ -98,9 +98,8 @@ async def _send_evolution_audio(api_url: str, api_key: str, instance_name: str, 
 
 
 @router.post("/whatsapp/evolution/{instance_name}")
-async def evolution_webhook(instance_name: str, request: Request):
+async def evolution_webhook(instance_name: str, request: Request, background_tasks: BackgroundTasks):
     """Webhook لاستقبال رسائل واتساب عبر Evolution API"""
-    msg_id = None
     try:
         body = await request.json()
         print(f"[DEBUG] Received Webhook for instance: {instance_name}")
@@ -129,13 +128,31 @@ async def evolution_webhook(instance_name: str, request: Request):
         if event not in ("messages.upsert", "MESSAGES_UPSERT"):
             return Response(status_code=200)
 
+        # إعداد متغيرات الروابط للفاتورة قبل إرسالها للمهمة الخلفية
+        host = request.headers.get("host", request.url.hostname)
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        if host and ":" not in host and host != "localhost":
+            scheme = "https"
+
+        # إضافة المعالجة إلى المهام الخلفية لضمان إرجاع استجابة 200 فوراً وتجنب إعادة الإرسال (Retries) من الخادم
+        background_tasks.add_task(_process_evolution_message, instance_name, body, host, scheme)
+
+    except Exception as e:
+        print(f"[CRITICAL ERROR] Evolution webhook routing error: {e}")
+
+    return Response(status_code=200)
+
+
+async def _process_evolution_message(instance_name: str, body: dict, host: str, scheme: str):
+    msg_id = None
+    try:
         data = body.get("data", {})
         key  = data.get("key", {})
         supabase = get_supabase_client()
 
         # تجاهل الرسائل الصادرة من الجهاز نفسه
         if key.get("fromMe", False):
-            return Response(status_code=200)
+            return
 
         phone       = key.get("remoteJid", "")
         msg_id      = key.get("id")
@@ -145,7 +162,7 @@ async def evolution_webhook(instance_name: str, request: Request):
         if msg_id:
             if msg_id in _processing_ids:
                 print(f"[DEDUP] In-memory block: {msg_id}")
-                return Response(status_code=200)
+                return
             _processing_ids.add(msg_id)
             
             # المستوى الثاني: فحص قاعدة البيانات (للتأكد بعد إعادة التشغيل)
@@ -154,7 +171,7 @@ async def evolution_webhook(instance_name: str, request: Request):
                 if check_dup.data and len(check_dup.data) > 0:
                     print(f"[DEDUP] DB block: {msg_id}")
                     _processing_ids.discard(msg_id)
-                    return Response(status_code=200)
+                    return
             except Exception as dup_err:
                 print(f"[DEDUP] DB check error: {dup_err}")
 
@@ -255,16 +272,16 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         if not text and not audio_base64 and not image_base64:
             print("[DEBUG] Skipping message because text, audio, and image are all empty.")
-            return Response(status_code=200)
+            return
         
         if not phone:
-            return Response(status_code=200)
+            return
 
         # البحث عن التاجر (إذا لم يتم البحث عنه سابقاً)
         cfg = _find_client_by_instance(instance_name)
         if not cfg:
             print(f"[ERROR] No client found for instance: {instance_name}")
-            return Response(status_code=200)
+            return
 
         client_id   = cfg["client_id"]
         api_url     = cfg["evolution_api_url"]
@@ -273,7 +290,7 @@ async def evolution_webhook(instance_name: str, request: Request):
         # التحقق من الصلاحية
         if not _is_authorized(client_id, phone):
             print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
-            return Response(status_code=200)
+            return
 
         # توليد الرد — ترتيب الوسائط: (client_id, phone_number, user_message, ...)
         print(f"[AI] Calling AI for client {client_id}, phone={phone}, text={text[:40]}...")
@@ -297,10 +314,6 @@ async def evolution_webhook(instance_name: str, request: Request):
                 res = supabase.table("orders").insert(final_order).execute()
                 if res.data:
                     order_id = res.data[0]["id"]
-                    host = request.headers.get("host", request.url.hostname)
-                    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-                    if host and ":" not in host and host != "localhost":
-                        scheme = "https"
                     invoice_url = f"{scheme}://{host}/invoice/{order_id}"
                     ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
                 print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
@@ -344,5 +357,3 @@ async def evolution_webhook(instance_name: str, request: Request):
         # تنظيف الذاكرة بعد معالجة الرسالة (نجاح أو فشل)
         if msg_id:
             _processing_ids.discard(msg_id)
-
-    return Response(status_code=200)
