@@ -69,7 +69,8 @@ async def create_instance(client_id: str, webhook_base_url: str) -> dict:
             "byEvents": False,
             "base64": True,
             "events": [
-                "MESSAGES_UPSERT"
+                "MESSAGES_UPSERT",
+                "CONNECTION_UPDATE"
             ]
         }
     }
@@ -265,7 +266,7 @@ async def set_webhook(client_id: str, webhook_base_url: str) -> dict:
                     "url": webhook_url,
                     "webhook_by_events": False,
                     "webhook_base64": True,
-                    "events": ["MESSAGES_UPSERT"]
+                    "events": ["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
                 },
                 headers=_headers(api_key)
             )

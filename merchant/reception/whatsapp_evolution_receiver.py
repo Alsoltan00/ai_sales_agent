@@ -107,6 +107,25 @@ async def evolution_webhook(instance_name: str, request: Request):
 
         # Evolution API sends different event types
         event = body.get("event", "")
+        
+        # معالجة حدث تسجيل الخروج من واتساب
+        if event in ("connection.update", "CONNECTION_UPDATE"):
+            data = body.get("data", {})
+            state = data.get("state", "")
+            reason = data.get("statusReason")
+            
+            # إذا قام المستخدم بتسجيل الخروج (Logout) أو تم إغلاق الجلسة بشكل غير طبيعي
+            # statusReason 401: Unauthorized (Logged out)
+            if state == "close" and reason in (401, 403, 405):
+                print(f"[EVOLUTION] User logged out from instance {instance_name}. Triggering auto-delete.")
+                cfg = _find_client_by_instance(instance_name)
+                if cfg and "client_id" in cfg:
+                    from merchant.evolution_service import disconnect_instance
+                    import asyncio
+                    asyncio.create_task(disconnect_instance(cfg["client_id"]))
+                return Response(status_code=200)
+            return Response(status_code=200)
+            
         if event not in ("messages.upsert", "MESSAGES_UPSERT"):
             return Response(status_code=200)
 
