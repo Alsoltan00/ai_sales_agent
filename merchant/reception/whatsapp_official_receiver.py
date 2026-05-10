@@ -192,7 +192,11 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                     if buttons:
                         btn_sent = await send_official_buttons(access_token, phone_number_id, from_phone, clean_reply, buttons)
                         if not btn_sent:
-                            await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
+                            # Fallback: إرسال كنص عادي وتضمين الخيارات كقائمة مرقمة
+                            fallback_text = clean_reply + "\n\n"
+                            for idx, btn in enumerate(buttons):
+                                fallback_text += f"*{idx + 1}-* {btn['text']}\n"
+                            await _send_official_message(access_token, phone_number_id, from_phone, fallback_text.strip())
                     else:
                         await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
 

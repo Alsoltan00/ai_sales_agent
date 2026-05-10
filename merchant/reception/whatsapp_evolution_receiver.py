@@ -339,8 +339,11 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             # محاولة إرسال أزرار تفاعلية
             status = await send_evolution_buttons(api_url, api_key, instance_name, phone, clean_reply, buttons)
             if not status:
-                # Fallback: إرسال كنص عادي إذا فشلت الأزرار
-                status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
+                # Fallback: إرسال كنص عادي وتضمين الخيارات كقائمة مرقمة
+                fallback_text = clean_reply + "\n\n"
+                for idx, btn in enumerate(buttons):
+                    fallback_text += f"*{idx + 1}-* {btn['text']}\n"
+                status = await _send_evolution_message(api_url, api_key, instance_name, phone, fallback_text.strip())
         else:
             status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
 
