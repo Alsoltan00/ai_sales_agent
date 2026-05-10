@@ -232,21 +232,17 @@ async def disconnect_instance(client_id: str) -> dict:
     try:
         server_url, api_key = _get_evolution_credentials()
         async with httpx.AsyncClient(timeout=15) as client:
-            # تسجيل خروج أولاً
-            await client.delete(
-                f"{server_url}/instance/logout/{instance}",
-                headers=_headers(api_key)
-            )
-            # ثم حذف الجلسة
-            await client.delete(
+            # نقوم بحذف الجلسة مباشرة (يحذفها من الخادم كلياً ويقطع الاتصال ضمناً)
+            res = await client.delete(
                 f"{server_url}/instance/delete/{instance}",
                 headers=_headers(api_key)
             )
+            print(f"[EVOLUTION] Delete instance '{instance}' response: {res.status_code} - {res.text}")
 
         # مسح البيانات من قاعدة البيانات
         _clear_instance_config(client_id)
 
-        return {"success": True, "message": "تم قطع الاتصال بنجاح"}
+        return {"success": True, "message": "تم قطع الاتصال وحذف الجلسة بنجاح"}
 
     except Exception as e:
         print(f"[EVOLUTION] Disconnect error: {e}")
