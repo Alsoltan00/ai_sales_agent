@@ -317,6 +317,26 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                     invoice_url = f"{scheme}://{host}/invoice/{order_id}"
                     ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
                 print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                
+                # --- تحديث بيانات العميل في CRM ---
+                try:
+                    from merchant.customers.customer_manager import update_customer_data, increment_order_count
+                    clean_id = phone.split("@")[0].replace("+", "")
+                    updates = {}
+                    if order_data.get("customer_name"):
+                        updates["customer_name"] = order_data["customer_name"]
+                    if order_data.get("customer_address"):
+                        updates["customer_address"] = order_data["customer_address"]
+                    if order_data.get("customer_city"):
+                        updates["customer_city"] = order_data["customer_city"]
+                    if order_data.get("customer_phone"):
+                        updates["phone_number"] = order_data["customer_phone"]
+                    if updates:
+                        update_customer_data(client_id, clean_id, updates)
+                    increment_order_count(client_id, clean_id)
+                except Exception as crm_e:
+                    print(f"[CRM ERROR] Failed to update customer: {crm_e}")
+                # ----------------------------------
             except Exception as e:
                 print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
         # ----------------------------------

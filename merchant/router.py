@@ -870,3 +870,60 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
         return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+# --- Customer Management (CRM) ---
+
+@router.get("/customers", response_class=HTMLResponse)
+async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة إدارة العملاء"""
+    from merchant.customers.customer_manager import get_all_customers
+    customers = get_all_customers(user["id"])
+    return templates.TemplateResponse("merchant/customers.html", {
+        "request": request, "user": user, "customers": customers
+    })
+
+@router.get("/api/customers")
+async def api_get_customers(user: dict = Depends(verify_merchant)):
+    """جلب جميع العملاء كـ JSON"""
+    from merchant.customers.customer_manager import get_all_customers
+    customers = get_all_customers(user["id"])
+    return {"status": "success", "customers": customers}
+
+@router.put("/api/customers/{customer_id}")
+async def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+    """تحديث بيانات عميل"""
+    from merchant.customers.customer_manager import update_customer_data
+    db = get_db_client()
+    try:
+        # جلب المعرف الرئيسي للعميل
+        res = db.table("customer_profiles").select("platform_identifier").eq("id", customer_id).eq("client_id", user["id"]).single().execute()
+        if not res.data:
+            return {"status": "error", "message": "العميل غير موجود"}
+        
+        identifier = res.data["platform_identifier"]
+        updates = {}
+        if "customer_name" in payload:
+            updates["customer_name"] = payload["customer_name"]
+        if "customer_address" in payload:
+            updates["customer_address"] = payload["customer_address"]
+        if "customer_city" in payload:
+            updates["customer_city"] = payload["customer_city"]
+        if "phone_number" in payload:
+            updates["phone_number"] = payload["phone_number"]
+        
+        if updates:
+            update_customer_data(user["id"], identifier, updates)
+            return {"status": "success", "message": "تم تحديث بيانات العميل بنجاح"}
+        return {"status": "error", "message": "لا توجد بيانات للتحديث"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@router.delete("/api/customers/{customer_id}")
+async def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant)):
+    """حذف عميل"""
+    from merchant.customers.customer_manager import delete_customer
+    success = delete_customer(user["id"], customer_id)
+    if success:
+        return {"status": "success", "message": "تم حذف العميل بنجاح"}
+    return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
+

@@ -194,6 +194,24 @@ def _migrate_database():
                 );
             """))
 
+            # 8. إنشاء جدول العملاء (CRM)
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS customer_profiles (
+                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+                    client_id VARCHAR(255) NOT NULL,
+                    platform VARCHAR(50) NOT NULL DEFAULT 'whatsapp',
+                    platform_identifier VARCHAR(255) NOT NULL,
+                    phone_number VARCHAR(50),
+                    customer_name VARCHAR(255),
+                    customer_address TEXT,
+                    customer_city VARCHAR(255),
+                    total_orders INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(client_id, platform_identifier)
+                );
+            """))
+
             # تحديث جدول shipping_zones إذا كان موجوداً بدون الأعمدة الجديدة
             try:
                 sz_cols = [c['name'] for c in inspector.get_columns('shipping_zones')]

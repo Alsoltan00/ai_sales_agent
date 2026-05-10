@@ -149,6 +149,14 @@
       </a>
     </li>
 
+    <!-- Customers CRM -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/customers' in request.url.path %}active{% endif %}" href="/merchant/customers">
+        <span class="nav-icon"><i class="ti ti-users-group"></i></span>
+        <span class="text">العملاء</span>
+      </a>
+    </li>
+
     {% if user and user._planning and user._planning.order_flow == 'in_chat' %}
     <!-- Orders (in_chat فقط) -->
     <li class="nav-item">
@@ -301,8 +309,8 @@
         </a>
       </li>
       <li class="nav-item">
-        <a class="nav-link {% if '/merchant/authorized-numbers' in request.url.path %}active{% endif %}" href="/merchant/authorized-numbers">
-          <span class="nav-icon"><i class="ti ti-shield-check"></i></span> <span class="text">الأرقام المصرّحة</span>
+        <a class="nav-link {% if '/merchant/customers' in request.url.path %}active{% endif %}" href="/merchant/customers">
+          <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">العملاء</span>
         </a>
       </li>
       {% if user and user._planning and user._planning.order_flow == 'in_chat' %}

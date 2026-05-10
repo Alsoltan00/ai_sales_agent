@@ -1,0 +1,179 @@
+{% extends "merchant_base.html" %}
+{% block title %}إدارة العملاء{% endblock %}
+
+{% block extra_css %}
+.stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-card { flex: 1; min-width: 160px; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 14px; padding: 20px; text-align: center; transition: all 0.3s ease; }
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+.stat-card .stat-value { font-size: 2rem; font-weight: 800; background: linear-gradient(135deg, var(--bs-primary), #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stat-card .stat-label { font-size: 0.8rem; color: var(--bs-secondary-color); margin-top: 4px; }
+.customer-table-wrap { background: var(--bs-body-bg); border-radius: 14px; border: 1px solid var(--bs-border-color); overflow: hidden; }
+.customer-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.customer-table thead th { background: var(--bs-secondary-bg); padding: 12px 14px; font-weight: 700; font-size: 0.78rem; text-transform: uppercase; color: var(--bs-secondary-color); white-space: nowrap; border-bottom: 2px solid var(--bs-border-color); }
+.customer-table tbody td { padding: 12px 14px; border-bottom: 1px solid var(--bs-border-color); vertical-align: middle; }
+.customer-table tbody tr:hover { background: var(--bs-secondary-bg); }
+.badge-platform { padding: 5px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+.badge-whatsapp { background: #d4edda; color: #155724; }
+.badge-telegram { background: #cce5ff; color: #004085; }
+.badge-instagram { background: #f8d7da; color: #721c24; }
+.badge-orders { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 700; }
+.filters-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
+.filters-bar .form-control, .filters-bar .form-select { max-width: 220px; border-radius: 10px; font-size: 0.85rem; }
+.empty-state { text-align: center; padding: 80px 20px; }
+.empty-state i { font-size: 4rem; color: var(--bs-secondary-color); opacity: 0.3; }
+.detail-label { font-size: 0.75rem; text-transform: uppercase; color: var(--bs-secondary-color); font-weight: 700; margin-bottom: 4px; }
+.detail-value { font-size: 0.92rem; font-weight: 500; margin-bottom: 16px; }
+@media (max-width: 768px) { .filters-bar .form-control, .filters-bar .form-select { max-width: 100%; } .customer-table { font-size: 0.78rem; } }
+{% endblock %}
+
+{% block content %}
+<div class="page-header mb-4">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+        <div>
+            <h1><i class="ti ti-users-group me-2"></i>إدارة العملاء</h1>
+            <p class="text-secondary mb-0 mt-1">عرض وإدارة بيانات جميع العملاء المتعاملين مع متجرك</p>
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+{% set total_customers = customers|length %}
+{% set whatsapp_count = customers|selectattr("platform", "equalto", "whatsapp")|list|length %}
+{% set telegram_count = customers|selectattr("platform", "equalto", "telegram")|list|length %}
+{% set total_orders_sum = customers|sum(attribute="total_orders") %}
+<div class="stats-row">
+    <div class="stat-card"><div class="stat-value">{{ total_customers }}</div><div class="stat-label">إجمالي العملاء</div></div>
+    <div class="stat-card"><div class="stat-value">{{ whatsapp_count }}</div><div class="stat-label">عملاء واتساب</div></div>
+    <div class="stat-card"><div class="stat-value">{{ telegram_count }}</div><div class="stat-label">عملاء تيليجرام</div></div>
+    <div class="stat-card"><div class="stat-value">{{ total_orders_sum }}</div><div class="stat-label">إجمالي الطلبات</div></div>
+</div>
+
+<!-- Filters -->
+<div class="filters-bar">
+    <input type="text" class="form-control" id="searchInput" placeholder="بحث بالاسم أو الرقم أو العنوان..." oninput="filterCustomers()">
+    <select class="form-select" id="platformFilter" onchange="filterCustomers()">
+        <option value="">كل المنصات</option>
+        <option value="whatsapp">واتساب</option>
+        <option value="telegram">تيليجرام</option>
+    </select>
+</div>
+
+<!-- Customers Table -->
+<div class="customer-table-wrap">
+{% if customers %}
+<div style="overflow-x:auto;">
+<table class="customer-table" id="customersTable">
+    <thead>
+        <tr>
+            <th>#</th><th>المعرف</th><th>المنصة</th><th>الهاتف</th>
+            <th>اسم العميل</th><th>العنوان</th><th>المدينة</th>
+            <th>الطلبات</th><th>آخر تحديث</th><th>إجراءات</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for c in customers %}
+    <tr data-id="{{ c.id }}" data-platform="{{ c.platform or '' }}" data-search="{{ c.customer_name or '' }} {{ c.phone_number or '' }} {{ c.platform_identifier or '' }} {{ c.customer_address or '' }}">
+        <td>{{ loop.index }}</td>
+        <td dir="ltr" style="text-align:right; font-family: monospace; font-size: 0.82rem;">{{ c.platform_identifier or '—' }}</td>
+        <td>
+            {% if c.platform and 'whatsapp' in c.platform %}
+            <span class="badge-platform badge-whatsapp"><i class="ti ti-brand-whatsapp me-1"></i>واتساب</span>
+            {% elif c.platform == 'telegram' %}
+            <span class="badge-platform badge-telegram"><i class="ti ti-brand-telegram me-1"></i>تيليجرام</span>
+            {% else %}
+            <span class="badge-platform" style="background:#e2e3e5;color:#383d41;">{{ c.platform or '—' }}</span>
+            {% endif %}
+        </td>
+        <td dir="ltr" style="text-align:right">{{ c.phone_number or '—' }}</td>
+        <td>{{ c.customer_name or '—' }}</td>
+        <td>{{ c.customer_address or '—' }}</td>
+        <td>{{ c.customer_city or '—' }}</td>
+        <td><span class="badge-orders">{{ c.total_orders or 0 }}</span></td>
+        <td>{{ (c.updated_at|string)[:10] if c.updated_at else '—' }}</td>
+        <td>
+            <div class="d-flex gap-1">
+                <button class="btn btn-sm btn-outline-primary" onclick="editCustomer('{{ c.id }}','{{ c.customer_name or '' }}','{{ c.phone_number or '' }}','{{ c.customer_address or '' }}','{{ c.customer_city or '' }}')" title="تعديل"><i class="ti ti-edit"></i></button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('{{ c.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
+            </div>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="ti ti-users-minus d-block mb-3"></i>
+    <h4 class="text-secondary">لا يوجد عملاء بعد</h4>
+    <p class="text-secondary">سيتم تسجيل العملاء تلقائياً عند تواصلهم مع البوت عبر أي منصة</p>
+</div>
+{% endif %}
+</div>
+
+<!-- Edit Customer Modal -->
+<div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered">
+<div class="modal-content border-0 shadow-lg">
+    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-user-edit me-2"></i>تعديل بيانات العميل</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body p-4">
+        <input type="hidden" id="editId">
+        <div class="mb-3"><label class="form-label fw-bold">اسم العميل</label><input type="text" class="form-control" id="editName"></div>
+        <div class="mb-3"><label class="form-label fw-bold">رقم الهاتف</label><input type="tel" class="form-control" id="editPhone" dir="ltr"></div>
+        <div class="mb-3"><label class="form-label fw-bold">العنوان</label><input type="text" class="form-control" id="editAddress"></div>
+        <div class="mb-3"><label class="form-label fw-bold">المدينة</label><input type="text" class="form-control" id="editCity"></div>
+    </div>
+    <div class="modal-footer border-top p-3">
+        <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveCustomer()"><i class="ti ti-check me-1"></i>حفظ</button>
+    </div>
+</div></div></div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const editModal = new bootstrap.Modal(document.getElementById('editModal'));
+
+function filterCustomers() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    const pf = document.getElementById('platformFilter').value;
+    document.querySelectorAll('#customersTable tbody tr').forEach(r => {
+        const match = (!q || r.dataset.search.toLowerCase().includes(q)) &&
+                      (!pf || r.dataset.platform.includes(pf));
+        r.style.display = match ? '' : 'none';
+    });
+}
+
+function editCustomer(id, name, phone, address, city) {
+    document.getElementById('editId').value = id;
+    document.getElementById('editName').value = name;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editAddress').value = address;
+    document.getElementById('editCity').value = city;
+    editModal.show();
+}
+
+async function saveCustomer() {
+    const id = document.getElementById('editId').value;
+    const res = await fetch(`/merchant/api/customers/${id}`, {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+            customer_name: document.getElementById('editName').value,
+            phone_number: document.getElementById('editPhone').value,
+            customer_address: document.getElementById('editAddress').value,
+            customer_city: document.getElementById('editCity').value
+        })
+    });
+    const d = await res.json();
+    if (d.status === 'success') { editModal.hide(); location.reload(); }
+    else alert(d.message);
+}
+
+async function deleteCustomer(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا العميل؟')) return;
+    const res = await fetch(`/merchant/api/customers/${id}`, { method: 'DELETE' });
+    const d = await res.json();
+    if (d.status === 'success') location.reload();
+    else alert(d.message);
+}
+</script>
+{% endblock %}

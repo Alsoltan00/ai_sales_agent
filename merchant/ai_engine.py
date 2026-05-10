@@ -36,6 +36,38 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     print(f"[ENGINE] Client: {company_name} | Agent: {agent_name} | Provider TBD")
 
+    # ─── 1.5 CUSTOMER PROFILE LOOKUP (CRM) ───────────────────────────────
+    customer_context = ""
+    try:
+        from merchant.customers.customer_manager import get_or_create_customer
+        # تنظيف المعرف الرئيسي
+        clean_identifier = phone_number.split("@")[0].replace("+", "")
+        platform = "whatsapp" if channel.startswith("whatsapp") else channel
+        
+        customer = get_or_create_customer(client_id, platform, clean_identifier, clean_identifier if platform.startswith("whatsapp") else None)
+        
+        if customer:
+            c_name = customer.get("customer_name") or ""
+            c_addr = customer.get("customer_address") or ""
+            c_city = customer.get("customer_city") or ""
+            c_phone = customer.get("phone_number") or ""
+            c_orders = customer.get("total_orders", 0)
+            
+            if c_name or c_addr:
+                customer_context = f"""\n## بيانات العميل الحالي (معروف لدينا مسبقاً):
+- اسم العميل: {c_name if c_name else 'غير معروف (يجب سؤاله)'}
+- العنوان: {c_addr if c_addr else 'غير معروف (يجب سؤاله)'}
+- المدينة: {c_city if c_city else 'غير معروفة'}
+- رقم الهاتف: {c_phone if c_phone else 'غير معروف'}
+- عدد الطلبات السابقة: {c_orders}
+**تعليمات:** إذا كان اسم العميل معروفاً، ناده باسمه بود ولا تسأله عن اسمه مرة أخرى. إذا كان العنوان معروفاً وقرر الشراء، اعرض عليه عنوانه السابق للتأكيد بدلاً من طلبه من جديد. إذا كانت البيانات غير معروفة، اطلبها منه عند إتمام الطلب."""
+                print(f"[ENGINE] Customer CRM data injected: {c_name or 'NEW'}")
+            else:
+                customer_context = "\n## بيانات العميل الحالي: عميل جديد (لا توجد بيانات سابقة). يجب طلب الاسم والعنوان عند إتمام الطلب."
+                print(f"[ENGINE] New customer: {clean_identifier}")
+    except Exception as e:
+        print(f"[ENGINE] Customer CRM lookup error: {e}")
+
     # ─── 2. AI MODEL RESOLUTION (Plan → Config) ──────────────────────────────
     api_key, model_id, provider = None, "gpt-3.5-turbo", "openai"
     try:
@@ -349,6 +381,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 نشاط المتجر: {store_activity}.
 {f'نبذة: {description}' if description else ''}
 نبرة الصوت: {base_tone}.
+{customer_context}
 
 ## الدستور الأعلى لفن المبيعات والتعامل مع العملاء:
 هذا الدستور مصمم ليجعلك بائعاً محترفاً. اتبع هذه التكتيكات بصرامة شديدة مع كل عميل:
