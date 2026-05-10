@@ -118,6 +118,8 @@
 {% endblock %}
 
 {% block content %}
+{% set is_chat = user and user._planning and user._planning.order_flow == 'in_chat' %}
+{% set is_store = not is_chat %}
 <div class="page-header mb-4">
     <h1 class="fw-bold">قواعد العمل والسياسات</h1>
     <p class="text-secondary mt-2">خصص تجربة الموظف الآلي ليطابق سياسات متجرك وطريقة بيعك بدقة واحترافية.</p>
@@ -130,16 +132,16 @@
             <div class="nav flex-column nav-pills rules-sidebar sticky-top" style="top: 20px;" id="v-pills-tab" role="tablist" aria-orientation="vertical">
 
                 <button class="nav-link active text-start" id="tab-finance" data-bs-toggle="pill" data-bs-target="#pane-finance" type="button" role="tab">
-                    <i class="ti ti-cash me-2 fs-5"></i> 2. السياسات المالية
+                    <i class="ti ti-cash me-2 fs-5"></i> 1. السياسات المالية
                 </button>
                 <button class="nav-link text-start" id="tab-sales" data-bs-toggle="pill" data-bs-target="#pane-sales" type="button" role="tab">
-                    <i class="ti ti-chart-line me-2 fs-5"></i> 3. المبيعات والمخزون
+                    <i class="ti ti-chart-line me-2 fs-5"></i> 2. المبيعات والمخزون
                 </button>
                 <button class="nav-link text-start" id="tab-service" data-bs-toggle="pill" data-bs-target="#pane-service" type="button" role="tab">
-                    <i class="ti ti-headset me-2 fs-5"></i> 4. خدمة العملاء
+                    <i class="ti ti-headset me-2 fs-5"></i> 3. خدمة العملاء
                 </button>
                 <button class="nav-link text-start text-danger" id="tab-guardrails" data-bs-toggle="pill" data-bs-target="#pane-guardrails" type="button" role="tab">
-                    <i class="ti ti-shield-lock me-2 fs-5"></i> 5. حواجز الحماية
+                    <i class="ti ti-shield-lock me-2 fs-5"></i> 4. حواجز الحماية
                 </button>
             </div>
         </div>
@@ -155,6 +157,7 @@
 
 
                         <!-- Store Guidance -->
+                        {% if is_store %}
                         <div class="settings-group store-only" style="background: rgba(var(--bs-primary-rgb), 0.03);">
                             <div class="d-flex align-items-center">
                                 <div class="bg-primary text-white rounded p-3 me-3"><i class="ti ti-shopping-cart fs-3"></i></div>
@@ -164,6 +167,7 @@
                                 </div>
                             </div>
                         </div>
+                        {% endif %}
 
                         <!-- Discount Policy -->
                         <div class="settings-group">
@@ -179,6 +183,7 @@
                                         </p>
                                     </div>
                                 </label>
+                                {% if is_store %}
                                 <label class="radio-card store-only">
                                     <input type="radio" name="discount_type" value="code" {% if rules.discount_type == 'code' %}checked{% endif %}>
                                     <div class="radio-card-content">
@@ -188,6 +193,7 @@
                                         </p>
                                     </div>
                                 </label>
+                                {% endif %}
                                 <label class="radio-card">
                                     <input type="radio" name="discount_type" value="custom" {% if rules.discount_type == 'custom' %}checked{% endif %}>
                                     <div class="radio-card-content">
@@ -367,7 +373,8 @@
                         </div>
 
                         <!-- Chat Confirm -->
-                        <div class="settings-group chat-only" style="display:none;">
+                        {% if is_chat %}
+                        <div class="settings-group chat-only">
                             <h5 class="fw-bold text-success mb-3"><i class="ti ti-shopping-cart-plus me-2"></i>سياسة استكمال الطلب</h5>
                             <div class="d-flex flex-column gap-3 mb-4">
                                 <label class="radio-card">
@@ -404,8 +411,10 @@
                                 </label>
                             </div>
                         </div>
+                        {% endif %}
 
                         <!-- Store Tech Issues -->
+                        {% if is_store %}
                         <div class="settings-group store-only">
                             <h5 class="fw-bold mb-3"><i class="ti ti-alert-triangle text-warning me-2"></i>المشاكل التقنية بالمتجر</h5>
                             <div class="d-flex flex-column gap-3">
@@ -425,6 +434,7 @@
                                 </label>
                             </div>
                         </div>
+                        {% endif %}
 
                         <div class="settings-group">
                             <h5 class="fw-bold mb-3"><i class="ti ti-users text-purple me-2"></i>التعامل مع الشكاوى والعملاء الغاضبين</h5>
@@ -589,38 +599,6 @@
         }
     });
 
-    // Set flow type based on onboarding planning
-    const selectedType = '{{ user._planning.order_flow if user and user._planning else "online_store" }}';
-    const isChat = selectedType === 'in_chat';
-    const isStore = selectedType === 'online_store';
-
-    function initDynamicFlow() {
-        // Handle Store Only elements
-        document.querySelectorAll('.store-only').forEach(el => {
-            el.style.display = isStore ? '' : 'none';
-            el.querySelectorAll('input, textarea, select').forEach(input => {
-                input.disabled = !isStore;
-            });
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
-                el.disabled = !isStore;
-            }
-        });
-        
-        // Handle Chat Only elements
-        document.querySelectorAll('.chat-only').forEach(el => {
-            el.style.display = isChat ? '' : 'none';
-            el.querySelectorAll('input, textarea, select').forEach(input => {
-                input.disabled = !isChat;
-            });
-            if (['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName)) {
-                el.disabled = !isChat;
-            }
-        });
-    }
-
-    // Run on init
-    initDynamicFlow();
-
     // Toggle Payment Method Details
     const transferCheckbox = document.getElementById('chat_payment_transfer');
     const transferDetails = document.getElementById('transfer_details');
@@ -637,8 +615,5 @@
             linkDetails.style.display = this.checked ? 'block' : 'none';
         });
     }
-
-    // Run on init
-    toggleDynamicFlow();
 </script>
 {% endblock %}
