@@ -85,6 +85,7 @@
   </div>
 
   <ul class="navbar-nav flex-column">
+    {% if user and user._settings and user._settings.onboarding_completed %}
     <!-- Dashboard -->
     <li class="nav-item">
       <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
@@ -193,6 +194,17 @@
     </li>
     {% endif %}
     {% endif %}
+    {% endif %}
+
+    {% else %}
+    <!-- Onboarding Only -->
+    <li class="nav-item">
+      <a class="nav-link active" href="/merchant/onboarding">
+        <span class="nav-icon"><i class="ti ti-settings"></i></span>
+        <span class="text">إعداد الحساب</span>
+      </a>
+    </li>
+    {% endif %}
 
     <!-- Divider -->
     <li class="nav-item">
@@ -273,6 +285,7 @@
   </div>
   <div class="offcanvas-body p-0">
     <ul class="navbar-nav flex-column">
+      {% if user and user._settings and user._settings.onboarding_completed %}
       <li class="nav-item">
         <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
           <span class="nav-icon"><i class="ti ti-home"></i></span> <span class="text">الرئيسية</span>
@@ -344,6 +357,15 @@
         </a>
       </li>
       {% endif %}
+      {% endif %}
+      {% endif %}
+
+      {% else %}
+      <li class="nav-item">
+        <a class="nav-link active" href="/merchant/onboarding">
+          <span class="nav-icon"><i class="ti ti-settings"></i></span> <span class="text">إعداد الحساب</span>
+        </a>
+      </li>
       {% endif %}
     </ul>
   </div>

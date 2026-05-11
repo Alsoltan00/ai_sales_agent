@@ -32,6 +32,14 @@ def verify_merchant(request: Request):
         user["_planning"] = planning
     except:
         user["_planning"] = {}
+        
+    # إرفاق الإعدادات العامة لفحص Onboarding
+    try:
+        settings = get_store_settings(user["id"])
+        user["_settings"] = settings
+    except:
+        user["_settings"] = {}
+        
     return user
 
 @router.get("/home", response_class=HTMLResponse)
