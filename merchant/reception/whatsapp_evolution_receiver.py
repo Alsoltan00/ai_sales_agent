@@ -142,6 +142,12 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
 
     return Response(status_code=200)
 
+_phone_locks = {}
+def _get_phone_lock(phone: str):
+    if phone not in _phone_locks:
+        import asyncio
+        _phone_locks[phone] = asyncio.Lock()
+    return _phone_locks[phone]
 
 async def _process_evolution_message(instance_name: str, body: dict, host: str, scheme: str):
     msg_id = None
@@ -158,6 +164,8 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         msg_id      = key.get("id")
         msg_content = data.get("message", {})
 
+        phone_lock = _get_phone_lock(phone)
+        await phone_lock.acquire()
         # 1. منع التكرار - المستوى الأول: ذاكرة داخلية (سريعة جداً)
         if msg_id:
             if msg_id in _processing_ids:
@@ -380,3 +388,5 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         # تنظيف الذاكرة بعد معالجة الرسالة (نجاح أو فشل)
         if msg_id:
             _processing_ids.discard(msg_id)
+        if 'phone_lock' in locals():
+            phone_lock.release()

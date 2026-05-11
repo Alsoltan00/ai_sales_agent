@@ -114,6 +114,13 @@ async def official_webhook(request: Request, background_tasks: BackgroundTasks):
 
     return Response(status_code=200)
 
+_phone_locks = {}
+def _get_phone_lock(phone: str):
+    if phone not in _phone_locks:
+        import asyncio
+        _phone_locks[phone] = asyncio.Lock()
+    return _phone_locks[phone]
+
 async def _process_official_webhook(body: dict, host: str, scheme: str):
     try:
         entry = body.get("entry", [])
@@ -146,8 +153,11 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                     if not text or not from_phone:
                         continue
 
-                    # ط§ظ„ط¨ط­ط« ط¹ظ† ط§ظ„طھط§ط¬ط±
-                    cfg = _find_client_by_phone_id(phone_number_id)
+                    phone_lock = _get_phone_lock(from_phone)
+                    await phone_lock.acquire()
+                    try:
+                        # البحث عن التاجر
+                        cfg = _find_client_by_phone_id(phone_number_id)
                     if not cfg:
                         continue
 
@@ -199,6 +209,10 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                             await _send_official_message(access_token, phone_number_id, from_phone, fallback_text.strip())
                     else:
                         await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
+
+                    finally:
+                        if 'phone_lock' in locals():
+                            phone_lock.release()
 
     except Exception as e:
         print(f"Official WhatsApp webhook background task error: {e}")
