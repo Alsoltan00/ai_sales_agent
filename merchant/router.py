@@ -59,18 +59,20 @@ async def onboarding_page(request: Request, user: dict = Depends(verify_merchant
 
 @router.post("/api/onboarding")
 async def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
-    """حفظ الإعداد الأولي (نوع المبيعات + مسار الطلب)"""
+    """حفظ الإعداد الأولي (نوع المبيعات + مسار الطلب + طبيعة المنتج)"""
     sales_type = payload.get("sales_type")
     order_flow = payload.get("order_flow")
+    delivery_type = payload.get("delivery_type", "physical")
     
     if not sales_type or not order_flow:
-        return {"status": "error", "message": "يرجى اختيار نوع المبيعات ومسار الطلب"}
+        return {"status": "error", "message": "يرجى اختيار كل الخيارات المتاحة"}
     
     try:
         # حفظ في planning_config
         update_planning_config(user["id"], {
             "sales_type": sales_type,
-            "order_flow": order_flow
+            "order_flow": order_flow,
+            "delivery_type": delivery_type
         })
         # تحديث حالة الإعداد الأولي
         update_store_settings(user["id"], {"onboarding_completed": True})

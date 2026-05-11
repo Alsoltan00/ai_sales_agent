@@ -233,6 +233,7 @@
     <div class="onboarding-progress">
         <div class="progress-step active" id="prog-1"></div>
         <div class="progress-step" id="prog-2"></div>
+        <div class="progress-step" id="prog-3"></div>
     </div>
 
     <!-- ═══ Step 1: Sales Type ═══ -->
@@ -292,8 +293,55 @@
         </div>
     </div>
 
-    <!-- ═══ Step 2: Order Flow ═══ -->
+    <!-- ═══ Step 2: Delivery Type ═══ -->
     <div class="step-panel" id="step-2">
+        <div class="step-header">
+            <div class="step-icon bg-info-subtle text-info">
+                <i class="ti ti-truck-delivery"></i>
+            </div>
+            <h2>طبيعة المنتج/الخدمة</h2>
+            <p>هل تقدم منتجات ملموسة تتطلب شحن وتوصيل؟ أم أنها رقمية ولا تحتاج إلى شحن؟</p>
+        </div>
+
+        <div class="row g-4 justify-content-center">
+            <div class="col-md-6">
+                <div class="flow-card" onclick="selectDelivery(this, 'physical')">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="radio-dot mt-1"></div>
+                        <div>
+                            <div class="flow-icon">📦</div>
+                            <h5>منتج حقيقي (يحتاج توصيل)</h5>
+                            <p>سيقوم الموظف الآلي بطلب عنوان العميل وحساب تكلفة الشحن قبل إتمام الطلب.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="flow-card" onclick="selectDelivery(this, 'digital')">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="radio-dot mt-1"></div>
+                        <div>
+                            <div class="flow-icon">💻</div>
+                            <h5>منتج/خدمة رقمية (بدون توصيل)</h5>
+                            <p>لن يتم طلب عناوين العملاء أو حساب أي تكاليف شحن إطلاقاً.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="wizard-actions">
+            <button class="btn btn-outline-secondary btn-wizard" onclick="goStep(1)">
+                <i class="ti ti-arrow-right me-1"></i> السابق
+            </button>
+            <button class="btn btn-primary btn-wizard" id="nextBtn2" onclick="goStep(3)" disabled>
+                التالي <i class="ti ti-arrow-left ms-1"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- ═══ Step 3: Order Flow ═══ -->
+    <div class="step-panel" id="step-3">
         <div class="step-header">
             <div class="step-icon bg-success-subtle text-success">
                 <i class="ti ti-route"></i>
@@ -331,7 +379,7 @@
         </div>
 
         <div class="wizard-actions">
-            <button class="btn btn-outline-secondary btn-wizard" onclick="goStep(1)">
+            <button class="btn btn-outline-secondary btn-wizard" onclick="goStep(2)">
                 <i class="ti ti-arrow-right me-1"></i> السابق
             </button>
             <button class="btn btn-primary btn-wizard" id="finishBtn" onclick="finishOnboarding()" disabled>
@@ -345,6 +393,7 @@
 {% block extra_scripts %}
 <script>
 let selectedSalesType = null;
+let selectedDeliveryType = null;
 let selectedOrderFlow = null;
 
 function selectType(el, type) {
@@ -354,8 +403,15 @@ function selectType(el, type) {
     document.getElementById('nextBtn1').disabled = false;
 }
 
+function selectDelivery(el, type) {
+    document.querySelectorAll('#step-2 .flow-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedDeliveryType = type;
+    document.getElementById('nextBtn2').disabled = false;
+}
+
 function selectFlow(el, flow) {
-    document.querySelectorAll('.flow-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('#step-3 .flow-card').forEach(c => c.classList.remove('selected'));
     el.classList.add('selected');
     selectedOrderFlow = flow;
     document.getElementById('finishBtn').disabled = false;
@@ -364,13 +420,15 @@ function selectFlow(el, flow) {
 function goStep(step) {
     // Validate before going forward
     if (step === 2 && !selectedSalesType) return;
+    if (step === 3 && !selectedDeliveryType) return;
 
     document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('step-' + step).classList.add('active');
 
     // Update progress
-    for (let i = 1; i <= 2; i++) {
+    for (let i = 1; i <= 3; i++) {
         const prog = document.getElementById('prog-' + i);
+        if(!prog) continue;
         prog.classList.remove('active', 'done');
         if (i < step) prog.classList.add('done');
         else if (i === step) prog.classList.add('active');
@@ -378,7 +436,7 @@ function goStep(step) {
 }
 
 async function finishOnboarding() {
-    if (!selectedSalesType || !selectedOrderFlow) return;
+    if (!selectedSalesType || !selectedOrderFlow || !selectedDeliveryType) return;
 
     const btn = document.getElementById('finishBtn');
     btn.disabled = true;
@@ -390,6 +448,7 @@ async function finishOnboarding() {
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
                 sales_type: selectedSalesType,
+                delivery_type: selectedDeliveryType,
                 order_flow: selectedOrderFlow
             })
         });
