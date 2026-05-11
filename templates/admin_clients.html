@@ -162,26 +162,22 @@
             });
             const json = await res.json();
             if (json.status === 'success') {
-                showToast('نجاح', 'تم حفظ إعدادات النشاط بنجاح!', 'success');
+                alert('\u062a\u0645 \u062d\u0641\u0638 \u0625\u0639\u062f\u0627\u062f\u0627\u062a \u0627\u0644\u0646\u0634\u0627\u0637 \u0628\u0646\u062c\u0627\u062d!');
                 onboardingModal.hide();
+                location.reload();
             } else {
-                showToast('خطأ', json.message || 'حدث خطأ', 'error');
+                alert('\u062e\u0637\u0623: ' + (json.message || '\u062d\u062f\u062b \u062e\u0637\u0623'));
             }
         } catch(err) {
-            showToast('خطأ', 'حدث خطأ أثناء الاتصال بالخادم', 'error');
+            console.error('Save error:', err);
+            alert('\u062d\u062f\u062b \u062e\u0637\u0623 \u0623\u062b\u0646\u0627\u0621 \u0627\u0644\u0627\u062a\u0635\u0627\u0644 \u0628\u0627\u0644\u062e\u0627\u062f\u0645');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>حفظ التعديلات';
+            btn.innerHTML = '<i class="ti ti-device-floppy me-1"></i>\u062d\u0641\u0638 \u0627\u0644\u062a\u0639\u062f\u064a\u0644\u0627\u062a';
         }
     });
 
-    function showToast(title, message, type='success') {
-        // Fallback to alert if showToast is not globally defined in admin_base.html
-        if (typeof window.showToast === 'function') {
-            window.showToast(title, message, type);
-        } else {
-            alert(message);
-        }
-    }
+
+
 </script>
 {% endblock %}
