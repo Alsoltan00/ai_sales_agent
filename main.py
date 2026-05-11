@@ -263,6 +263,13 @@ def _migrate_database():
                 );
             """))
 
+            # 12. تحديث قيود جدول المزامنة (للسماح بـ excel)
+            try:
+                conn.execute(text("ALTER TABLE sync_config DROP CONSTRAINT IF EXISTS sync_config_source_type_check;"))
+                conn.execute(text("ALTER TABLE sync_config ADD CONSTRAINT sync_config_source_type_check CHECK (source_type IN ('supabase', 'aiven', 'google_sheets', 'excel'));"))
+            except Exception as e:
+                print(f"[DB] Error fixing sync_config constraint: {e}")
+
             conn.commit()
             print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:
