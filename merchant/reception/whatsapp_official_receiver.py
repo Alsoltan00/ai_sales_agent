@@ -158,57 +158,57 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                     try:
                         # البحث عن التاجر
                         cfg = _find_client_by_phone_id(phone_number_id)
-                    if not cfg:
-                        continue
+                        if not cfg:
+                            continue
 
-                    client_id    = cfg["client_id"]
-                    access_token = cfg["meta_access_token"]
+                        client_id    = cfg["client_id"]
+                        access_token = cfg["meta_access_token"]
 
-                    # ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„طµظ„ط§ط­ظٹط©
-                    if not _is_authorized(client_id, from_phone):
-                        continue
+                        # ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„طµظ„ط§ط­ظٹط©
+                        if not _is_authorized(client_id, from_phone):
+                            continue
 
-                    # توليد الرد
-                    ai_reply = await get_ai_response(
-                        client_id=client_id,
-                        phone_number=from_phone,
-                        user_message=text,
-                        channel="whatsapp_official"
-                    )
+                        # توليد الرد
+                        ai_reply = await get_ai_response(
+                            client_id=client_id,
+                            phone_number=from_phone,
+                            user_message=text,
+                            channel="whatsapp_official"
+                        )
 
-                    # --- تفعيل الحفظ التلقائي للطلبات ---
-                    from merchant.reception.order_extractor import extract_order_json, build_order_record
-                    supabase = get_supabase_client()
-                    
-                    order_data, ai_reply = extract_order_json(ai_reply)
-                    if order_data:
-                        try:
-                            final_order = build_order_record(order_data, client_id, from_phone, "whatsapp_official", "WA")
-                            res = supabase.table("orders").insert(final_order).execute()
-                            if res.data:
-                                order_id = res.data[0]["id"]
-                                invoice_url = f"{scheme}://{host}/invoice/{order_id}"
-                                ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
-                            print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
-                        except Exception as e:
-                            print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
-                    # ----------------------------------
+                        # --- تفعيل الحفظ التلقائي للطلبات ---
+                        from merchant.reception.order_extractor import extract_order_json, build_order_record
+                        supabase = get_supabase_client()
+                        
+                        order_data, ai_reply = extract_order_json(ai_reply)
+                        if order_data:
+                            try:
+                                final_order = build_order_record(order_data, client_id, from_phone, "whatsapp_official", "WA")
+                                res = supabase.table("orders").insert(final_order).execute()
+                                if res.data:
+                                    order_id = res.data[0]["id"]
+                                    invoice_url = f"{scheme}://{host}/invoice/{order_id}"
+                                    ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
+                                print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                            except Exception as e:
+                                print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
+                        # ----------------------------------
 
-                    # اكتشاف الأزرار التفاعلية
-                    from merchant.reception.buttons_handler import extract_buttons_from_reply, send_official_buttons
-                    clean_reply, buttons = extract_buttons_from_reply(ai_reply)
+                        # اكتشاف الأزرار التفاعلية
+                        from merchant.reception.buttons_handler import extract_buttons_from_reply, send_official_buttons
+                        clean_reply, buttons = extract_buttons_from_reply(ai_reply)
 
-                    # إرسال الرد
-                    if buttons:
-                        btn_sent = await send_official_buttons(access_token, phone_number_id, from_phone, clean_reply, buttons)
-                        if not btn_sent:
-                            # Fallback: إرسال كنص عادي وتضمين الخيارات كقائمة مرقمة
-                            fallback_text = clean_reply + "\n\n"
-                            for idx, btn in enumerate(buttons):
-                                fallback_text += f"*{idx + 1}-* {btn['text']}\n"
-                            await _send_official_message(access_token, phone_number_id, from_phone, fallback_text.strip())
-                    else:
-                        await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
+                        # إرسال الرد
+                        if buttons:
+                            btn_sent = await send_official_buttons(access_token, phone_number_id, from_phone, clean_reply, buttons)
+                            if not btn_sent:
+                                # Fallback: إرسال كنص عادي وتضمين الخيارات كقائمة مرقمة
+                                fallback_text = clean_reply + "\n\n"
+                                for idx, btn in enumerate(buttons):
+                                    fallback_text += f"*{idx + 1}-* {btn['text']}\n"
+                                await _send_official_message(access_token, phone_number_id, from_phone, fallback_text.strip())
+                        else:
+                            await _send_official_message(access_token, phone_number_id, from_phone, clean_reply)
 
                     finally:
                         if 'phone_lock' in locals():
