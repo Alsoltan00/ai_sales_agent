@@ -15,6 +15,7 @@ from merchant.store_management.store_settings import get_store_settings, update_
 from merchant.planning.planning_config import get_planning_config, update_planning_config
 from merchant.ai_training.ai_config import get_ai_config, update_ai_config
 from merchant.data_sync.sync_config import get_sync_config, update_sync_config
+from merchant.data_sync.google_sheets_sync import sync_sheet
 from merchant.channels_config import get_channels_config, update_channels_config
 from merchant.authorized_numbers import get_authorized_numbers, add_authorized_number, delete_authorized_number, set_allow_all, get_allow_all_status
 
@@ -181,6 +182,11 @@ async def api_get_columns(user: dict = Depends(verify_merchant)):
         if not data_res.data or not data_res.data.get("data"):
             return {"columns": []}
         rows = data_res.data["data"]
+        if isinstance(rows, str):
+            try:
+                rows = json.loads(rows)
+            except:
+                rows = []
         if not rows:
             return {"columns": []}
         col_names = list(rows[0].keys()) if rows else []
@@ -324,9 +330,19 @@ async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)
 
 @router.post("/api/data-sync")
 async def api_update_data_sync(payload: SyncConfigRequest, user: dict = Depends(verify_merchant)):
-    """تحديث إعدادات المزامنة"""
+    """تحديث إعدادات المزامنة وتجربة المزامنة إذا كان جوجل شيت"""
     success = update_sync_config(user["id"], payload.model_dump())
     if success:
+        # إذا كان المختار هو جوجل شيت، نحاول المزامنة فوراً للتأكد من نجاح الربط
+        if payload.source_type == "google_sheets":
+            details = payload.connection_details
+            if details and details.get("url"):
+                sync_res = await sync_sheet(user["id"], details.get("url"), payload.sheet_name)
+                if sync_res.get("status") == "success":
+                    return {"status": "success", "message": f"تم الحفظ والمزامنة بنجاح: {sync_res.get('message')}"}
+                else:
+                    return {"status": "warning", "message": f"تم حفظ الإعدادات لكن المزامنة فشلت: {sync_res.get('message')}. تأكد أن الرابط عام (Anyone with link can view)."}
+                    
         return {"status": "success", "message": "تم تحديث إعدادات الربط بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الربط"}
 
@@ -612,6 +628,11 @@ async def api_get_data_view(user: dict = Depends(verify_merchant)):
         data_res = db.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute()
         if data_res.data and data_res.data.get("data"):
             rows = data_res.data["data"]
+            if isinstance(rows, str):
+                try:
+                    rows = json.loads(rows)
+                except:
+                    rows = []
             return {"status": "ok", "data": rows, "source_type": "excel"}
 
         # جلب إعدادات المزامنة لمعرفة المصدر
