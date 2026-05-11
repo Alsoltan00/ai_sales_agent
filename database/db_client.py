@@ -1,6 +1,8 @@
 import os
 from sqlalchemy import create_engine, text
 import json
+import uuid
+from datetime import datetime, date
 
 # جلب رابط قاعدة البيانات من المتغيرات البيئية
 # يدعم Aiven MySQL أو Aiven PostgreSQL
@@ -34,6 +36,19 @@ class QueryBuilder:
         self._single = False
         self._order_by = []
         self._count_mode = None
+        self._single = False
+
+    def _process_rows(self, mappings):
+        rows = []
+        for mapping in mappings:
+            row = dict(mapping)
+            for k, v in row.items():
+                if isinstance(v, uuid.UUID):
+                    row[k] = str(v)
+                elif isinstance(v, (datetime, date)):
+                    row[k] = v.isoformat()
+            rows.append(row)
+        return rows
 
     def select(self, cols="*", count=None):
         self._action = "SELECT"
@@ -131,7 +146,7 @@ class QueryBuilder:
                 
                 # print(f"[DB] {query} | Params: {params}")
                 result = conn.execute(text(query), params)
-                rows = [dict(mapping) for mapping in result.mappings()]
+                rows = self._process_rows(result.mappings())
                 
                 count_val = None
                 if self._count_mode == "exact":
@@ -164,7 +179,7 @@ class QueryBuilder:
                 if is_postgres:
                     query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
                     result = conn.execute(text(query), params)
-                    inserted_rows = [dict(mapping) for mapping in result.mappings()]
+                    inserted_rows = self._process_rows(result.mappings())
                     return MockResponse(inserted_rows)
                 else:
                     query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
@@ -196,7 +211,7 @@ class QueryBuilder:
                     update_cols = ", ".join([f"{k} = EXCLUDED.{k}" for k in data.keys() if k != conflict_key])
                     query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) ON CONFLICT ({conflict_key}) DO UPDATE SET {update_cols} RETURNING *"
                     result = conn.execute(text(query), params)
-                    rows = [dict(mapping) for mapping in result.mappings()]
+                    rows = self._process_rows(result.mappings())
                     return MockResponse(rows)
                 else:
                     # MySQL upsert
