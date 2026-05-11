@@ -123,7 +123,7 @@
             color: white;
         }
 
-        #storeLinkGroup, #otherActivityGroup, #passwordRequirements { 
+        #passwordRequirements { 
             display: none; 
             animation: slideDown 0.4s ease; 
         }
@@ -204,24 +204,6 @@
                         <label class="form-label small fw-bold text-secondary">رقم الجوال (واتساب)</label>
                         <input type="text" id="regContact" class="form-control text-start" dir="ltr" placeholder="9665XXXXXXXX" required>
                     </div>
-                    <div class="col-12">
-                        <label class="form-label small fw-bold text-secondary">نوع النشاط</label>
-                        <select id="regBusinessType" class="form-select form-control" onchange="handleBusinessTypeChange()" required>
-                            <option value="">اختر نوع النشاط</option>
-                            <option value="store">متجر إلكتروني</option>
-                            <option value="service">شركة خدمات</option>
-                            <option value="freelance">عمل حر / فردي</option>
-                            <option value="other">أخرى</option>
-                        </select>
-                    </div>
-                    <div class="col-12" id="otherActivityGroup">
-                        <label class="form-label small fw-bold text-secondary">وصف النشاط</label>
-                        <input type="text" id="regOtherActivity" class="form-control" placeholder="مثلاً: صالون حلاقة، مطعم...">
-                    </div>
-                    <div class="col-12" id="storeLinkGroup">
-                        <label class="form-label small fw-bold text-secondary">رابط المتجر</label>
-                        <input type="url" id="regStoreLink" class="form-control" placeholder="https://salla.sa/yourstore">
-                    </div>
                     <div class="col-md-6">
                         <label class="form-label small fw-bold text-secondary">كلمة المرور</label>
                         <input type="password" id="regPassword" class="form-control" placeholder="••••••••" onfocus="showPassRequirements()" oninput="validatePassStrength()" required>
@@ -289,12 +271,6 @@
             }
         }
 
-        function handleBusinessTypeChange() {
-            const type = document.getElementById('regBusinessType').value;
-            document.getElementById('storeLinkGroup').style.display = type === 'store' ? 'block' : 'none';
-            document.getElementById('otherActivityGroup').style.display = type === 'other' ? 'block' : 'none';
-        }
-
         async function handleLogin(e) {
             e.preventDefault();
             const contactInfo = document.getElementById('loginContact').value;
@@ -345,18 +321,11 @@
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري المعالجة...';
 
-            let businessType = document.getElementById('regBusinessType').value;
-            if (businessType === 'other') {
-                businessType = document.getElementById('regOtherActivity').value;
-            }
-
             const payload = {
                 company_name: document.getElementById('regCompany').value,
                 contact_number: document.getElementById('regContact').value,
                 email: document.getElementById('regEmail').value,
-                password: password,
-                business_type: businessType,
-                store_link: document.getElementById('regStoreLink').value
+                password: password
             };
 
             try {
