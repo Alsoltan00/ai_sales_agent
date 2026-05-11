@@ -68,8 +68,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Customer CRM lookup error: {e}")
 
-    # ─── 2. AI MODEL RESOLUTION (Failover Support) ───────────────────────────
-    all_models = []
+    # ─── 2. AI MODEL RESOLUTION ──────────────────────────────────────────────
+    api_key, model_id, provider = None, "gpt-3.5-turbo", "openai"
     try:
         # A. Check plan-assigned model first
         plan_name = c.get("subscription_plan")
@@ -82,30 +82,25 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                 if mid:
                     gm = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
                     if gm.data:
-                        all_models.append({
-                            "api_key": gm.data["api_key"],
-                            "model_id": gm.data["model_id"],
-                            "provider": gm.data["provider"].lower()
-                        })
+                        api_key  = gm.data["api_key"]
+                        model_id = gm.data["model_id"]
+                        provider = gm.data["provider"].lower()
 
-        # B. Get merchant's own models (Active first, then others)
-        m_cfgs = supabase.table("ai_models_config").select("*").eq("client_id", client_id).order("is_active", desc=True).execute()
-        if m_cfgs.data:
-            for cfg in m_cfgs.data:
-                model_info = {
-                    "api_key": cfg["api_key"],
-                    "model_id": cfg["model_id"],
-                    "provider": cfg["provider"].lower()
-                }
-                if model_info not in all_models:
-                    all_models.append(model_info)
+        # B. Fallback: merchant's own active config
+        if not api_key:
+            m_cfg = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
+            if m_cfg.data:
+                api_key  = m_cfg.data[0]["api_key"]
+                model_id = m_cfg.data[0]["model_id"]
+                provider = m_cfg.data[0]["provider"].lower()
 
-        if not all_models:
-            print(f"[ENGINE] ERROR: No models configured for client {client_id}")
-            return "عذراً، لم يتم إعداد نماذج الذكاء الاصطناعي للمتجر."
+        if not api_key:
+            print(f"[ENGINE] ERROR: No active API key found for client {client_id}")
+            return "عذراً، لم يتم إعداد نموذج الذكاء الاصطناعي للمتجر."
 
     except Exception as e:
         print(f"[ENGINE] Model resolution error: {e}")
+
 
     # ─── 3. COLUMN TRAINING → BEHAVIORAL RULES + DATA FILTERS ────────────────
     col_behavior_rules = ""
@@ -520,15 +515,11 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     print(f"[ENGINE] Sending {len(messages)} messages to {provider}/{model_id}")
 
-    # ─── 9. LLM CALL (With Failover Loop) ────────────────────────────────────
-    last_error = ""
-    for model_info in all_models:
-        api_key = model_info["api_key"]
-        model_id = model_info["model_id"]
-        provider = model_info["provider"]
-        
+    # ─── 9. LLM CALL (With Retry Logic) ──────────────────────────────────────
+    import asyncio
+    max_retries = 2
+    for attempt in range(max_retries + 1):
         try:
-            print(f"[ENGINE] Trying {provider}/{model_id}...")
             if   provider == "openai":     response = await _call_openai(api_key, model_id, messages)
             elif provider == "google":     response = await _call_google(api_key, model_id, messages, system_prompt)
             elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages)
@@ -541,23 +532,18 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
             _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
             supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
-            print(f"[ENGINE] Response OK ({len(response)} chars) via {provider}")
             return response
 
         except Exception as e:
-            last_error = str(e)
-            print(f"[ENGINE] Error with {provider}/{model_id}: {e}")
-            if "429" in last_error or "traffic" in last_error.lower() or "limit" in last_error.lower():
-                print(f"[ENGINE] Rate limit or high traffic hit, trying next model...")
+            err_msg = str(e)
+            if ("429" in err_msg or "traffic" in err_msg.lower()) and attempt < max_retries:
+                print(f"[ENGINE] Rate limit hit (attempt {attempt+1}), retrying in 2s...")
+                await asyncio.sleep(2)
                 continue
-            elif len(all_models) > 1:
-                print(f"[ENGINE] General error, trying next available model...")
-                continue
-            else:
-                break
+            
+            print(f"[ENGINE] CRITICAL LLM ERROR [{provider}]: {e}")
+            return f"عذراً، واجهت مشكلة تقنية بسبب ضغط الطلبات حالياً. يرجى المحاولة مرة أخرى بعد لحظات."
 
-    print(f"[ENGINE] ALL MODELS FAILED. Last error: {last_error}")
-    return f"عذراً، واجهت مشكلة تقنية حالياً. يرجى المحاولة مرة أخرى لاحقاً أو التواصل مع المتجر مباشرة."
 
 
 # ─── PROVIDER IMPLEMENTATIONS ─────────────────────────────────────────────────
