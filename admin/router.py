@@ -396,7 +396,8 @@ async def get_client_onboarding_settings(client_id: str, user: dict = Depends(ve
     config = get_planning_config(client_id)
     return {"status": "success", "data": {
         "sales_type": config.get("sales_type"),
-        "order_flow": config.get("order_flow")
+        "order_flow": config.get("order_flow"),
+        "delivery_type": config.get("delivery_type")
     }}
 
 @router.put("/api/clients/{client_id}/onboarding-settings")
@@ -404,7 +405,8 @@ async def update_client_onboarding_settings(client_id: str, payload: dict, user:
     """تحديث إعدادات نوع النشاط ومسار الطلب للعميل"""
     success = update_planning_config(client_id, {
         "sales_type": payload.get("sales_type"),
-        "order_flow": payload.get("order_flow")
+        "order_flow": payload.get("order_flow"),
+        "delivery_type": payload.get("delivery_type")
     })
     if success:
         return {"status": "success", "message": "تم تحديث إعدادات نشاط العميل بنجاح"}

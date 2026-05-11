@@ -270,6 +270,14 @@ def _migrate_database():
             except Exception as e:
                 print(f"[DB] Error fixing sync_config constraint: {e}")
 
+            # 13. إضافة عمود delivery_type لجدول planning_config (رقمي أو حقيقي)
+            try:
+                if 'delivery_type' not in pc_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN delivery_type TEXT DEFAULT 'physical';"))
+                    print("[DB] Added delivery_type column to planning_config")
+            except Exception as e:
+                print(f"[DB] Error adding delivery_type column: {e}")
+
             conn.commit()
             print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:

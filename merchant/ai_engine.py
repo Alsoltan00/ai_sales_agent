@@ -332,45 +332,65 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
-    # ─── 6.5 SHIPPING DATA ─────────────────────────────────────────────────────
-    shipping_section = ""
+    # ─── 6.5 DELIVERY TYPE (Digital vs Physical) ──────────────────────────────
+    is_digital = False
     try:
-        ship_cfg = supabase.table("shipping_config").select("*").eq("client_id", client_id).single().execute()
-        ship_zones_res = supabase.table("shipping_zones").select("zone_name, shipping_price, free_shipping_enabled, free_shipping_min").eq("client_id", client_id).execute()
-        ship_zones = ship_zones_res.data or []
-
-        if ship_cfg.data or ship_zones:
-            sc = ship_cfg.data or {}
-            unavail_msg = sc.get("unavailable_area_msg", "")
-
-            zones_text = ""
-            if ship_zones:
-                zones_list = []
-                for z in ship_zones:
-                    price = float(z.get("shipping_price", 0))
-                    free_enabled = z.get("free_shipping_enabled", False)
-                    free_min = float(z.get("free_shipping_min", 0))
-                    
-                    line = f"  - {z['zone_name']}: {price} ريال"
-                    if price == 0:
-                        line = f"  - {z['zone_name']}: مجاني"
-                    if free_enabled and free_min > 0:
-                        line += f" (شحن مجاني عند تجاوز الطلب {free_min} ريال)"
-                    zones_list.append(line)
-                zones_text = "\n".join(zones_list)
-
-            shipping_section = f"""
-## سياسة الشحن (التزم بها حرفياً):
-- مناطق الشحن المتاحة وأسعارها:
-{zones_text}
-- **إذا ذكر العميل مدينة أو منطقة غير موجودة في القائمة أعلاه:** {unavail_msg if unavail_msg else 'أخبره بلطف أن الشحن غير متاح حالياً لمنطقته وسيتم تحويل طلبه للإدارة.'}
-- **تحذير صارم:** يُمنع منعاً باتاً افتراض أو تخمين سعر الشحن إذا لم يخبرك العميل بمدينته. يجب أن تسأله عن مدينته أولاً لتعرف سعر الشحن الصحيح.
-- عند حساب الفاتورة النهائية (فقط بعد معرفة المدينة)، أضف سعر الشحن بناءً على مدينة العميل وأظهره كبند منفصل في الملخص. إذا كان الشحن مجاني (بسبب تجاوز الحد الأدنى) اذكر ذلك.
-- أضف حقل "shipping_cost" في ORDER_DATA بالقيمة الصحيحة.
-"""
-            print(f"[ENGINE] Shipping zones loaded: {len(ship_zones)} zones")
+        from merchant.planning.planning_config import get_planning_config
+        p_cfg = get_planning_config(client_id)
+        if p_cfg.get("delivery_type") == "digital":
+            is_digital = True
+            print(f"[ENGINE] Digital product detected — shipping disabled")
     except Exception as e:
-        print(f"[ENGINE] Shipping data error: {e}")
+        print(f"[ENGINE] Delivery type check error: {e}")
+
+    # ─── 6.6 SHIPPING DATA ─────────────────────────────────────────────────────
+    shipping_section = ""
+    if is_digital:
+        shipping_section = """
+## سياسة التوصيل:
+- **هذا المتجر يقدم منتجات/خدمات رقمية فقط — لا يوجد توصيل أو شحن.**
+- **يُمنع منعاً باتاً** طلب عنوان العميل أو مدينته أو أي بيانات شحن.
+- **يُمنع** إضافة أي تكلفة شحن أو ذكر كلمة "شحن" أو "توصيل" في أي رد.
+- عند إتمام الطلب: البيانات المطلوبة فقط هي (الاسم + طريقة الدفع). لا تطلب العنوان أبداً.
+"""
+    if not is_digital:
+        try:
+            ship_cfg = supabase.table("shipping_config").select("*").eq("client_id", client_id).single().execute()
+            ship_zones_res = supabase.table("shipping_zones").select("zone_name, shipping_price, free_shipping_enabled, free_shipping_min").eq("client_id", client_id).execute()
+            ship_zones = ship_zones_res.data or []
+
+            if ship_cfg.data or ship_zones:
+                sc = ship_cfg.data or {}
+                unavail_msg = sc.get("unavailable_area_msg", "")
+
+                zones_text = ""
+                if ship_zones:
+                    zones_list = []
+                    for z in ship_zones:
+                        price = float(z.get("shipping_price", 0))
+                        free_enabled = z.get("free_shipping_enabled", False)
+                        free_min = float(z.get("free_shipping_min", 0))
+                        
+                        line = f"  - {z['zone_name']}: {price} \u0631\u064a\u0627\u0644"
+                        if price == 0:
+                            line = f"  - {z['zone_name']}: \u0645\u062c\u0627\u0646\u064a"
+                        if free_enabled and free_min > 0:
+                            line += f" (\u0634\u062d\u0646 \u0645\u062c\u0627\u0646\u064a \u0639\u0646\u062f \u062a\u062c\u0627\u0648\u0632 \u0627\u0644\u0637\u0644\u0628 {free_min} \u0631\u064a\u0627\u0644)"
+                        zones_list.append(line)
+                    zones_text = "\n".join(zones_list)
+
+                shipping_section = f"""
+## \u0633\u064a\u0627\u0633\u0629 \u0627\u0644\u0634\u062d\u0646 (\u0627\u0644\u062a\u0632\u0645 \u0628\u0647\u0627 \u062d\u0631\u0641\u064a\u0627\u064b):
+- \u0645\u0646\u0627\u0637\u0642 \u0627\u0644\u0634\u062d\u0646 \u0627\u0644\u0645\u062a\u0627\u062d\u0629 \u0648\u0623\u0633\u0639\u0627\u0631\u0647\u0627:
+{zones_text}
+- **\u0625\u0630\u0627 \u0630\u0643\u0631 \u0627\u0644\u0639\u0645\u064a\u0644 \u0645\u062f\u064a\u0646\u0629 \u0623\u0648 \u0645\u0646\u0637\u0642\u0629 \u063a\u064a\u0631 \u0645\u0648\u062c\u0648\u062f\u0629 \u0641\u064a \u0627\u0644\u0642\u0627\u0626\u0645\u0629 \u0623\u0639\u0644\u0627\u0647:** {unavail_msg if unavail_msg else '\u0623\u062e\u0628\u0631\u0647 \u0628\u0644\u0637\u0641 \u0623\u0646 \u0627\u0644\u0634\u062d\u0646 \u063a\u064a\u0631 \u0645\u062a\u0627\u062d \u062d\u0627\u0644\u064a\u0627\u064b \u0644\u0645\u0646\u0637\u0642\u062a\u0647 \u0648\u0633\u064a\u062a\u0645 \u062a\u062d\u0648\u064a\u0644 \u0637\u0644\u0628\u0647 \u0644\u0644\u0625\u062f\u0627\u0631\u0629.'}
+- **\u062a\u062d\u0630\u064a\u0631 \u0635\u0627\u0631\u0645:** \u064a\u064f\u0645\u0646\u0639 \u0645\u0646\u0639\u0627\u064b \u0628\u0627\u062a\u0627\u064b \u0627\u0641\u062a\u0631\u0627\u0636 \u0623\u0648 \u062a\u062e\u0645\u064a\u0646 \u0633\u0639\u0631 \u0627\u0644\u0634\u062d\u0646 \u0625\u0630\u0627 \u0644\u0645 \u064a\u062e\u0628\u0631\u0643 \u0627\u0644\u0639\u0645\u064a\u0644 \u0628\u0645\u062f\u064a\u0646\u062a\u0647. \u064a\u062c\u0628 \u0623\u0646 \u062a\u0633\u0623\u0644\u0647 \u0639\u0646 \u0645\u062f\u064a\u0646\u062a\u0647 \u0623\u0648\u0644\u0627\u064b \u0644\u062a\u0639\u0631\u0641 \u0633\u0639\u0631 \u0627\u0644\u0634\u062d\u0646 \u0627\u0644\u0635\u062d\u064a\u062d.
+- \u0639\u0646\u062f \u062d\u0633\u0627\u0628 \u0627\u0644\u0641\u0627\u062a\u0648\u0631\u0629 \u0627\u0644\u0646\u0647\u0627\u0626\u064a\u0629 (\u0641\u0642\u0637 \u0628\u0639\u062f \u0645\u0639\u0631\u0641\u0629 \u0627\u0644\u0645\u062f\u064a\u0646\u0629)\u060c \u0623\u0636\u0641 \u0633\u0639\u0631 \u0627\u0644\u0634\u062d\u0646 \u0628\u0646\u0627\u0621\u064b \u0639\u0644\u0649 \u0645\u062f\u064a\u0646\u0629 \u0627\u0644\u0639\u0645\u064a\u0644 \u0648\u0623\u0638\u0647\u0631\u0647 \u0643\u0628\u0646\u062f \u0645\u0646\u0641\u0635\u0644 \u0641\u064a \u0627\u0644\u0645\u0644\u062e\u0635. \u0625\u0630\u0627 \u0643\u0627\u0646 \u0627\u0644\u0634\u062d\u0646 \u0645\u062c\u0627\u0646\u064a (\u0628\u0633\u0628\u0628 \u062a\u062c\u0627\u0648\u0632 \u0627\u0644\u062d\u062f \u0627\u0644\u0623\u062f\u0646\u0649) \u0627\u0630\u0643\u0631 \u0630\u0644\u0643.
+- \u0623\u0636\u0641 \u062d\u0642\u0644 "shipping_cost" \u0641\u064a ORDER_DATA \u0628\u0627\u0644\u0642\u064a\u0645\u0629 \u0627\u0644\u0635\u062d\u064a\u062d\u0629.
+"""
+                print(f"[ENGINE] Shipping zones loaded: {len(ship_zones)} zones")
+        except Exception as e:
+            print(f"[ENGINE] Shipping data error: {e}")
 
     # ─── 7. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
     phone_instruction = "لا تطلب رقم الجوال أبداً، وتجاهله من متطلبات البيانات (لأننا نتحدث عبر الواتساب ورقم هاتفه معروف لدينا)." if channel.startswith("whatsapp") else "اطلب رقم الجوال للتواصل (هذا شرط إلزامي لأننا نتحدث عبر تيليجرام ولا نملك رقمه)."
@@ -412,11 +432,11 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
    - إذا سألك العميل "هل تعرف اسمي؟"، إن كان ذكره سابقاً فناده به بمزاح، وإن لم يذكره فاعتذر بلطف واطلبه.
    - لا تكرر التعريف بنفسك في كل رسالة.
    - **لا تقفز لطلب عنوان أو شحن** إلا عند إتمام الطلب الفعلي.
-5. **حساب الإجمالي (دقة رياضية قصوى):** عند حساب إجمالي الطلب، يجب عليك ضرب سعر كل منتج في الكمية المطلوبة منه بدقة (السعر × الكمية). **تحذير:** يُمنع جمع أسعار الوحدات فقط وتجاهل الكمية. الإجمالي النهائي = (سعر المنتج1 × كميته) + (سعر المنتج2 × كميته) + سعر الشحن. اذكر الإجمالي بوضوح في الملخص.
+5. **حساب الإجمالي (دقة رياضية قصوى):** عند حساب إجمالي الطلب، يجب عليك ضرب سعر كل منتج في الكمية المطلوبة منه بدقة (السعر × الكمية). **تحذير:** يُمنع جمع أسعار الوحدات فقط وتجاهل الكمية. الإجمالي النهائي = (سعر المنتج1 × كميته) + (سعر المنتج2 × كميته){' + سعر الشحن' if not is_digital else ''}. اذكر الإجمالي بوضوح في الملخص.
 6. **بروتوكول إتمام الطلب (تسلسل صارم يُمنع فيه دمج الخطوات في رسالة واحدة):**
-   - **الخطوة 1 (جمع البيانات):** لا تعرض أي ملخص ولا تحسب إجمالي الشحن بعد. أولاً وقبل كل شيء، راجع "بيانات العميل الحالي". إذا لم تكن متوفرة بالكامل (الاسم، العنوان بالمدينة، طريقة الدفع)، يجب عليك سؤاله لجمعها. **تحذير خطير:** يُمنع منعاً باتاً استخدام نصوص نائبة مثل `[اسم العميل]` أو `[عنوانك]`. إذا كانت ناقصة، **توقف هنا! لا تكمل أي خطوة أخرى ولا تعرض الإجمالي حتى يرد العميل ببياناته الحقيقية.**
-   - **الخطوة 2 (الملخص والمراجعة):** **فقط بعد** أن يعطيك العميل بياناته الحقيقية (الاسم، العنوان، طريقة الدفع)، قم بعرض ملخص الطلب: (المنتجات، الإجمالي، الشحن المحسوب لمدينته الحقيقية، والاسم). واسأله حصراً: "هل نعتمد الطلب بهذه البيانات؟". **توقف هنا! لا تضف وسم الفاتورة بعد.**
-   - **الخطوة 3 (إنشاء الفاتورة):** **فقط بعد** أن يوافق العميل صراحة على الملخص المعروض في الخطوة 2 (كأن يقول "نعم" أو "1")، يجب أن ترفق بيانات الطلب كـ JSON داخل الوسم المغلق بالأقواس المربعة بالشكل التالي حصراً ليدعمه النظام: `[ORDER_DATA: {{"items": [{{"name":"...", "qty":1, "price":10.0}}], "shipping_cost":20.0, "total_amount":30.0, "customer_name":"...", "customer_address":"...", "payment_method":"..."}}]` في نهاية الرد. **يُمنع منعاً باتاً إضافة وسم [ORDER_DATA] في الخطوتين 1 أو 2.**
+   - **الخطوة 1 (جمع البيانات):** لا تعرض أي ملخص{'ولا تحسب إجمالي الشحن' if not is_digital else ''} بعد. أولاً وقبل كل شيء، راجع "بيانات العميل الحالي". إذا لم تكن متوفرة بالكامل ({('الاسم، العنوان بالمدينة، طريقة الدفع' if not is_digital else 'الاسم، طريقة الدفع')}), يجب عليك سؤاله لجمعها. **تحذير خطير:** يُمنع منعاً باتاً استخدام نصوص نائبة مثل `[اسم العميل]`{ ' أو `[عنوانك]`' if not is_digital else ''}. إذا كانت ناقصة، **توقف هنا! لا تكمل أي خطوة أخرى ولا تعرض الإجمالي حتى يرد العميل ببياناته الحقيقية.**
+   - **الخطوة 2 (الملخص والمراجعة):** **فقط بعد** أن يعطيك العميل بياناته الحقيقية ({('الاسم، العنوان، طريقة الدفع' if not is_digital else 'الاسم، طريقة الدفع')})، قم بعرض ملخص الطلب: (المنتجات، الإجمالي{'، الشحن المحسوب لمدينته الحقيقية' if not is_digital else ''}، والاسم). واسأله حصراً: "هل نعتمد الطلب بهذه البيانات؟". **توقف هنا! لا تضف وسم الفاتورة بعد.**
+   - **الخطوة 3 (إنشاء الفاتورة):** **فقط بعد** أن يوافق العميل صراحة على الملخص المعروض في الخطوة 2 (كأن يقول "نعم" أو "1")، يجب أن ترفق بيانات الطلب كـ JSON داخل الوسم المغلق بالأقواس المربعة بالشكل التالي حصراً ليدعمه النظام: `[ORDER_DATA: {{"items": [{{"name":"...", "qty":1, "price":10.0}}], {('"shipping_cost":20.0, ' if not is_digital else '')}"total_amount":30.0, "customer_name":"...", {('"customer_address":"...", ' if not is_digital else '')}"payment_method":"..."}}]` في نهاية الرد. **يُمنع منعاً باتاً إضافة وسم [ORDER_DATA] في الخطوتين 1 أو 2.**
 ## ⛔ قانون عرض {item_term} (أهم قانون — كسره يُعتبر خطأ فادح):
 **يُمنع منعاً باتاً ذكر أكثر من 3 عناصر في رد واحد مهما كان السبب.**
 عندما يسأل العميل سؤالاً عاماً مثل: "ماذا لديك؟" أو "أعطني خيارات" أو "ايش عندكم؟" أو أي صيغة مشابهة:

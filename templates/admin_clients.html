@@ -89,6 +89,16 @@
                         </select>
                     </div>
 
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">طبيعة المنتج/الخدمة</label>
+                        <select class="form-select" id="deliveryType" required>
+                            <option value="">اختر...</option>
+                            <option value="physical">منتج حقيقي (يحتاج توصيل وشحن)</option>
+                            <option value="digital">منتج/خدمة رقمية (بدون توصيل)</option>
+                        </select>
+                        <div class="form-text text-muted mt-1" id="deliveryTypeHint"></div>
+                    </div>
+
                     <div class="text-end">
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">إلغاء</button>
                         <button type="submit" class="btn btn-primary" id="saveOnboardingBtn">
@@ -114,6 +124,7 @@
         // Reset form
         document.getElementById('salesType').value = '';
         document.getElementById('orderFlow').value = '';
+        document.getElementById('deliveryType').value = '';
 
         // Fetch current settings
         try {
@@ -122,6 +133,7 @@
             if (json.status === 'success') {
                 if (json.data.sales_type) document.getElementById('salesType').value = json.data.sales_type;
                 if (json.data.order_flow) document.getElementById('orderFlow').value = json.data.order_flow;
+                if (json.data.delivery_type) document.getElementById('deliveryType').value = json.data.delivery_type;
             }
         } catch(e) {
             console.error('Error fetching settings:', e);
@@ -144,7 +156,8 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     sales_type: document.getElementById('salesType').value,
-                    order_flow: document.getElementById('orderFlow').value
+                    order_flow: document.getElementById('orderFlow').value,
+                    delivery_type: document.getElementById('deliveryType').value
                 })
             });
             const json = await res.json();

@@ -4,7 +4,7 @@ def get_planning_config(client_id: str) -> dict:
     """جلب إعدادات التخطيط والذكاء الاصطناعي"""
     db = get_db_client()
     try:
-        res = db.table("planning_config").select("sales_agent_name, dialect_instructions, company_description, store_activity, sales_type, order_flow").eq("client_id", client_id).single().execute()
+        res = db.table("planning_config").select("sales_agent_name, dialect_instructions, company_description, store_activity, sales_type, order_flow, delivery_type").eq("client_id", client_id).single().execute()
         if res.data:
             return {
                 "ai_agent_name": res.data.get("sales_agent_name"),
@@ -12,7 +12,8 @@ def get_planning_config(client_id: str) -> dict:
                 "business_description": res.data.get("company_description"),
                 "store_activity": res.data.get("store_activity"),
                 "sales_type": res.data.get("sales_type"),
-                "order_flow": res.data.get("order_flow")
+                "order_flow": res.data.get("order_flow"),
+                "delivery_type": res.data.get("delivery_type")
             }
         return {}
     except Exception as e:
@@ -30,7 +31,8 @@ def update_planning_config(client_id: str, data: dict) -> bool:
             "business_description": "company_description",
             "store_activity": "store_activity",
             "sales_type": "sales_type",
-            "order_flow": "order_flow"
+            "order_flow": "order_flow",
+            "delivery_type": "delivery_type"
         }
         
         update_data = {}
