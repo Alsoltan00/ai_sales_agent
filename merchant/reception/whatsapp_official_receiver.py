@@ -168,6 +168,26 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                         if not _is_authorized(client_id, from_phone):
                             continue
 
+                        msg_id = msg.get("id", "")
+                        if not msg_id:
+                            import uuid
+                            msg_id = str(uuid.uuid4())
+                        
+                        supabase = get_supabase_client()
+                        
+                        # حفظ رسالة المستخدم لتمكين الذاكرة
+                        try:
+                            supabase.table("message_logs").insert({
+                                "client_id": client_id,
+                                "message_id": str(msg_id),
+                                "phone_number": from_phone,
+                                "channel": "whatsapp_official",
+                                "message_text": text,
+                                "ai_response": ""
+                            }).execute()
+                        except Exception as e:
+                            print(f"[WA OFF LOG] Error saving user message: {e}")
+
                         # توليد الرد
                         ai_reply = await get_ai_response(
                             client_id=client_id,
@@ -175,6 +195,14 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                             user_message=text,
                             channel="whatsapp_official"
                         )
+                        
+                        # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة
+                        try:
+                            supabase.table("message_logs").update({
+                                "ai_response": ai_reply
+                            }).eq("message_id", str(msg_id)).execute()
+                        except Exception as e:
+                            print(f"[WA OFF LOG] Error updating AI response: {e}")
 
                         # --- تفعيل الحفظ التلقائي للطلبات ---
                         from merchant.reception.order_extractor import extract_order_json, build_order_record

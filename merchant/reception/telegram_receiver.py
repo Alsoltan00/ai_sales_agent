@@ -85,14 +85,32 @@ async def telegram_webhook(bot_token: str, request: Request):
         if not text:
             return Response(status_code=200)
 
-        # ط§ظ„ط¨ط­ط« ط¹ظ† ط§ظ„طھط§ط¬ط±
+        # البحث عن التاجر
         client_cfg = _find_client_by_token(bot_token)
         if not client_cfg:
             return Response(status_code=200)
 
         client_id = client_cfg["client_id"]
 
-
+        msg_id = message.get("message_id", "")
+        if not msg_id:
+            import uuid
+            msg_id = str(uuid.uuid4())
+            
+        supabase = get_supabase_client()
+        
+        # حفظ رسالة المستخدم لتمكين الذاكرة
+        try:
+            supabase.table("message_logs").insert({
+                "client_id": client_id,
+                "message_id": str(msg_id),
+                "phone_number": phone_str,
+                "channel": "telegram",
+                "message_text": text,
+                "ai_response": ""
+            }).execute()
+        except Exception as e:
+            print(f"[TG LOG] Error saving user message: {e}")
 
         # توليد الرد
         ai_reply = await get_ai_response(
@@ -101,6 +119,14 @@ async def telegram_webhook(bot_token: str, request: Request):
             user_message=text,
             channel="telegram"
         )
+        
+        # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة
+        try:
+            supabase.table("message_logs").update({
+                "ai_response": ai_reply
+            }).eq("message_id", str(msg_id)).execute()
+        except Exception as e:
+            print(f"[TG LOG] Error updating AI response: {e}")
 
         # --- تفعيل الحفظ التلقائي للطلبات ---
         from merchant.reception.order_extractor import extract_order_json, build_order_record
