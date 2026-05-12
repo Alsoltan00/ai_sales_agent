@@ -186,6 +186,25 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                                 final_order = build_order_record(order_data, client_id, from_phone, "whatsapp_official", "WA")
                                 res = supabase.table("orders").insert(final_order).execute()
                                 if res.data:
+                                    # --- تحديث بيانات العميل في CRM ---
+                                    try:
+                                        from merchant.customers.customer_manager import update_customer_data, increment_order_count
+                                        updates = {}
+                                        if order_data.get("customer_name"):
+                                            updates["customer_name"] = order_data["customer_name"]
+                                        if order_data.get("customer_address"):
+                                            updates["customer_address"] = order_data["customer_address"]
+                                        if order_data.get("customer_city"):
+                                            updates["customer_city"] = order_data["customer_city"]
+                                        
+                                        if updates:
+                                            update_customer_data(client_id, from_phone, updates)
+                                        
+                                        increment_order_count(client_id, from_phone)
+                                    except Exception as crm_err:
+                                        print(f"[CRM AUTO-UPDATE ERROR] Official WA: {crm_err}")
+                                    # ----------------------------------
+
                                     order_id = res.data[0]["id"]
                                     invoice_url = f"{scheme}://{host}/invoice/{order_id}"
                                     ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"

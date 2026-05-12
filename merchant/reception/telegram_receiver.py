@@ -112,6 +112,25 @@ async def telegram_webhook(bot_token: str, request: Request):
                 final_order = build_order_record(order_data, client_id, phone_str, "telegram", "TG")
                 res = supabase.table("orders").insert(final_order).execute()
                 if res.data:
+                    # --- تحديث بيانات العميل في CRM ---
+                    try:
+                        from merchant.customers.customer_manager import update_customer_data, increment_order_count
+                        updates = {}
+                        if order_data.get("customer_name"):
+                            updates["customer_name"] = order_data["customer_name"]
+                        if order_data.get("customer_address"):
+                            updates["customer_address"] = order_data["customer_address"]
+                        if order_data.get("customer_city"):
+                            updates["customer_city"] = order_data["customer_city"]
+                        
+                        if updates:
+                            update_customer_data(client_id, phone_str, updates)
+                        
+                        increment_order_count(client_id, phone_str)
+                    except Exception as crm_err:
+                        print(f"[CRM AUTO-UPDATE ERROR] Telegram: {crm_err}")
+                    # ----------------------------------
+
                     order_id = res.data[0]["id"]
                     host = request.headers.get("host", request.url.hostname)
                     scheme = request.headers.get("x-forwarded-proto", request.url.scheme)

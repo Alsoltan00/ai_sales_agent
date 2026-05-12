@@ -668,6 +668,7 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
         
         # مصفوفة احتمالات الرقم (بالسوابق المختلفة)
         variations = [
+            raw_phone,
             clean_phone,
             f"{clean_phone}@s.whatsapp.net",
             f"+{clean_phone}",
@@ -675,7 +676,7 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
         ]
         
         # بناء شرط OR شامل
-        or_filter = ",".join([f"phone_number.eq.{v}" for v in variations])
+        or_filter = ",".join([f"phone_number.eq.{v}" for v in set(variations)])
         
         # تنفيذ الحذف
         res = db.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute()

@@ -114,6 +114,7 @@
         <td>
             <div class="d-flex gap-1">
                 <button class="btn btn-sm btn-outline-primary" onclick="editCustomer('{{ c.id }}','{{ c.customer_name or '' }}','{{ c.phone_number or '' }}','{{ c.customer_address or '' }}','{{ c.customer_city or '' }}')" title="تعديل"><i class="ti ti-edit"></i></button>
+                <button class="btn btn-sm btn-outline-warning" onclick="clearRowMemory('{{ c.platform_identifier }}', this)" title="مسح الذاكرة"><i class="ti ti-eraser"></i></button>
                 <button class="btn btn-sm btn-outline-danger" onclick="deleteCustomer('{{ c.id }}')" title="حذف"><i class="ti ti-trash"></i></button>
             </div>
         </td>
@@ -203,6 +204,43 @@ async function deleteCustomer(id) {
     const d = await res.json();
     if (d.status === 'success') location.reload();
     else alert(d.message);
+}
+
+async function clearRowMemory(identifier, btn) {
+    if (!confirm('هل أنت متأكد من مسح ذاكرة الذكاء الاصطناعي (المحادثات السابقة) لهذا العميل؟ سيتم نسيان سياق الحوار القديم.')) return;
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
+
+    try {
+        const res = await fetch('/merchant/api/clear-memory', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ phone_number: identifier })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            btn.innerHTML = '<i class="ti ti-check"></i>';
+            btn.className = 'btn btn-sm btn-success';
+        } else {
+            alert(data.message);
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+        }
+    } catch (err) {
+        alert('فشل الاتصال');
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+    } finally {
+        setTimeout(() => {
+            if (btn.className.includes('btn-success')) {
+                btn.innerHTML = originalHtml;
+                btn.className = 'btn btn-sm btn-outline-warning';
+                btn.disabled = false;
+            }
+        }, 3000);
+    }
 }
 </script>
 {% endblock %}

@@ -324,9 +324,6 @@
                                     </div>
                                 </div>
                                 <div class="d-flex gap-1">
-                                    <button type="button" class="btn btn-outline-warning btn-sm py-1 px-2" onclick="clearRowMemory('{{ num.phone_number }}', this)" title="مسح الذاكرة">
-                                        <i class="ti ti-eraser"></i>
-                                    </button>
                                     <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="deleteNumber('{{ num.id }}')" title="حذف">
                                         <i class="ti ti-trash"></i>
                                     </button>
@@ -813,9 +810,11 @@
                                 <span class="text-secondary" style="font-size: 0.75rem;">${label || 'بدون وصف'}</span>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="location.reload()" title="تفعيل الحذف (يرجى التحديث)">
-                            <i class="ti ti-trash"></i>
-                        </button>
+                        <div class="d-flex gap-1">
+                            <button type="button" class="btn btn-outline-danger btn-sm py-1 px-2" onclick="location.reload()" title="تفعيل الحذف (يرجى التحديث)">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
                     </div>
                 `);
 
@@ -856,42 +855,6 @@
             }
         } catch(err) {
             alert('حدث خطأ في الاتصال');
-        }
-    }
-
-    async function clearRowMemory(phone, btn) {
-        const originalHtml = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<i class="ti ti-loader ti-spin"></i>';
-
-        try {
-            const res = await fetch('/merchant/api/clear-memory', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ phone_number: phone })
-            });
-            const data = await res.json();
-
-            if (data.status === 'success') {
-                btn.innerHTML = '<i class="ti ti-check"></i>';
-                btn.className = 'btn btn-success btn-sm py-1 px-2';
-            } else {
-                alert(data.message);
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        } catch (err) {
-            alert('فشل الاتصال');
-            btn.innerHTML = originalHtml;
-            btn.disabled = false;
-        } finally {
-            setTimeout(() => {
-                if (btn.className.includes('btn-success')) {
-                    btn.innerHTML = originalHtml;
-                    btn.className = 'btn btn-outline-warning btn-sm py-1 px-2';
-                    btn.disabled = false;
-                }
-            }, 3000);
         }
     }
 </script>
