@@ -189,41 +189,60 @@ class GenerateInstructionsRequest(BaseModel):
 
 @router.post("/api/planning/generate-instructions")
 async def api_generate_instructions(payload: GenerateInstructionsRequest, user: dict = Depends(verify_merchant)):
-    """توليد تعليمات احترافية باستخدام الذكاء الاصطناعي"""
+    """توليد تعليمات احترافية باستخدام الذكاء الاصطناعي مع إدراك كامل لسياق المتجر"""
     from merchant.ai_engine import get_ai_response
+    from merchant.planning.planning_config import get_planning_config
     
+    # جلب إعدادات المتجر الكاملة لمعرفة السياق (رقمي/فيزيائي/شات/رابط)
+    config = get_planning_config(user["id"])
+    sales_type = config.get("sales_type", "products") # products, services, bookings
+    order_flow = config.get("order_flow", "in_chat") # in_chat, store_link
+    delivery_type = config.get("delivery_type", "physical") # physical, digital
+    
+    # بناء "المخطط الذكي" بناءً على البيانات الحقيقية
+    context_logic = ""
+    if delivery_type == "digital":
+        context_logic = "- المتجر يبيع منتجات/خدمات رقمية. يمنع منعاً باتاً طلب عنوان شحن أو مدينة. ركز على طلب (الاسم + البريد الإلكتروني أو وسيلة التسليم الرقمية)."
+    else:
+        context_logic = "- المتجر يبيع منتجات فيزيائية. يجب طلب (الاسم + المدينة + العنوان) لضمان الشحن الصحيح."
+
+    if order_flow == "store_link":
+        context_logic += "\n- طريقة الطلب هي (رابط المتجر). وظيفتك هي إقناع العميل وتزويده بالرابط لإتمام الطلب هناك، ولا تقم بجمع بياناته يدوياً."
+    else:
+        context_logic += "\n- طريقة الطلب هي (داخل الدردشة). يجب عليك جمع البيانات وبناء طلب كامل ليقوم النظام بإصدار فاتورة."
+
     meta_prompt = f"""أنت "مهندس ذكاء اصطناعي خبير" متخصص في تصميم وكلاء المبيعات.
-بناءً على البيانات التالية لمتجر محدد، قم بكتابة "تعليمات نظام" (System Instructions) شاملة واحترافية جداً لوكيل المبيعات.
+بناءً على "سياق المتجر" التالي، قم بكتابة "بروتوكول عمل" شامل ودقيق جداً.
 
-بيانات المتجر:
-- الأنشطة: {payload.store_activity}
-- وصف العمل: {payload.business_description}
-- لهجة الرد المطلوبة: {payload.ai_tone}
+سياق المتجر الحالي:
+- نوع النشاط: {payload.store_activity}
+- نوع المبيعات: {sales_type}
+- طريقة التسليم: {delivery_type}
+- مسار الطلب: {order_flow}
+- منطق العمل المطلوب:
+{context_logic}
 
-يجب أن تتضمن التعليمات التي ستكتبها الأقسام التالية بوضوح:
-1. هوية الوكيل وأسلوبه الشخصي.
-2. بروتوكول التفاعل (خطوة بخطوة: من الترحيب إلى إغلاق البيع).
-3. كيفية معالجة الاعتراضات الشائعة (السعر، الثقة، الشحن).
-4. قائمة بالبيانات المطلوب جمعها من العميل بدقة.
-5. استراتيجية "إغلاق البيع" (Closing) وتحويل المحادثة إلى طلب مؤكد.
+الهدف: كتابة تعليمات نظام (Custom Instructions) تجعل الوكيل يعمل بدقة 100% بناءً على هذا السياق.
 
-اكتب التعليمات باللغة العربية بأسلوب هيكلي ومنظم جداً يسهل على أي نموذج ذكاء اصطناعي آخر اتباعه حرفياً."""
+يجب أن تتضمن التعليمات:
+1. الشخصية: (الاسم: {config.get('ai_agent_name', 'الوكيل')}) واللهجة: {payload.ai_tone}.
+2. بروتوكول البيانات: ما هي الحقول التي يجب جمعها (بناءً على السياق أعلاه) وما هي الحقول المحظور طلبها؟
+3. خطوات المحادثة: (ترحيب -> عرض قيمة -> معالجة اعتراض -> جمع بيانات -> إغلاق).
+4. قوانين صارمة: (أمثلة: لا تخرج عن السياق الرقمي/الفيزيائي، لا تخمن الأسعار).
+
+اكتب التعليمات باللغة العربية بأسلوب هيكلي صارم يمنع أي تداخل في الاحتمالات."""
 
     try:
-        # استخدام وظيفة الاستجابة الحالية ولكن مع التوجيه الميتا (Meta-prompting)
-        # نرسل رسالة فارغة ونعتمد على برومبت النظام المولد
         generated_text = await get_ai_response(
-            client_id=user["id"], # سيتم استخدام موديل التاجر أو الموديل الافتراضي
+            client_id=user["id"],
             user_message=meta_prompt,
             history=[],
             phone_number="SYSTEM_GEN",
             channel="system"
         )
         
-        # تنظيف النص المولد من أي مقدمات
         clean_text = generated_text.strip()
         if "```" in clean_text:
-            # محاولة استخراج النص إذا كان داخل بلوك كود
             import re
             match = re.search(r'```(?:markdown)?(.*?)```', clean_text, re.DOTALL)
             if match:
