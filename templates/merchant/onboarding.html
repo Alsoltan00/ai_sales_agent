@@ -398,9 +398,33 @@
 
 {% block extra_scripts %}
 <script>
-let selectedSalesType = null;
-let selectedDeliveryType = null;
-let selectedOrderFlow = null;
+let selectedSalesType = "{{ planning.sales_type or '' }}";
+let selectedDeliveryType = "{{ planning.delivery_type or '' }}";
+let selectedOrderFlow = "{{ planning.order_flow or '' }}";
+
+window.addEventListener('DOMContentLoaded', () => {
+    // التحقق من القيم الموجودة مسبقاً وتحديد البطاقات
+    if (selectedSalesType) {
+        const type = ['products', 'services', 'reservations'].includes(selectedSalesType) ? selectedSalesType : 'other';
+        const card = document.querySelector(`.type-card[data-type="${type}"]`);
+        if (card) {
+            selectType(card, type);
+            if (type === 'other') {
+                document.getElementById('otherTypeText').value = selectedSalesType;
+            }
+        }
+    }
+    
+    if (selectedDeliveryType) {
+        const card = document.querySelector(`#step-2 .flow-card[onclick*="'${selectedDeliveryType}'"]`);
+        if (card) selectDelivery(card, selectedDeliveryType);
+    }
+    
+    if (selectedOrderFlow) {
+        const card = document.querySelector(`#step-3 .flow-card[onclick*="'${selectedOrderFlow}'"]`);
+        if (card) selectFlow(card, selectedOrderFlow);
+    }
+});
 
 function selectType(el, type) {
     document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));

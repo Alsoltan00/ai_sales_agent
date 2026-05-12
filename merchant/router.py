@@ -59,11 +59,8 @@ async def merchant_home(request: Request, user: dict = Depends(verify_merchant))
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الإعداد الأولي (Onboarding Wizard)"""
-    settings = get_store_settings(user["id"])
-    # إذا سبق وأكمل الإعداد، أعده للصفحة الرئيسية
-    if settings.get("onboarding_completed"):
-        return RedirectResponse(url="/merchant/home", status_code=302)
-    return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user})
+    planning = get_planning_config(user["id"])
+    return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/onboarding")
 async def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):

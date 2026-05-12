@@ -403,19 +403,28 @@ async def get_client_onboarding_settings(client_id: str, user: dict = Depends(ve
 @router.put("/api/clients/{client_id}/onboarding-settings")
 async def update_client_onboarding_settings(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
     """تحديث إعدادات نوع النشاط ومسار الطلب للعميل"""
+    sales_type = payload.get("sales_type")
+    order_flow = payload.get("order_flow")
+    delivery_type = payload.get("delivery_type")
+    
+    # تحديث بيانات التخطيط
     success = update_planning_config(client_id, {
-        "sales_type": payload.get("sales_type"),
-        "order_flow": payload.get("order_flow"),
-        "delivery_type": payload.get("delivery_type")
+        "sales_type": sales_type,
+        "order_flow": order_flow,
+        "delivery_type": delivery_type
     })
     
-    # إذا طُلب تصفير الإعدادات، نقوم بتحديث onboarding_completed إلى False
-    if payload.get("reset_onboarding"):
-        from merchant.store_management.store_settings import update_store_settings
-        update_store_settings(client_id, {"onboarding_completed": False})
+    # فحص ذكي: إذا كان أي حقل فارغاً، نعتبر الإعداد غير مكتمل
+    # هذا يجبر التاجر على إكمال النواقص عند دخوله المرة القادمة
+    onboarding_completed = True
+    if not sales_type or not order_flow or not delivery_type:
+        onboarding_completed = False
+        
+    from merchant.store_management.store_settings import update_store_settings
+    update_store_settings(client_id, {"onboarding_completed": onboarding_completed})
         
     if success:
-        return {"status": "success", "message": "تم تحديث إعدادات نشاط العميل بنجاح"}
+        return {"status": "success", "message": "تم تحديث إعدادات العميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
 @router.get("/models-pool", response_class=HTMLResponse)

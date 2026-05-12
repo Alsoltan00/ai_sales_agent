@@ -90,15 +90,6 @@
                     </div>
 
                     <div class="mb-4">
-                        <div class="form-check form-switch p-0 d-flex align-items-center gap-2">
-                            <input class="form-check-input ms-0" type="checkbox" id="resetOnboarding">
-                            <label class="form-check-label fw-bold text-danger" for="resetOnboarding">
-                                إعادة ضبط الإعدادات (إجبار العميل على الإعداد مرة أخرى)
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="mb-4">
                         <label class="form-label fw-bold">طبيعة المنتج/الخدمة</label>
                         <select class="form-select" id="deliveryType" required>
                             <option value="">اختر...</option>
@@ -166,8 +157,7 @@
                 body: JSON.stringify({
                     sales_type: document.getElementById('salesType').value,
                     order_flow: document.getElementById('orderFlow').value,
-                    delivery_type: document.getElementById('deliveryType').value,
-                    reset_onboarding: document.getElementById('resetOnboarding').checked
+                    delivery_type: document.getElementById('deliveryType').value
                 })
             });
             const json = await res.json();
