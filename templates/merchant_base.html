@@ -158,9 +158,14 @@
       </a>
     </li>
 
-    {% set is_digital = user and user._planning and user._planning.delivery_type == 'digital' %}
-    {% if user and user._planning and user._planning.order_flow == 'in_chat' %}
-    <!-- Orders (in_chat فقط) -->
+    <!-- Orders & Shipping (Conditional) -->
+    {% set is_digital = (user._planning and user._planning.delivery_type == 'digital') if user else false %}
+    {% set show_orders = true %}
+    {% if user and user._planning and user._planning.order_flow == 'online_store' %}
+        {% set show_orders = false %}
+    {% endif %}
+
+    {% if show_orders %}
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
         <span class="nav-icon"><i class="ti ti-receipt"></i></span>
@@ -168,23 +173,6 @@
       </a>
     </li>
 
-    {% if not is_digital %}
-    <!-- Shipping (in_chat + منتج حقيقي فقط) -->
-    <li class="nav-item">
-      <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
-        <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span>
-        <span class="text">إعدادات الشحن</span>
-      </a>
-    </li>
-    {% endif %}
-    {% elif not user or not user._planning or not user._planning.order_flow %}
-    <!-- Default: show all if not configured yet -->
-    <li class="nav-item">
-      <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
-        <span class="nav-icon"><i class="ti ti-receipt"></i></span>
-        <span class="text">الطلبات</span>
-      </a>
-    </li>
     {% if not is_digital %}
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
@@ -196,7 +184,7 @@
     {% endif %}
 
     {% else %}
-    <!-- Onboarding Only -->
+    <!-- Onboarding Link only -->
     <li class="nav-item">
       <a class="nav-link active" href="/merchant/onboarding">
         <span class="nav-icon"><i class="ti ti-settings"></i></span>
@@ -330,7 +318,9 @@
           <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">العملاء</span>
         </a>
       </li>
-      {% if user and user._planning and user._planning.order_flow == 'in_chat' %}
+
+      <!-- Orders & Shipping (Mobile) -->
+      {% if show_orders %}
       <li class="nav-item">
         <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
           <span class="nav-icon"><i class="ti ti-receipt"></i></span> <span class="text">الطلبات</span>
@@ -342,20 +332,6 @@
           <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span> <span class="text">إعدادات الشحن</span>
         </a>
       </li>
-      {% endif %}
-      {% elif not user or not user._planning or not user._planning.order_flow %}
-      <li class="nav-item">
-        <a class="nav-link {% if '/merchant/orders' in request.url.path %}active{% endif %}" href="/merchant/orders">
-          <span class="nav-icon"><i class="ti ti-receipt"></i></span> <span class="text">الطلبات</span>
-        </a>
-      </li>
-      {% if not is_digital %}
-      <li class="nav-item">
-        <a class="nav-link {% if '/merchant/shipping' in request.url.path %}active{% endif %}" href="/merchant/shipping">
-          <span class="nav-icon"><i class="ti ti-truck-delivery"></i></span> <span class="text">إعدادات الشحن</span>
-        </a>
-      </li>
-      {% endif %}
       {% endif %}
       {% endif %}
 
