@@ -236,7 +236,6 @@ async def api_generate_instructions(payload: GenerateInstructionsRequest, user: 
         generated_text = await get_ai_response(
             client_id=user["id"],
             user_message=meta_prompt,
-            history=[],
             phone_number="SYSTEM_GEN",
             channel="system"
         )
