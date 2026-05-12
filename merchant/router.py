@@ -786,6 +786,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
             completed_count += 1
 
     import json as _json
+    planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/orders.html", {
         "request": request, "user": user,
         "orders": orders,
@@ -795,6 +796,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
         "completed_count": completed_count,
         "settings": settings,
         "rules": rules,
+        "planning": planning,
         "orders_json": _json.dumps(orders, ensure_ascii=False, default=str)
     })
 
@@ -975,11 +977,12 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
 
 @router.get("/customers", response_class=HTMLResponse)
 async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
-    """صفحة إدارة العملاء"""
+    """صفحة إدارة العملاء (تتكيف ديناميكياً مع نوع المتجر)"""
     from merchant.customers.customer_manager import get_all_customers
     customers = get_all_customers(user["id"])
+    planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/customers.html", {
-        "request": request, "user": user, "customers": customers
+        "request": request, "user": user, "customers": customers, "planning": planning
     })
 
 @router.get("/api/customers")

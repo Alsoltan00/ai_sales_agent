@@ -150,11 +150,12 @@
       </a>
     </li>
 
-    <!-- Customers CRM -->
+    <!-- Customers CRM / Visitors -->
+    {% set is_store_mode = (user._planning and user._planning.order_flow == 'online_store') %}
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/customers' in request.url.path %}active{% endif %}" href="/merchant/customers">
         <span class="nav-icon"><i class="ti ti-users-group"></i></span>
-        <span class="text">العملاء</span>
+        <span class="text">{% if is_store_mode %}الزوار{% else %}العملاء{% endif %}</span>
       </a>
     </li>
 
@@ -315,7 +316,7 @@
       </li>
       <li class="nav-item">
         <a class="nav-link {% if '/merchant/customers' in request.url.path %}active{% endif %}" href="/merchant/customers">
-          <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">العملاء</span>
+          <span class="nav-icon"><i class="ti ti-users-group"></i></span> <span class="text">{% if is_store_mode %}الزوار{% else %}العملاء{% endif %}</span>
         </a>
       </li>
 

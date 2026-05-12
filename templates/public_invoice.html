@@ -109,7 +109,9 @@
                     <h3><i class="ti ti-user me-2"></i>بيانات العميل</h3>
                     <p><strong>الاسم:</strong> {{ order.customer_name or '—' }}</p>
                     <p><strong>الهاتف:</strong> <span dir="ltr">{{ order.customer_phone or '—' }}</span></p>
+                    {% if not is_digital %}
                     <p><strong>العنوان:</strong> {{ order.customer_address or '—' }}</p>
+                    {% endif %}
                 </div>
                 <div class="info-box">
                     <h3><i class="ti ti-credit-card me-2"></i>تفاصيل الطلب</h3>

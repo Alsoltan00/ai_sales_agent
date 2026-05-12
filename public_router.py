@@ -3,6 +3,7 @@ import json
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from database.db_client import get_db_client
+from merchant.planning.planning_config import get_planning_config
 
 router = APIRouter()
 supabase = get_db_client()
@@ -69,6 +70,10 @@ async def print_template(request: Request, order_id: str, template: str = "invoi
 
         template_file = f"print/{template}.html"
 
+        # Determine if digital product
+        planning = get_planning_config(client_id)
+        is_digital = (planning.get("delivery_type") == "digital") if planning else False
+
         return templates.TemplateResponse(template_file, {
             "request": request,
             "order": order,
@@ -77,7 +82,8 @@ async def print_template(request: Request, order_id: str, template: str = "invoi
             "color": color,
             "show_logo": show_logo.lower() == "true",
             "show_qr": show_qr.lower() == "true",
-            "footer": footer
+            "footer": footer,
+            "is_digital": is_digital
         })
 
     except HTTPException:
@@ -139,6 +145,10 @@ async def view_public_invoice(request: Request, order_id: str, tpl: str = "class
             scheme = "https" # Force HTTPS in production
         public_url = f"{scheme}://{host}/invoice/{order_id}"
 
+        # Determine if digital product
+        planning = get_planning_config(client_id)
+        is_digital = (planning.get("delivery_type") == "digital") if planning else False
+
         return templates.TemplateResponse("public_invoice.html", {
             "request": request,
             "order": order,
@@ -149,7 +159,8 @@ async def view_public_invoice(request: Request, order_id: str, tpl: str = "class
             "color": color,
             "show_logo": show_logo.lower() == "true",
             "show_qr": show_qr.lower() == "true",
-            "footer": footer
+            "footer": footer,
+            "is_digital": is_digital
         })
 
     except Exception as e:

@@ -1,5 +1,8 @@
 {% extends "merchant_base.html" %}
-{% block title %}إدارة العملاء{% endblock %}
+{% block title %}{% if planning and planning.order_flow == 'online_store' %}الزوار{% else %}إدارة العملاء{% endif %}{% endblock %}
+
+{% set is_digital = (planning and planning.delivery_type == 'digital') %}
+{% set is_store_mode = (planning and planning.order_flow == 'online_store') %}
 
 {% block extra_css %}
 .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
@@ -30,8 +33,14 @@
 <div class="page-header mb-4">
     <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
         <div>
-            <h1><i class="ti ti-users-group me-2"></i>إدارة العملاء</h1>
-            <p class="text-secondary mb-0 mt-1">عرض وإدارة بيانات جميع العملاء المتعاملين مع متجرك</p>
+            <h1><i class="ti ti-users-group me-2"></i>{% if is_store_mode %}الزوار{% else %}إدارة العملاء{% endif %}</h1>
+            <p class="text-secondary mb-0 mt-1">
+                {% if is_store_mode %}
+                عرض الزوار الذين تواصلوا مع متجرك عبر المنصات
+                {% else %}
+                عرض وإدارة بيانات جميع العملاء المتعاملين مع متجرك
+                {% endif %}
+            </p>
         </div>
     </div>
 </div>
@@ -42,10 +51,12 @@
 {% set telegram_count = customers|selectattr("platform", "equalto", "telegram")|list|length %}
 {% set total_orders_sum = customers|sum(attribute="total_orders") %}
 <div class="stats-row">
-    <div class="stat-card"><div class="stat-value">{{ total_customers }}</div><div class="stat-label">إجمالي العملاء</div></div>
-    <div class="stat-card"><div class="stat-value">{{ whatsapp_count }}</div><div class="stat-label">عملاء واتساب</div></div>
-    <div class="stat-card"><div class="stat-value">{{ telegram_count }}</div><div class="stat-label">عملاء تيليجرام</div></div>
+    <div class="stat-card"><div class="stat-value">{{ total_customers }}</div><div class="stat-label">{% if is_store_mode %}إجمالي الزوار{% else %}إجمالي العملاء{% endif %}</div></div>
+    <div class="stat-card"><div class="stat-value">{{ whatsapp_count }}</div><div class="stat-label">{% if is_store_mode %}زوار واتساب{% else %}عملاء واتساب{% endif %}</div></div>
+    <div class="stat-card"><div class="stat-value">{{ telegram_count }}</div><div class="stat-label">{% if is_store_mode %}زوار تيليجرام{% else %}عملاء تيليجرام{% endif %}</div></div>
+    {% if not is_store_mode %}
     <div class="stat-card"><div class="stat-value">{{ total_orders_sum }}</div><div class="stat-label">إجمالي الطلبات</div></div>
+    {% endif %}
 </div>
 
 <!-- Filters -->
@@ -66,8 +77,14 @@
     <thead>
         <tr>
             <th>#</th><th>المعرف</th><th>المنصة</th><th>الهاتف</th>
-            <th>اسم العميل</th><th>العنوان</th><th>المدينة</th>
-            <th>الطلبات</th><th>آخر تحديث</th><th>إجراءات</th>
+            <th>{% if is_store_mode %}اسم الزائر{% else %}اسم العميل{% endif %}</th>
+            {% if not is_digital and not is_store_mode %}
+            <th>العنوان</th><th>المدينة</th>
+            {% endif %}
+            {% if not is_store_mode %}
+            <th>الطلبات</th>
+            {% endif %}
+            <th>آخر تحديث</th><th>إجراءات</th>
         </tr>
     </thead>
     <tbody>
@@ -86,9 +103,13 @@
         </td>
         <td dir="ltr" style="text-align:right">{{ c.phone_number or '—' }}</td>
         <td>{{ c.customer_name or '—' }}</td>
+        {% if not is_digital and not is_store_mode %}
         <td>{{ c.customer_address or '—' }}</td>
         <td>{{ c.customer_city or '—' }}</td>
+        {% endif %}
+        {% if not is_store_mode %}
         <td><span class="badge-orders">{{ c.total_orders or 0 }}</span></td>
+        {% endif %}
         <td>{{ (c.updated_at|string)[:10] if c.updated_at else '—' }}</td>
         <td>
             <div class="d-flex gap-1">
@@ -104,8 +125,8 @@
 {% else %}
 <div class="empty-state">
     <i class="ti ti-users-minus d-block mb-3"></i>
-    <h4 class="text-secondary">لا يوجد عملاء بعد</h4>
-    <p class="text-secondary">سيتم تسجيل العملاء تلقائياً عند تواصلهم مع البوت عبر أي منصة</p>
+    <h4 class="text-secondary">{% if is_store_mode %}لا يوجد زوار بعد{% else %}لا يوجد عملاء بعد{% endif %}</h4>
+    <p class="text-secondary">{% if is_store_mode %}سيتم تسجيل الزوار تلقائياً عند تواصلهم مع البوت{% else %}سيتم تسجيل العملاء تلقائياً عند تواصلهم مع البوت عبر أي منصة{% endif %}</p>
 </div>
 {% endif %}
 </div>
@@ -113,13 +134,15 @@
 <!-- Edit Customer Modal -->
 <div class="modal fade" id="editModal" tabindex="-1"><div class="modal-dialog modal-dialog-centered">
 <div class="modal-content border-0 shadow-lg">
-    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-user-edit me-2"></i>تعديل بيانات العميل</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-header border-bottom p-4"><h5 class="modal-title"><i class="ti ti-user-edit me-2"></i>{% if is_store_mode %}تعديل بيانات الزائر{% else %}تعديل بيانات العميل{% endif %}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body p-4">
         <input type="hidden" id="editId">
-        <div class="mb-3"><label class="form-label fw-bold">اسم العميل</label><input type="text" class="form-control" id="editName"></div>
+        <div class="mb-3"><label class="form-label fw-bold">{% if is_store_mode %}اسم الزائر{% else %}اسم العميل{% endif %}</label><input type="text" class="form-control" id="editName"></div>
         <div class="mb-3"><label class="form-label fw-bold">رقم الهاتف</label><input type="tel" class="form-control" id="editPhone" dir="ltr"></div>
+        {% if not is_digital and not is_store_mode %}
         <div class="mb-3"><label class="form-label fw-bold">العنوان</label><input type="text" class="form-control" id="editAddress"></div>
         <div class="mb-3"><label class="form-label fw-bold">المدينة</label><input type="text" class="form-control" id="editCity"></div>
+        {% endif %}
     </div>
     <div class="modal-footer border-top p-3">
         <button class="btn btn-ghost-secondary" data-bs-dismiss="modal">إلغاء</button>
@@ -147,21 +170,27 @@ function editCustomer(id, name, phone, address, city) {
     document.getElementById('editId').value = id;
     document.getElementById('editName').value = name;
     document.getElementById('editPhone').value = phone;
-    document.getElementById('editAddress').value = address;
-    document.getElementById('editCity').value = city;
+    const addrEl = document.getElementById('editAddress');
+    const cityEl = document.getElementById('editCity');
+    if (addrEl) addrEl.value = address;
+    if (cityEl) cityEl.value = city;
     editModal.show();
 }
 
 async function saveCustomer() {
     const id = document.getElementById('editId').value;
+    const payload = {
+        customer_name: document.getElementById('editName').value,
+        phone_number: document.getElementById('editPhone').value
+    };
+    const addrEl = document.getElementById('editAddress');
+    const cityEl = document.getElementById('editCity');
+    if (addrEl) payload.customer_address = addrEl.value;
+    if (cityEl) payload.customer_city = cityEl.value;
+    
     const res = await fetch(`/merchant/api/customers/${id}`, {
         method: 'PUT', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-            customer_name: document.getElementById('editName').value,
-            phone_number: document.getElementById('editPhone').value,
-            customer_address: document.getElementById('editAddress').value,
-            customer_city: document.getElementById('editCity').value
-        })
+        body: JSON.stringify(payload)
     });
     const d = await res.json();
     if (d.status === 'success') { editModal.hide(); location.reload(); }

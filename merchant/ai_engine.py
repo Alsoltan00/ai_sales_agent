@@ -5,6 +5,64 @@ from datetime import datetime
 from database.db_client import get_supabase_client
 
 
+def get_routing_matrix(delivery_type: str, channel: str) -> dict:
+    """
+    مصفوفة توجيه الطلبات الديناميكية.
+    تُحدد البيانات التي تُسحب تلقائياً vs البيانات المطلوب طلبها من العميل
+    بناءً على نوع المنتج (رقمي/حقيقي) والمنصة (واتساب/تيليجرام/انستقرام/تيك توك).
+    """
+    is_digital = (delivery_type == "digital")
+    platform = "whatsapp"  # default
+    if channel.startswith("whatsapp"):
+        platform = "whatsapp"
+    elif channel == "telegram":
+        platform = "telegram"
+    elif channel == "instagram":
+        platform = "instagram"
+    elif channel == "tiktok":
+        platform = "tiktok"
+
+    matrix = {
+        "platform": platform,
+        "is_digital": is_digital,
+        "auto_pulled": [],       # بيانات تُسحب تلقائياً ولا تُطلب
+        "required_fields": [],   # بيانات يجب طلبها من العميل
+        "forbidden_fields": [],  # بيانات يُمنع طلبها نهائياً
+    }
+
+    # ── البيانات المسحوبة تلقائياً حسب المنصة ──
+    if platform == "whatsapp":
+        matrix["auto_pulled"] = ["رقم الهاتف"]
+    elif platform in ("tiktok", "instagram"):
+        matrix["auto_pulled"] = ["اليوزرنيم"]
+    elif platform == "telegram":
+        matrix["auto_pulled"] = ["معرف تيليجرام"]
+
+    # ── البيانات المطلوبة حسب نوع المنتج + المنصة ──
+    if is_digital:
+        # رقمي: فقط طريقة الدفع (لجميع المنصات)
+        matrix["required_fields"] = ["طريقة الدفع"]
+        matrix["forbidden_fields"] = ["العنوان", "المدينة", "سعر الشحن"]
+        # لا نحتاج الاسم ولا العنوان للمنتجات الرقمية
+        if platform != "whatsapp":
+            # المنصات الأخرى لا نملك رقم الهاتف لكن لسنا بحاجته للرقمي
+            matrix["forbidden_fields"].append("رقم الهاتف")
+    else:
+        # حقيقي: البيانات تختلف حسب المنصة
+        if platform == "whatsapp":
+            matrix["required_fields"] = ["الاسم", "العنوان", "طريقة الدفع"]
+            # رقم الهاتف مسحوب تلقائياً
+        elif platform in ("tiktok", "instagram"):
+            matrix["required_fields"] = ["رقم الهاتف", "الاسم", "العنوان", "طريقة الدفع"]
+        elif platform == "telegram":
+            matrix["required_fields"] = ["رقم الهاتف", "الاسم", "العنوان", "طريقة الدفع"]
+        else:
+            matrix["required_fields"] = ["رقم الهاتف", "الاسم", "العنوان", "طريقة الدفع"]
+
+    return matrix
+
+
+
 async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                           image_base64: str = None, audio_base64: str = None,
                           message_id: str = None, channel: str = "whatsapp"):
@@ -332,33 +390,58 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
-    # ─── 6.5 DELIVERY TYPE + CUSTOM INSTRUCTIONS + MODEL PARAMS ─────────────────
+    # ─── 6.5 DELIVERY TYPE + ROUTING MATRIX + CUSTOM INSTRUCTIONS ─────────────────
     is_digital = False
     custom_instructions = ""
     ai_temperature = 0.1
     ai_max_tokens = 600
+    order_flow = "in_chat"
+    routing = {}
     try:
         from merchant.planning.planning_config import get_planning_config
         p_cfg = get_planning_config(client_id)
-        if p_cfg.get("delivery_type") == "digital":
+        delivery_type = p_cfg.get("delivery_type", "physical")
+        order_flow = p_cfg.get("order_flow", "in_chat")
+        if delivery_type == "digital":
             is_digital = True
             print(f"[ENGINE] Digital product detected — shipping disabled")
+        # بناء مصفوفة التوجيه الديناميكية
+        routing = get_routing_matrix(delivery_type, channel)
+        print(f"[ENGINE] Routing Matrix: platform={routing['platform']}, auto={routing['auto_pulled']}, required={routing['required_fields']}, forbidden={routing['forbidden_fields']}")
         custom_instructions = (p_cfg.get("custom_instructions") or "").strip()
         ai_temperature = float(p_cfg.get("ai_temperature") or 0.1)
         ai_max_tokens = int(p_cfg.get("ai_max_tokens") or 600)
-        print(f"[ENGINE] Model params: temp={ai_temperature}, max_tokens={ai_max_tokens}, custom_instructions={'YES' if custom_instructions else 'NO'}")
+        print(f"[ENGINE] Model params: temp={ai_temperature}, max_tokens={ai_max_tokens}, order_flow={order_flow}")
     except Exception as e:
         print(f"[ENGINE] Planning config error: {e}")
+        routing = get_routing_matrix("physical", channel)  # fallback
 
-    # ─── 6.6 SHIPPING DATA ─────────────────────────────────────────────────────
+    # ─── 6.6 SHIPPING DATA + ROUTING RULES ─────────────────────────────────────
     shipping_section = ""
+    routing_section = ""
+
+    # بناء تعليمات التوجيه الديناميكية بناءً على المصفوفة
+    if routing:
+        auto_text = "، ".join(routing.get("auto_pulled", []))
+        req_text = "، ".join(routing.get("required_fields", []))
+        forbidden_text = "، ".join(routing.get("forbidden_fields", []))
+        platform_name = {"whatsapp": "واتساب", "telegram": "تيليجرام", "instagram": "انستقرام", "tiktok": "تيك توك"}.get(routing.get("platform", ""), "غير معروفة")
+
+        routing_section = f"""
+## مصفوفة توجيه البيانات (قانون صارم — المنصة: {platform_name}):
+- **بيانات مسحوبة تلقائياً (لا تطلبها أبداً):** {auto_text or 'لا يوجد'}
+- **بيانات يجب طلبها من العميل لإتمام الطلب:** {req_text or 'لا يوجد'}
+- **بيانات محظور طلبها نهائياً:** {forbidden_text or 'لا يوجد'}
+- **تحذير صارم:** يُمنع منعاً باتاً طلب أي بيانات مذكورة في (المسحوبة تلقائياً) أو (المحظورة). إذا طلبت بيانات محظورة فهذا خطأ فادح.
+"""
+
     if is_digital:
         shipping_section = """
 ## سياسة التوصيل:
 - **هذا المتجر يقدم منتجات/خدمات رقمية فقط — لا يوجد توصيل أو شحن.**
 - **يُمنع منعاً باتاً** طلب عنوان العميل أو مدينته أو أي بيانات شحن.
 - **يُمنع** إضافة أي تكلفة شحن أو ذكر كلمة "شحن" أو "توصيل" في أي رد.
-- عند إتمام الطلب: البيانات المطلوبة فقط هي (الاسم + طريقة الدفع). لا تطلب العنوان أبداً.
+- عند إتمام الطلب: التزم حصرياً بالبيانات المذكورة في (مصفوفة توجيه البيانات) أعلاه.
 """
     if not is_digital:
         try:
@@ -400,7 +483,23 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             print(f"[ENGINE] Shipping data error: {e}")
 
     # ─── 7. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
-    phone_instruction = "لا تطلب رقم الجوال أبداً، وتجاهله من متطلبات البيانات (لأننا نتحدث عبر الواتساب ورقم هاتفه معروف لدينا)." if channel.startswith("whatsapp") else "اطلب رقم الجوال للتواصل (هذا شرط إلزامي لأننا نتحدث عبر تيليجرام ولا نملك رقمه)."
+    # تعليمات المنصة الديناميكية بناءً على مصفوفة التوجيه
+    platform_key = routing.get("platform", "whatsapp") if routing else "whatsapp"
+    if platform_key == "whatsapp":
+        phone_instruction = "لا تطلب رقم الجوال أبداً، وتجاهله من متطلبات البيانات (لأننا نتحدث عبر الواتساب ورقم هاتفه معروف لدينا تلقائياً)."
+    elif platform_key == "telegram":
+        if is_digital:
+            phone_instruction = "معرف تيليجرام الخاص بالعميل معروف لدينا تلقائياً. لا تطلب رقم هاتفه لأن المنتج رقمي."
+        else:
+            phone_instruction = "معرف تيليجرام الخاص بالعميل معروف لدينا تلقائياً، لكن يجب أن تطلب رقم الجوال للتواصل (هذا شرط إلزامي لأن المنتج يحتاج توصيل)."
+    elif platform_key in ("instagram", "tiktok"):
+        platform_ar = "انستقرام" if platform_key == "instagram" else "تيك توك"
+        if is_digital:
+            phone_instruction = f"يوزرنيم {platform_ar} الخاص بالعميل معروف لدينا تلقائياً. لا تطلب رقم هاتفه لأن المنتج رقمي."
+        else:
+            phone_instruction = f"يوزرنيم {platform_ar} الخاص بالعميل معروف لدينا تلقائياً، لكن يجب أن تطلب رقم الجوال + الاسم + العنوان لأن المنتج يحتاج توصيل."
+    else:
+        phone_instruction = "اطلب رقم الجوال للتواصل."
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     system_prompt = f"""تاريخ ووقت اليوم الحالي: {current_time}
@@ -441,9 +540,9 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
    - **لا تقفز لطلب عنوان أو شحن** إلا عند إتمام الطلب الفعلي.
 5. **حساب الإجمالي (دقة رياضية قصوى):** عند حساب إجمالي الطلب، يجب عليك ضرب سعر كل منتج في الكمية المطلوبة منه بدقة (السعر × الكمية). **تحذير:** يُمنع جمع أسعار الوحدات فقط وتجاهل الكمية. الإجمالي النهائي = (سعر المنتج1 × كميته) + (سعر المنتج2 × كميته){' + سعر الشحن' if not is_digital else ''}. اذكر الإجمالي بوضوح في الملخص.
 6. **بروتوكول إتمام الطلب (تسلسل صارم يُمنع فيه دمج الخطوات في رسالة واحدة):**
-   - **الخطوة 1 (جمع البيانات):** لا تعرض أي ملخص{'ولا تحسب إجمالي الشحن' if not is_digital else ''} بعد. أولاً وقبل كل شيء، راجع "بيانات العميل الحالي". إذا لم تكن متوفرة بالكامل ({('الاسم، العنوان بالمدينة، طريقة الدفع' if not is_digital else 'الاسم، طريقة الدفع')}), يجب عليك سؤاله لجمعها. **تحذير خطير:** يُمنع منعاً باتاً استخدام نصوص نائبة مثل `[اسم العميل]`{ ' أو `[عنوانك]`' if not is_digital else ''}. إذا كانت ناقصة، **توقف هنا! لا تكمل أي خطوة أخرى ولا تعرض الإجمالي حتى يرد العميل ببياناته الحقيقية.**
-   - **الخطوة 2 (الملخص والمراجعة):** **فقط بعد** أن يعطيك العميل بياناته الحقيقية ({('الاسم، العنوان، طريقة الدفع' if not is_digital else 'الاسم، طريقة الدفع')})، قم بعرض ملخص الطلب: (المنتجات، الإجمالي{'، الشحن المحسوب لمدينته الحقيقية' if not is_digital else ''}، والاسم). واسأله حصراً: "هل نعتمد الطلب بهذه البيانات؟". **توقف هنا! لا تضف وسم الفاتورة بعد.**
-   - **الخطوة 3 (إنشاء الفاتورة):** **فقط بعد** أن يوافق العميل صراحة على الملخص المعروض في الخطوة 2 (كأن يقول "نعم" أو "1")، يجب أن ترفق بيانات الطلب كـ JSON داخل الوسم المغلق بالأقواس المربعة بالشكل التالي حصراً ليدعمه النظام: `[ORDER_DATA: {{"items": [{{"name":"...", "qty":1, "price":10.0}}], {('"shipping_cost":20.0, ' if not is_digital else '')}"total_amount":30.0, "customer_name":"...", {('"customer_address":"...", ' if not is_digital else '')}"payment_method":"..."}}]` في نهاية الرد. **يُمنع منعاً باتاً إضافة وسم [ORDER_DATA] في الخطوتين 1 أو 2.**
+   - **الخطوة 1 (جمع البيانات):** لا تعرض أي ملخص{'ولا تحسب إجمالي الشحن' if not is_digital else ''} بعد. أولاً وقبل كل شيء، راجع "بيانات العميل الحالي". إذا لم تكن متوفرة بالكامل ({', '.join(routing.get('required_fields', ['طريقة الدفع']))}), يجب عليك سؤاله لجمعها. **تحذير خطير:** يُمنع منعاً باتاً استخدام نصوص نائبة مثل `[اسم العميل]`{ ' أو `[عنوانك]`' if not is_digital else ''}. إذا كانت ناقصة، **توقف هنا! لا تكمل أي خطوة أخرى ولا تعرض الإجمالي حتى يرد العميل ببياناته الحقيقية.**
+   - **الخطوة 2 (الملخص والمراجعة):** **فقط بعد** أن يعطيك العميل بياناته الحقيقية ({', '.join(routing.get('required_fields', ['طريقة الدفع']))}), قم بعرض ملخص الطلب: (المنتجات، الإجمالي{'، الشحن المحسوب لمدينته الحقيقية' if not is_digital else ''}{'، والاسم' if not is_digital else ''}). واسأله حصراً: "هل نعتمد الطلب بهذه البيانات؟". **توقف هنا! لا تضف وسم الفاتورة بعد.**
+   - **الخطوة 3 (إنشاء الفاتورة):** **فقط بعد** أن يوافق العميل صراحة على الملخص المعروض في الخطوة 2 (كأن يقول "نعم" أو "1")، يجب أن ترفق بيانات الطلب كـ JSON داخل الوسم المغلق بالأقواس المربعة بالشكل التالي حصراً ليدعمه النظام: `[ORDER_DATA: {{"items": [{{"name":"...", "qty":1, "price":10.0}}], {('"shipping_cost":20.0, ' if not is_digital else '')}"total_amount":30.0, {('"customer_name":"...", ' if 'الاسم' in routing.get('required_fields', []) else '')}{('"customer_address":"...", ' if not is_digital else '')}"payment_method":"..."}}]` في نهاية الرد. **يُمنع منعاً باتاً إضافة وسم [ORDER_DATA] في الخطوتين 1 أو 2.**
 ## ⛔ قانون عرض {item_term} (أهم قانون — كسره يُعتبر خطأ فادح):
 **يُمنع منعاً باتاً ذكر أكثر من 3 عناصر في رد واحد مهما كان السبب.**
 عندما يسأل العميل سؤالاً عاماً مثل: "ماذا لديك؟" أو "أعطني خيارات" أو "ايش عندكم؟" أو أي صيغة مشابهة:
@@ -482,6 +581,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 {rules_section}
 
 {shipping_section}
+
+{routing_section}
 
 ## قوانين الحماية العالمية (صارمة جداً لجميع الأنشطة - لا يمكن كسرها أبداً):
 1. **المساومة والأسعار:** يُمنع منعاً باتاً تغيير الأسعار المسجلة أو تقديم خصومات للعملاء مهما أصروا أو حاولوا المساومة. السعر نهائي كما هو مكتوب في البيانات. لا توافق على إعطاء أي شيء "مجاناً" ما لم يكن سعره (0) صراحةً.

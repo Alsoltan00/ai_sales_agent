@@ -1,6 +1,8 @@
 {% extends "merchant_base.html" %}
 {% block title %}إدارة الطلبات{% endblock %}
 
+{% set is_digital = (planning and planning.delivery_type == 'digital') %}
+
 {% block extra_css %}
 .stats-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
 .stat-card { flex: 1; min-width: 160px; background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color); border-radius: 14px; padding: 20px; text-align: center; transition: all 0.3s ease; }
@@ -100,6 +102,7 @@
             <th>#</th><th>رقم الطلب</th><th>العميل</th><th>الهاتف</th><th>النوع</th>
             <th>الإجمالي</th><th>الحالة</th><th>الدفع</th>
             <th>طريقة الدفع</th><th>القناة</th><th>التاريخ</th><th>إجراءات</th>
+            {# العنوان والمدينة مخفية في الجدول لكنها تظهر في تفاصيل الطلب إذا كان حقيقي #}
         </tr>
     </thead>
     <tbody>
@@ -183,8 +186,10 @@
             <div class="col-md-4"><label class="form-label fw-bold">نوع الطلب</label>
                 <select class="form-select" id="addType"><option value="purchase">شراء</option><option value="booking">حجز</option><option value="service">خدمة</option><option value="return">مردود</option></select>
             </div>
+            {% if not is_digital %}
             <div class="col-md-8"><label class="form-label fw-bold">العنوان</label><input type="text" class="form-control" id="addAddress"></div>
             <div class="col-md-4"><label class="form-label fw-bold">المدينة</label><input type="text" class="form-control" id="addCity"></div>
+            {% endif %}
             <div class="col-12"><label class="form-label fw-bold">المنتجات (JSON)</label><textarea class="form-control" id="addItems" rows="2" placeholder='[{"name":"منتج","qty":1,"price":100}]'></textarea></div>
             <div class="col-md-3"><label class="form-label fw-bold">الإجمالي</label><input type="number" class="form-control" id="addTotal" step="0.01"></div>
             <div class="col-md-3"><label class="form-label fw-bold">طريقة الدفع</label>
@@ -432,6 +437,7 @@ const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
 const editModal = new bootstrap.Modal(document.getElementById('editModal'));
 const addModal = new bootstrap.Modal(document.getElementById('addModal'));
 const allOrders = {{ orders_json | safe }};
+const IS_DIGITAL = {{ 'true' if is_digital else 'false' }};
 
 function filterOrders() {
     const q = document.getElementById('searchInput').value.toLowerCase();
@@ -459,15 +465,15 @@ function viewOrder(id) {
         <div class="row g-3">
             <div class="col-md-6"><div class="detail-label">اسم العميل</div><div class="detail-value">${o.customer_name||'—'}</div></div>
             <div class="col-md-6"><div class="detail-label">الهاتف</div><div class="detail-value" dir="ltr" style="text-align:right">${o.customer_phone||'—'}</div></div>
-            <div class="col-md-6"><div class="detail-label">العنوان</div><div class="detail-value">${o.customer_address||'—'}</div></div>
+            ${!IS_DIGITAL ? `<div class="col-md-6"><div class="detail-label">العنوان</div><div class="detail-value">${o.customer_address||'—'}</div></div>
             <div class="col-md-3"><div class="detail-label">المدينة</div><div class="detail-value">${o.customer_city||'—'}</div></div>
-            <div class="col-md-3"><div class="detail-label">المنطقة</div><div class="detail-value">${o.customer_region||'—'}</div></div>
+            <div class="col-md-3"><div class="detail-label">المنطقة</div><div class="detail-value">${o.customer_region||'—'}</div></div>` : ''}
             <div class="col-12"><hr></div>
             <div class="col-12"><div class="detail-label">المنتجات / الخدمات</div><div class="detail-value">${items_html||'—'}</div></div>
             <div class="col-md-3"><div class="detail-label">المجموع الفرعي</div><div class="detail-value">${o.subtotal||0}</div></div>
             <div class="col-md-3"><div class="detail-label">الخصم</div><div class="detail-value">${o.discount_amount||0}</div></div>
             <div class="col-md-3"><div class="detail-label">الضريبة</div><div class="detail-value">${o.tax_amount||0}</div></div>
-            <div class="col-md-3"><div class="detail-label">الشحن</div><div class="detail-value">${o.shipping_cost||0}</div></div>
+            ${!IS_DIGITAL ? `<div class="col-md-3"><div class="detail-label">الشحن</div><div class="detail-value">${o.shipping_cost||0}</div></div>` : ''}
             <div class="col-12"><div class="detail-label">الإجمالي النهائي</div><div class="detail-value" style="font-size:1.4rem;font-weight:800;color:var(--bs-primary)">${o.total_amount||0} ${o.currency||'SAR'}</div></div>
             <div class="col-12"><hr></div>
             <div class="col-md-4"><div class="detail-label">طريقة الدفع</div><div class="detail-value">${o.payment_method||'—'}</div></div>
@@ -640,8 +646,8 @@ async function saveOrder() {
         customer_name: document.getElementById('addName').value,
         customer_phone: document.getElementById('addPhone').value,
         order_type: document.getElementById('addType').value,
-        customer_address: document.getElementById('addAddress').value,
-        customer_city: document.getElementById('addCity').value,
+        customer_address: document.getElementById('addAddress') ? document.getElementById('addAddress').value : '',
+        customer_city: document.getElementById('addCity') ? document.getElementById('addCity').value : '',
         items: items,
         total_amount: parseFloat(document.getElementById('addTotal').value) || 0,
         payment_method: document.getElementById('addPayment').value,
