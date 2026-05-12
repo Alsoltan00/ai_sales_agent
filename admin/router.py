@@ -408,6 +408,12 @@ async def update_client_onboarding_settings(client_id: str, payload: dict, user:
         "order_flow": payload.get("order_flow"),
         "delivery_type": payload.get("delivery_type")
     })
+    
+    # إذا طُلب تصفير الإعدادات، نقوم بتحديث onboarding_completed إلى False
+    if payload.get("reset_onboarding"):
+        from merchant.store_management.store_settings import update_store_settings
+        update_store_settings(client_id, {"onboarding_completed": False})
+        
     if success:
         return {"status": "success", "message": "تم تحديث إعدادات نشاط العميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}

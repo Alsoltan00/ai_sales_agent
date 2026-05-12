@@ -84,9 +84,18 @@
                         <label class="form-label fw-bold">توجيه الطلبات</label>
                         <select class="form-select" id="orderFlow" required>
                             <option value="">اختر...</option>
-                            <option value="in_chat">داخل المحادثة (واتساب)</option>
+                            <option value="in_chat">داخل المحادثة</option>
                             <option value="online_store">عبر المتجر الإلكتروني</option>
                         </select>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check form-switch p-0 d-flex align-items-center gap-2">
+                            <input class="form-check-input ms-0" type="checkbox" id="resetOnboarding">
+                            <label class="form-check-label fw-bold text-danger" for="resetOnboarding">
+                                إعادة ضبط الإعدادات (إجبار العميل على الإعداد مرة أخرى)
+                            </label>
+                        </div>
                     </div>
 
                     <div class="mb-4">
@@ -157,7 +166,8 @@
                 body: JSON.stringify({
                     sales_type: document.getElementById('salesType').value,
                     order_flow: document.getElementById('orderFlow').value,
-                    delivery_type: document.getElementById('deliveryType').value
+                    delivery_type: document.getElementById('deliveryType').value,
+                    reset_onboarding: document.getElementById('resetOnboarding').checked
                 })
             });
             const json = await res.json();
