@@ -547,6 +547,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt)
             elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages)
             elif provider == "cerebras":    response = await _call_cerebras(api_key, model_id, messages)
+            elif provider == "nvidia":      response = await _call_nvidia(api_key, model_id, messages)
             else:
                 response = await _call_openrouter(api_key, model_id, messages)
 
@@ -631,6 +632,30 @@ async def _call_cerebras(api_key: str, model_id: str, messages: list) -> str:
         except Exception as e:
             print(f"[CEREBRAS EXCEPTION] {str(e)}")
             raise Exception(f"Cerebras Connection Error: {str(e)}")
+
+async def _call_nvidia(api_key: str, model_id: str, messages: list) -> str:
+    """استدعاء نماذج NVIDIA NIM (مثل Kimi K2.6) عبر OpenAI-compatible API"""
+    async with httpx.AsyncClient(timeout=90) as c:
+        try:
+            r = await c.post(
+                "https://integrate.api.nvidia.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            )
+
+            if r.status_code != 200:
+                print(f"[NVIDIA ERROR] Status: {r.status_code}, Body: {r.text}")
+                data = r.json() if "application/json" in r.headers.get("Content-Type", "") else {"error": r.text}
+                raise Exception(f"NVIDIA API Error ({r.status_code}): {data.get('error', {}).get('message', r.text)}")
+
+            data = r.json()
+            if "choices" not in data:
+                raise Exception(f"NVIDIA error: Unexpected response format: {str(data)}")
+
+            return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            print(f"[NVIDIA EXCEPTION] {str(e)}")
+            raise Exception(f"NVIDIA Connection Error: {str(e)}")
 
 async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
     """استدعاء نماذج Hugging Face عبر Inference API"""

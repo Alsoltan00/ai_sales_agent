@@ -1,7 +1,7 @@
 import json
 import httpx
 from database.db_client import get_db_client
-from merchant.ai_engine import _call_openai, _call_google, _call_openrouter, _call_groq, _call_anthropic, _call_huggingface, _call_cerebras
+from merchant.ai_engine import _call_openai, _call_google, _call_openrouter, _call_groq, _call_anthropic, _call_huggingface, _call_cerebras, _call_nvidia
 
 async def ensure_table_exists():
     """تتأكد من وجود الجدول في قاعدة البيانات قبل البدء"""
@@ -97,6 +97,7 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
         elif provider == "anthropic": response_text = await _call_anthropic(api_key, model_id, llm_messages, system_prompt)
         elif provider == "huggingface": response_text = await _call_huggingface(api_key, model_id, llm_messages)
         elif provider == "cerebras": response_text = await _call_cerebras(api_key, model_id, llm_messages)
+        elif provider == "nvidia": response_text = await _call_nvidia(api_key, model_id, llm_messages)
         else: response_text = await _call_openrouter(api_key, model_id, llm_messages)
         
         # تنظيف الإجابة (إذا كان هناك markdown json block)
