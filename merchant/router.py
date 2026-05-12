@@ -182,6 +182,57 @@ async def api_update_planning(payload: PlanningRequest, user: dict = Depends(ver
         return {"status": "success", "message": "تم تحديث بيانات التخطيط بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
+class GenerateInstructionsRequest(BaseModel):
+    business_description: str
+    store_activity: str
+    ai_tone: str = "احترافي"
+
+@router.post("/api/planning/generate-instructions")
+async def api_generate_instructions(payload: GenerateInstructionsRequest, user: dict = Depends(verify_merchant)):
+    """توليد تعليمات احترافية باستخدام الذكاء الاصطناعي"""
+    from merchant.ai_engine import get_ai_response
+    
+    meta_prompt = f"""أنت "مهندس ذكاء اصطناعي خبير" متخصص في تصميم وكلاء المبيعات.
+بناءً على البيانات التالية لمتجر محدد، قم بكتابة "تعليمات نظام" (System Instructions) شاملة واحترافية جداً لوكيل المبيعات.
+
+بيانات المتجر:
+- الأنشطة: {payload.store_activity}
+- وصف العمل: {payload.business_description}
+- لهجة الرد المطلوبة: {payload.ai_tone}
+
+يجب أن تتضمن التعليمات التي ستكتبها الأقسام التالية بوضوح:
+1. هوية الوكيل وأسلوبه الشخصي.
+2. بروتوكول التفاعل (خطوة بخطوة: من الترحيب إلى إغلاق البيع).
+3. كيفية معالجة الاعتراضات الشائعة (السعر، الثقة، الشحن).
+4. قائمة بالبيانات المطلوب جمعها من العميل بدقة.
+5. استراتيجية "إغلاق البيع" (Closing) وتحويل المحادثة إلى طلب مؤكد.
+
+اكتب التعليمات باللغة العربية بأسلوب هيكلي ومنظم جداً يسهل على أي نموذج ذكاء اصطناعي آخر اتباعه حرفياً."""
+
+    try:
+        # استخدام وظيفة الاستجابة الحالية ولكن مع التوجيه الميتا (Meta-prompting)
+        # نرسل رسالة فارغة ونعتمد على برومبت النظام المولد
+        generated_text = await get_ai_response(
+            client_id=user["id"], # سيتم استخدام موديل التاجر أو الموديل الافتراضي
+            user_message=meta_prompt,
+            history=[],
+            phone_number="SYSTEM_GEN",
+            channel="system"
+        )
+        
+        # تنظيف النص المولد من أي مقدمات
+        clean_text = generated_text.strip()
+        if "```" in clean_text:
+            # محاولة استخراج النص إذا كان داخل بلوك كود
+            import re
+            match = re.search(r'```(?:markdown)?(.*?)```', clean_text, re.DOTALL)
+            if match:
+                clean_text = match.group(1).strip()
+
+        return {"status": "success", "instructions": clean_text}
+    except Exception as e:
+        return {"status": "error", "message": f"فشل توليد التعليمات: {str(e)}"}
+
 @router.get("/api/planning/columns")
 async def api_get_columns(user: dict = Depends(verify_merchant)):
     """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
