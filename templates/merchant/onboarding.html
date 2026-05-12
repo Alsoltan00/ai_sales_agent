@@ -285,6 +285,12 @@
             </div>
         </div>
 
+        <!-- Other type input -->
+        <div id="otherTypeWrapper" class="mt-4" style="display: none; animation: fadeIn 0.3s ease;">
+            <label class="form-label small fw-bold">صف نشاطك بكلمة واحدة (مثال: استشارات، تذاكر، عقارات):</label>
+            <input type="text" id="otherTypeText" class="form-control form-control-lg" placeholder="اكتب هنا...">
+        </div>
+
         <div class="wizard-actions">
             <div></div>
             <button class="btn btn-primary btn-wizard" id="nextBtn1" onclick="goStep(2)" disabled>
@@ -401,6 +407,14 @@ function selectType(el, type) {
     el.classList.add('selected');
     selectedSalesType = type;
     document.getElementById('nextBtn1').disabled = false;
+
+    // Show/hide other input
+    const otherWrapper = document.getElementById('otherTypeWrapper');
+    if (type === 'other') {
+        otherWrapper.style.display = 'block';
+    } else {
+        otherWrapper.style.display = 'none';
+    }
 }
 
 function selectDelivery(el, type) {
@@ -443,11 +457,17 @@ async function finishOnboarding() {
     btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري الحفظ...';
 
     try {
+        let finalSalesType = selectedSalesType;
+        if (selectedSalesType === 'other') {
+            const customValue = document.getElementById('otherTypeText').value.trim();
+            if (customValue) finalSalesType = customValue;
+        }
+
         const res = await fetch('/merchant/api/onboarding', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
-                sales_type: selectedSalesType,
+                sales_type: finalSalesType,
                 delivery_type: selectedDeliveryType,
                 order_flow: selectedOrderFlow
             })
