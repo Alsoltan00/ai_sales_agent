@@ -164,6 +164,9 @@ class PlanningRequest(BaseModel):
     ai_tone: str = None
     business_description: str = None
     store_activity: str = None
+    custom_instructions: str = None
+    ai_temperature: float = None
+    ai_max_tokens: int = None
 
 @router.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request, user: dict = Depends(verify_merchant)):

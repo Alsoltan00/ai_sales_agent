@@ -332,16 +332,23 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
-    # ─── 6.5 DELIVERY TYPE (Digital vs Physical) ──────────────────────────────
+    # ─── 6.5 DELIVERY TYPE + CUSTOM INSTRUCTIONS + MODEL PARAMS ─────────────────
     is_digital = False
+    custom_instructions = ""
+    ai_temperature = 0.1
+    ai_max_tokens = 600
     try:
         from merchant.planning.planning_config import get_planning_config
         p_cfg = get_planning_config(client_id)
         if p_cfg.get("delivery_type") == "digital":
             is_digital = True
             print(f"[ENGINE] Digital product detected — shipping disabled")
+        custom_instructions = (p_cfg.get("custom_instructions") or "").strip()
+        ai_temperature = float(p_cfg.get("ai_temperature") or 0.1)
+        ai_max_tokens = int(p_cfg.get("ai_max_tokens") or 600)
+        print(f"[ENGINE] Model params: temp={ai_temperature}, max_tokens={ai_max_tokens}, custom_instructions={'YES' if custom_instructions else 'NO'}")
     except Exception as e:
-        print(f"[ENGINE] Delivery type check error: {e}")
+        print(f"[ENGINE] Planning config error: {e}")
 
     # ─── 6.6 SHIPPING DATA ─────────────────────────────────────────────────────
     shipping_section = ""
@@ -521,6 +528,10 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 - موافقة على الطلب: "هل البيانات صحيحة؟" → [BUTTONS: نعم، أوافق ✅ | تعديل ✏️]
 """
 
+    # ─── 7.1 CUSTOM INSTRUCTIONS LAYER (Merchant-specific) ────────────────────
+    if custom_instructions:
+        system_prompt += f"""\n\n## تعليمات مخصصة من صاحب المتجر (أولوية قصوى — التزم بها حرفياً):\n{custom_instructions}\n"""
+
     # ─── 8. BUILD MESSAGE PAYLOAD ─────────────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend(history)
@@ -540,16 +551,16 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     max_retries = 2
     for attempt in range(max_retries + 1):
         try:
-            if   provider == "openai":     response = await _call_openai(api_key, model_id, messages)
-            elif provider == "google":     response = await _call_google(api_key, model_id, messages, system_prompt)
-            elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages)
-            elif provider == "groq":       response = await _call_groq(api_key, model_id, messages)
-            elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt)
-            elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages)
-            elif provider == "cerebras":    response = await _call_cerebras(api_key, model_id, messages)
-            elif provider == "nvidia":      response = await _call_nvidia(api_key, model_id, messages)
+            if   provider == "openai":     response = await _call_openai(api_key, model_id, messages, ai_temperature, ai_max_tokens)
+            elif provider == "google":     response = await _call_google(api_key, model_id, messages, system_prompt, ai_temperature, ai_max_tokens)
+            elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages, ai_temperature, ai_max_tokens)
+            elif provider == "groq":       response = await _call_groq(api_key, model_id, messages, ai_temperature, ai_max_tokens)
+            elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt, ai_temperature, ai_max_tokens)
+            elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages, ai_temperature, ai_max_tokens)
+            elif provider == "cerebras":    response = await _call_cerebras(api_key, model_id, messages, ai_temperature, ai_max_tokens)
+            elif provider == "nvidia":      response = await _call_nvidia(api_key, model_id, messages, ai_temperature, ai_max_tokens)
             else:
-                response = await _call_openrouter(api_key, model_id, messages)
+                response = await _call_openrouter(api_key, model_id, messages, ai_temperature, ai_max_tokens)
 
             _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
             supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
@@ -569,12 +580,12 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
 # ─── PROVIDER IMPLEMENTATIONS ─────────────────────────────────────────────────
 
-async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
+async def _call_openai(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     async with httpx.AsyncClient(timeout=45) as c:
         r = await c.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
-            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
         )
         data = r.json()
         if "choices" not in data:
@@ -582,12 +593,12 @@ async def _call_openai(api_key: str, model_id: str, messages: list) -> str:
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
+async def _call_openrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     async with httpx.AsyncClient(timeout=45) as c:
         r = await c.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
         )
         data = r.json()
         if "choices" not in data:
@@ -595,12 +606,12 @@ async def _call_openrouter(api_key: str, model_id: str, messages: list) -> str:
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
+async def _call_groq(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     async with httpx.AsyncClient(timeout=30) as c:
         r = await c.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
-            json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
         )
         data = r.json()
         if "choices" not in data:
@@ -608,14 +619,14 @@ async def _call_groq(api_key: str, model_id: str, messages: list) -> str:
         return data["choices"][0]["message"]["content"].strip()
 
 
-async def _call_cerebras(api_key: str, model_id: str, messages: list) -> str:
+async def _call_cerebras(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     """استدعاء نماذج Cerebras السريعة جداً"""
     async with httpx.AsyncClient(timeout=45) as c:
         try:
             r = await c.post(
                 "https://api.cerebras.ai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
             )
             
             # إذا فشل الطلب، نطبع السبب بالتفصيل في الكونسول للمطور
@@ -633,14 +644,14 @@ async def _call_cerebras(api_key: str, model_id: str, messages: list) -> str:
             print(f"[CEREBRAS EXCEPTION] {str(e)}")
             raise Exception(f"Cerebras Connection Error: {str(e)}")
 
-async def _call_nvidia(api_key: str, model_id: str, messages: list) -> str:
+async def _call_nvidia(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     """استدعاء نماذج NVIDIA NIM (مثل Kimi K2.6) عبر OpenAI-compatible API"""
     async with httpx.AsyncClient(timeout=90) as c:
         try:
             r = await c.post(
                 "https://integrate.api.nvidia.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
             )
 
             if r.status_code != 200:
@@ -657,14 +668,14 @@ async def _call_nvidia(api_key: str, model_id: str, messages: list) -> str:
             print(f"[NVIDIA EXCEPTION] {str(e)}")
             raise Exception(f"NVIDIA Connection Error: {str(e)}")
 
-async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
+async def _call_huggingface(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     """استدعاء نماذج Hugging Face عبر Inference API"""
     async with httpx.AsyncClient(timeout=60) as c:
         try:
             r = await c.post(
                 "https://api-inference.huggingface.co/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": model_id, "messages": messages, "temperature": 0.1, "max_tokens": 600}
+                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
             )
             data = r.json()
             if "choices" not in data:
@@ -676,13 +687,13 @@ async def _call_huggingface(api_key: str, model_id: str, messages: list) -> str:
         except Exception as e:
             raise Exception(f"HuggingFace Connection Error: {str(e)}")
 
-async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str) -> str:
+async def _call_anthropic(api_key: str, model_id: str, messages: list, system: str, temperature: float = 0.1, max_tokens: int = 600) -> str:
     user_msgs = [m for m in messages if m["role"] != "system"]
     async with httpx.AsyncClient(timeout=45) as c:
         r = await c.post(
             "https://api.anthropic.com/v1/messages",
             headers={"x-api-key": api_key, "anthropic-version": "2023-06-01"},
-            json={"model": model_id, "system": system, "messages": user_msgs, "max_tokens": 600}
+            json={"model": model_id, "system": system, "messages": user_msgs, "max_tokens": max_tokens, "temperature": temperature}
         )
         data = r.json()
         if "content" not in data:
@@ -690,7 +701,7 @@ async def _call_anthropic(api_key: str, model_id: str, messages: list, system: s
         return data["content"][0]["text"].strip()
 
 
-async def _call_google(api_key: str, model_id: str, messages: list, system: str) -> str:
+async def _call_google(api_key: str, model_id: str, messages: list, system: str, temperature: float = 0.1, max_tokens: int = 600) -> str:
     m_id = model_id.strip()
     if not m_id.startswith("models/"):
         m_id = f"models/{m_id}"
@@ -716,7 +727,7 @@ async def _call_google(api_key: str, model_id: str, messages: list, system: str)
     body = {
         "systemInstruction": {"parts": [{"text": system}]},
         "contents": contents,
-        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 600}
+        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens}
     }
     async with httpx.AsyncClient(timeout=45) as c:
         r = await c.post(url, json=body)

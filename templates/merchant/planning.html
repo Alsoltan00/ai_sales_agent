@@ -337,6 +337,60 @@
                 </div>
             </div>
 
+            <!-- Custom Instructions -->
+            <div class="mb-4">
+                <label class="form-label fw-600">
+                    <i class="ti ti-brain me-1 text-primary"></i>تعليمات مخصصة للنموذج
+                    <span class="badge bg-warning-subtle text-warning ms-2 small">متقدم</span>
+                </label>
+                <p class="text-secondary small mb-2">اكتب تعليمات إضافية خاصة بمتجرك سيتبعها الذكاء الاصطناعي حرفياً. مثل: "لا تذكر المنافسين"، "دائماً اقترح المنتج الأغلى أولاً"، "أجب بالعربية الفصحى فقط".</p>
+                <textarea id="custom_instructions" class="form-control" rows="4"
+                    style="border-radius: 12px; font-size: 0.9rem;"
+                    placeholder="مثال: عند السؤال عن الضمان أخبر العميل أن جميع المنتجات مضمونة لمدة سنة كاملة...">{{ planning.custom_instructions or '' }}</textarea>
+            </div>
+
+            <!-- Model Parameters -->
+            <div class="mb-4 p-3 rounded-3" style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color);">
+                <label class="form-label fw-600 mb-3">
+                    <i class="ti ti-adjustments-horizontal me-1 text-primary"></i>معاملات النموذج
+                    <span class="badge bg-info-subtle text-info ms-2 small">ضبط دقيق</span>
+                </label>
+                
+                <div class="row g-4">
+                    <!-- Temperature -->
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0 small fw-bold">الحرارة (Temperature)</label>
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3" id="tempValue">{{ planning.ai_temperature if planning.ai_temperature is not none else 0.1 }}</span>
+                        </div>
+                        <input type="range" class="form-range" id="ai_temperature" 
+                            min="0" max="1" step="0.05" 
+                            value="{{ planning.ai_temperature if planning.ai_temperature is not none else 0.1 }}"
+                            oninput="document.getElementById('tempValue').textContent = this.value">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-secondary">دقيق ومتحفظ</small>
+                            <small class="text-secondary">إبداعي ومتنوع</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Max Tokens -->
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0 small fw-bold">طول الرد الأقصى (Max Tokens)</label>
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3" id="tokensValue">{{ planning.ai_max_tokens if planning.ai_max_tokens is not none else 600 }}</span>
+                        </div>
+                        <input type="range" class="form-range" id="ai_max_tokens" 
+                            min="200" max="2000" step="50" 
+                            value="{{ planning.ai_max_tokens if planning.ai_max_tokens is not none else 600 }}"
+                            oninput="document.getElementById('tokensValue').textContent = this.value">
+                        <div class="d-flex justify-content-between">
+                            <small class="text-secondary">ردود قصيرة</small>
+                            <small class="text-secondary">ردود مفصلة</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" id="saveBtn">
                 <i class="ti ti-device-floppy me-1"></i> تحديث التخطيط
             </button>
@@ -519,7 +573,10 @@ async function savePlanning(e) {
                 ai_agent_name: document.getElementById('ai_agent_name').value,
                 ai_tone: document.getElementById('ai_tone').value,
                 store_activity: document.getElementById('store_activity').value,
-                business_description: document.getElementById('business_description').value
+                business_description: document.getElementById('business_description').value,
+                custom_instructions: document.getElementById('custom_instructions').value,
+                ai_temperature: parseFloat(document.getElementById('ai_temperature').value),
+                ai_max_tokens: parseInt(document.getElementById('ai_max_tokens').value)
             })
         });
         const data = await res.json();

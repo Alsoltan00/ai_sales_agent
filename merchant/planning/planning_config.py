@@ -4,7 +4,7 @@ def get_planning_config(client_id: str) -> dict:
     """جلب إعدادات التخطيط والذكاء الاصطناعي"""
     db = get_db_client()
     try:
-        res = db.table("planning_config").select("sales_agent_name, dialect_instructions, company_description, store_activity, sales_type, order_flow, delivery_type").eq("client_id", client_id).single().execute()
+        res = db.table("planning_config").select("sales_agent_name, dialect_instructions, company_description, store_activity, sales_type, order_flow, delivery_type, custom_instructions, ai_temperature, ai_max_tokens").eq("client_id", client_id).single().execute()
         if res.data:
             return {
                 "ai_agent_name": res.data.get("sales_agent_name"),
@@ -13,7 +13,10 @@ def get_planning_config(client_id: str) -> dict:
                 "store_activity": res.data.get("store_activity"),
                 "sales_type": res.data.get("sales_type"),
                 "order_flow": res.data.get("order_flow"),
-                "delivery_type": res.data.get("delivery_type")
+                "delivery_type": res.data.get("delivery_type"),
+                "custom_instructions": res.data.get("custom_instructions", ""),
+                "ai_temperature": float(res.data.get("ai_temperature") or 0.1),
+                "ai_max_tokens": int(res.data.get("ai_max_tokens") or 600)
             }
         return {}
     except Exception as e:
@@ -32,7 +35,10 @@ def update_planning_config(client_id: str, data: dict) -> bool:
             "store_activity": "store_activity",
             "sales_type": "sales_type",
             "order_flow": "order_flow",
-            "delivery_type": "delivery_type"
+            "delivery_type": "delivery_type",
+            "custom_instructions": "custom_instructions",
+            "ai_temperature": "ai_temperature",
+            "ai_max_tokens": "ai_max_tokens"
         }
         
         update_data = {}

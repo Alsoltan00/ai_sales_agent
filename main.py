@@ -278,6 +278,21 @@ def _migrate_database():
             except Exception as e:
                 print(f"[DB] Error adding delivery_type column: {e}")
 
+            # 14. إضافة أعمدة توجيه النموذج المتقدمة (تعليمات مخصصة + معاملات)
+            try:
+                pc_cols2 = [c['name'] for c in inspector.get_columns('planning_config')]
+                if 'custom_instructions' not in pc_cols2:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN custom_instructions TEXT DEFAULT '';"))
+                    print("[DB] Added custom_instructions column to planning_config")
+                if 'ai_temperature' not in pc_cols2:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_temperature NUMERIC(3,2) DEFAULT 0.10;"))
+                    print("[DB] Added ai_temperature column to planning_config")
+                if 'ai_max_tokens' not in pc_cols2:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
+                    print("[DB] Added ai_max_tokens column to planning_config")
+            except Exception as e:
+                print(f"[DB] Error adding AI tuning columns: {e}")
+
             conn.commit()
             print("[DB] Database schema verified successfully (PostgreSQL mode).")
     except Exception as e:
