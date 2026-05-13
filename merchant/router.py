@@ -254,20 +254,28 @@ async def api_generate_instructions(payload: GenerateInstructionsRequest, user: 
 
 @router.post("/api/planning/generate-core-strategy")
 async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
-    """توليد 'الجوهر الاستراتيجي' للموظف الآلي بناءً على تحليل شامل لكل حرف في المتجر"""
+    """
+    توليد 'الجوهر الاستراتيجي' الذكي للموظف الآلي.
+    يحلل 100% من بيانات المتجر، يستخرج الفئات والأنماط،
+    ويبني دستوراً تشغيلياً يتكيف مع حجم المخزون (قليل/متوسط/كبير).
+    """
     from merchant.ai_engine import get_ai_response
     from database.db_client import get_db_client
     
     db = get_db_client()
     
     try:
-        # 1. جلب كل البيانات الممكنة للتحليل
-        # أ - جلب المنتجات/الخدمات
+        # ═══════════════════════════════════════════════════════════════
+        # 1. جلب كل البيانات الممكنة للتحليل الشامل
+        # ═══════════════════════════════════════════════════════════════
+        
+        # أ - جلب كامل المنتجات/الخدمات (100%)
         data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).execute()
         products_raw = data_res.data[0].get("data", []) if data_res.data else []
+        total_items = len(products_raw)
         
-        # ب - جلب ملاحظات تدريب الأعمدة
-        col_res = db.table("column_training").select("column_name, note").eq("client_id", user["id"]).execute()
+        # ب - جلب ملاحظات تدريب الأعمدة (مع حالة الإيقاف وعند الطلب)
+        col_res = db.table("column_training").select("column_name, note, is_disabled, on_request").eq("client_id", user["id"]).execute()
         col_notes = col_res.data or []
         
         # ج - جلب قواعد العمل
@@ -277,27 +285,171 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         # د - جلب إعدادات التخطيط العامة
         plan_res = db.table("planning_config").select("*").eq("client_id", user["id"]).single().execute()
         plan_data = plan_res.data or {}
+        
+        if total_items == 0:
+            return {"status": "error", "message": "لا توجد بيانات مزامنة في المتجر حالياً. يرجى إضافة بيانات أولاً من صفحة (مزامنة البيانات)."}
 
-        # 2. بناء طلب التحليل العميق (نأخذ عينة من 10 منتجات فقط لفهم الهيكلية وتوفير المساحة)
-        sample_products = products_raw[:10]
-        analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي". 
-مهمتك هي إجراء تحليل جراحي شامل لهيكلية بيانات هذا المتجر وتوليد "الجوهر الاستراتيجي الثابت" (AI Core Strategy).
+        # ═══════════════════════════════════════════════════════════════
+        # 2. التحليل الآلي المحلي — استخراج الفئات والأنماط (بدون AI)
+        # ═══════════════════════════════════════════════════════════════
+        
+        # استخراج أسماء الأعمدة المفعلة
+        disabled_cols = {c["column_name"] for c in col_notes if c.get("is_disabled")}
+        active_cols = []
+        if products_raw:
+            active_cols = [k for k in products_raw[0].keys() if k not in disabled_cols]
+        
+        # ── تحديد عمود التصنيف المحتمل (الفئة/القسم) ──
+        category_keywords = ["فئة", "قسم", "تصنيف", "نوع", "مجموعة", "category", "type", "group", "section", "department"]
+        category_column = None
+        categories_found = {}
+        
+        for col_name in active_cols:
+            col_lower = col_name.lower().strip()
+            if any(kw in col_lower for kw in category_keywords):
+                category_column = col_name
+                break
+        
+        # إذا لم نجد عموداً بالاسم، نحاول الاكتشاف بالتكرار
+        # (العمود الذي يحتوي على قيم متكررة كثيراً يُرجح أنه فئة)
+        if not category_column and total_items > 6:
+            best_col = None
+            best_ratio = 0
+            for col_name in active_cols:
+                unique_vals = set()
+                for row in products_raw:
+                    val = str(row.get(col_name, "")).strip()
+                    if val and len(val) < 50:  # استبعاد النصوص الطويلة
+                        unique_vals.add(val)
+                if len(unique_vals) < 1:
+                    continue
+                # نسبة التكرار: كلما كان العدد الفريد أقل بكثير من الإجمالي = أعمدة تصنيف
+                ratio = total_items / len(unique_vals) if len(unique_vals) > 0 else 0
+                # نريد عموداً فيه 2-15 قيمة فريدة (فئات معقولة)
+                if 2 <= len(unique_vals) <= 15 and ratio > best_ratio:
+                    best_ratio = ratio
+                    best_col = col_name
+            if best_col and best_ratio >= 2:
+                category_column = best_col
+        
+        # ── استخراج الفئات وعدد العناصر في كل فئة ──
+        if category_column:
+            for row in products_raw:
+                cat_val = str(row.get(category_column, "")).strip()
+                if cat_val:
+                    categories_found[cat_val] = categories_found.get(cat_val, 0) + 1
+        
+        # ── تحديد مستوى حجم المخزون ──
+        if total_items <= 6:
+            inventory_level = "صغير"
+            inventory_strategy = "عرض_مباشر"
+        elif total_items <= 20:
+            inventory_level = "متوسط"
+            inventory_strategy = "فئات_بسيطة" if categories_found else "عرض_مباشر"
+        else:
+            inventory_level = "كبير"
+            inventory_strategy = "فئات_إلزامية"
+        
+        # ── بناء خريطة ملخص البيانات ──
+        # عينة ذكية: أخذ عينة ممثلة من كل فئة (بدلاً من أول 10)
+        sample_products = []
+        if categories_found and len(categories_found) > 0:
+            items_per_cat = max(1, min(3, 15 // len(categories_found)))
+            for cat_name in list(categories_found.keys()):
+                cat_items = [r for r in products_raw if str(r.get(category_column, "")).strip() == cat_name]
+                sample_products.extend(cat_items[:items_per_cat])
+            # لا نزيد عن 20 عنصر في العينة
+            sample_products = sample_products[:20]
+        else:
+            sample_products = products_raw[:15]
+        
+        # ── بناء ملخص الأعمدة النشطة مع ملاحظاتها ──
+        col_summary = []
+        for c in col_notes:
+            status = "🔴 موقوف" if c.get("is_disabled") else ("🟡 عند الطلب" if c.get("on_request") else "🟢 نشط")
+            note = c.get("note", "").strip()
+            col_summary.append(f"  - {c['column_name']}: [{status}]{f' — ملاحظة: {note}' if note else ''}")
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 3. بناء طلب التحليل العميق (Meta-Prompt) مع كل البيانات المحللة
+        # ═══════════════════════════════════════════════════════════════
+        
+        categories_text = ""
+        if categories_found:
+            cat_lines = [f"    • {cat}: {count} عنصر" for cat, count in sorted(categories_found.items(), key=lambda x: x[1], reverse=True)]
+            categories_text = f"""
+## الفئات المُستخرجة من البيانات (عمود التصنيف: "{category_column}"):
+{chr(10).join(cat_lines)}
+"""
+        else:
+            categories_text = """
+## لم يتم العثور على عمود تصنيف واضح.
+- البيانات لا تحتوي على فئات/أقسام.
+"""
 
-البيانات المتوفرة للتحليل (عينة):
-- النشاط: {plan_data.get('store_activity')}
-- وصف العمل: {plan_data.get('business_description')}
-- عينة من الجرد (لفهم الهيكلية): {json.dumps(sample_products, ensure_ascii=False)} 
-- ملاحظات التدريب لكل عمود: {json.dumps(col_notes, ensure_ascii=False)}
-- قواعد العمل العامة: {json.dumps(biz_rules, ensure_ascii=False)}
+        analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي".
+مهمتك هي بناء "الجوهر الاستراتيجي الثابت" (Operational DNA) لموظف مبيعات ذكي.
 
-المطلوب منك تحليل "كل حرف" في العينة وملاحظات الأعمدة لتوليد دستور تشغيلي يشمل:
-1. تحديد الهوية (هل أنا وكيل فئات أم عرض مباشر؟).
-2. بروتوكول العرض المثالي بناءً على ملاحظاتك للأعمدة.
-3. استراتيجية الإغلاق وقوانين الجوهر الصارمة.
+═══════════════════════════════════════
+📊 تقرير التحليل الآلي (تم تحليله مسبقاً بواسطة النظام):
+═══════════════════════════════════════
 
-اكتب الاستراتيجية باللغة العربية بأسلوب "دستوري" صارم ومفصل جداً (100% دقة)."""
+• إجمالي العناصر في قاعدة البيانات: {total_items} عنصر
+• مستوى حجم المخزون: {inventory_level}
+• استراتيجية العرض المُقترحة: {inventory_strategy}
+• عمود التصنيف المُكتشف: {category_column or "لا يوجد"}
+• عدد الفئات المكتشفة: {len(categories_found) if categories_found else 0}
+{categories_text}
 
-        # 3. طلب التحليل (نقلل عدد الكلمات الناتجة لضمان النجاح)
+## إعدادات المتجر:
+- النشاط: {plan_data.get('store_activity', 'غير محدد')}
+- وصف العمل: {plan_data.get('company_description', 'غير محدد')}
+- نوع المبيعات: {plan_data.get('sales_type', 'products')}
+- طريقة التسليم: {plan_data.get('delivery_type', 'physical')}
+- مسار الطلب: {plan_data.get('order_flow', 'in_chat')}
+
+## خريطة الأعمدة وحالاتها:
+{chr(10).join(col_summary) if col_summary else '  لا توجد ملاحظات أعمدة.'}
+
+## قواعد العمل المحفوظة:
+{json.dumps(biz_rules, ensure_ascii=False) if biz_rules else 'لا توجد قواعد عمل.'}
+
+## عينة ممثلة من البيانات (لفهم الهيكلية والمحتوى):
+{json.dumps(sample_products, ensure_ascii=False)}
+
+═══════════════════════════════════════
+📝 المطلوب:
+═══════════════════════════════════════
+
+بناءً على التحليل أعلاه، اكتب "الجوهر الاستراتيجي" بالشكل التالي بالضبط:
+
+### 1. هوية العرض (كيف أعرض البيانات للعميل):
+{"- **إذا كان المخزون صغيراً (6 عناصر أو أقل)**: اكتب قانوناً صريحاً يأمر الموظف بعرض جميع العناصر مباشرة كأزرار دون فئات ودون أسئلة استكشافية، لأن تصنيفها سيضيع وقت العميل." if total_items <= 6 else ""}
+{"- **إذا كان المخزون متوسطاً أو كبيراً وتوجد فئات**: اكتب قانوناً يأمر الموظف بعرض الفئات أولاً كأزرار، ثم بعد اختيار الفئة يعرض العناصر." if categories_found and total_items > 6 else ""}
+{"- **إذا كان المخزون كبيراً ولا توجد فئات واضحة**: اكتب قانوناً يأمر الموظف بطرح سؤال استكشافي واحد لفهم حاجة العميل قبل العرض." if not categories_found and total_items > 6 else ""}
+- **اذكر أسماء الفئات الفعلية** المُستخرجة أعلاه (إن وجدت) ليستخدمها الموظف حرفياً.
+- **اذكر عدد العناصر في كل فئة** ليعرف الموظف ماذا يتوقع.
+
+### 2. بروتوكول الأعمدة (ما يُعرض وما يُخفى):
+- لكل عمود نشط، اكتب تعليمة واحدة واضحة (هل يُعرض تلقائياً؟ هل يُذكر فقط عند الطلب؟).
+- الأعمدة الموقوفة يجب أن تُذكر بقانون "يُمنع ذكرها نهائياً".
+
+### 3. خريطة البيانات الحية (Data Map):
+- اكتب ملخصاً مضغوطاً لما يحتويه المتجر فعلياً (الأنواع، نطاق الأسعار، أي أنماط ملحوظة).
+- هذا يمنع الموظف من الهلوسة لأنه سيعرف بالضبط ما لديه.
+
+### 4. قوانين الجوهر الصارمة:
+- قوانين خاصة بهذا المتجر تحديداً بناءً على طبيعة بياناته.
+
+⚠️ تعليمات الكتابة:
+- اكتب بأسلوب "دستوري صارم" (أوامر مباشرة، لا اقتراحات).
+- استخدم "يجب"، "يُمنع"، "إلزامي" بدلاً من "يُفضل" أو "يمكن".
+- الاستراتيجية يجب أن تكون عملية 100% وقابلة للتطبيق الفوري.
+- اكتب باللغة العربية."""
+
+        # ═══════════════════════════════════════════════════════════════
+        # 4. إرسال للذكاء الاصطناعي لتوليد الاستراتيجية
+        # ═══════════════════════════════════════════════════════════════
         try:
             core_strategy = await get_ai_response(
                 client_id=user["id"],
@@ -310,16 +462,68 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                  return {"status": "error", "message": "بيانات المتجر كبيرة جداً للتحليل الحالي، يرجى تقليل ملاحظات الأعمدة أو الوصف."}
             raise e
         
-        # 4. حفظ الاستراتيجية
+        # ═══════════════════════════════════════════════════════════════
+        # 5. إضافة الهيدر التحليلي الآلي (بيانات ثابتة لا تتغير)
+        # ═══════════════════════════════════════════════════════════════
+        
+        # بناء خريطة الفئات للحقن المباشر في الدستور
+        auto_header = f"""## ═══ بيانات التحليل الآلي (حقائق ثابتة — لا تتجاهلها أبداً) ═══
+- إجمالي العناصر في المتجر: {total_items}
+- حجم المخزون: {inventory_level}
+- استراتيجية العرض المُلزمة: {"عرض جميع العناصر مباشرة كأزرار (بدون فئات)" if inventory_strategy == "عرض_مباشر" else f"عرض الفئات أولاً ثم العناصر" if categories_found else "سؤال استكشافي ثم عرض"}
+"""
+        if categories_found:
+            auto_header += f"- عمود التصنيف: {category_column}\n"
+            auto_header += "- الفئات المتاحة (استخدمها حرفياً كأزرار):\n"
+            for cat, count in sorted(categories_found.items(), key=lambda x: x[1], reverse=True):
+                auto_header += f"  • {cat} ({count} عنصر)\n"
+        
+        if inventory_strategy == "عرض_مباشر" and total_items <= 6:
+            # في حالة المنتجات القليلة: نضيف أسماء كل العناصر
+            name_col = None
+            for col_name in active_cols:
+                col_lower = col_name.lower().strip()
+                if any(kw in col_lower for kw in ["اسم", "name", "منتج", "خدمة", "عنوان", "title", "product"]):
+                    name_col = col_name
+                    break
+            if not name_col and active_cols:
+                name_col = active_cols[0]
+            
+            if name_col:
+                auto_header += f"\n- **العناصر الكاملة (اعرضها جميعاً مباشرة):**\n"
+                for i, row in enumerate(products_raw, 1):
+                    item_name = str(row.get(name_col, f"عنصر {i}")).strip()
+                    auto_header += f"  {i}. {item_name}\n"
+        
+        auto_header += "\n## ═══ الاستراتيجية المولّدة ═══\n"
+        
+        final_strategy = auto_header + core_strategy
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 6. حفظ الاستراتيجية في قاعدة البيانات
+        # ═══════════════════════════════════════════════════════════════
         try:
-            db.table("planning_config").update({"ai_core_strategy": core_strategy}).eq("client_id", user["id"]).execute()
+            db.table("planning_config").update({"ai_core_strategy": final_strategy}).eq("client_id", user["id"]).execute()
         except Exception as db_err:
             if "column" in str(db_err) and "does not exist" in str(db_err):
                  return {"status": "error", "message": "قاعدة البيانات لم يتم تحديثها بالعمود الجديد. يرجى إعادة تشغيل السيرفر أو التواصل مع الدعم."}
             raise db_err
         
-        return {"status": "success", "strategy": core_strategy}
+        return {
+            "status": "success", 
+            "strategy": final_strategy,
+            "analysis": {
+                "total_items": total_items,
+                "inventory_level": inventory_level,
+                "strategy_type": inventory_strategy,
+                "categories_count": len(categories_found),
+                "category_column": category_column,
+                "categories": categories_found
+            }
+        }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": f"فشل توليد الجوهر الاستراتيجي: {str(e)}"}
 
 @router.get("/api/planning/columns")

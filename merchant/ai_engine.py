@@ -393,6 +393,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     # ─── 6.5 DELIVERY TYPE + ROUTING MATRIX + CUSTOM INSTRUCTIONS ─────────────────
     is_digital = False
     custom_instructions = ""
+    ai_core_strategy = ""
     ai_temperature = 0.1
     ai_max_tokens = 600
     order_flow = "in_chat"

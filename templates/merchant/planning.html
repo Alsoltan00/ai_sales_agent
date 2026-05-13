@@ -482,15 +482,52 @@
         <div class="d-flex justify-content-between align-items-center">
             <div>
                 <h5 class="mb-0 fw-bold"><i class="ti ti-dna me-2 text-primary"></i>الجوهر الاستراتيجي للموظف (Operational DNA)</h5>
-                <p class="text-secondary small mt-1 mb-0">هذا هو "عقل" الموظف الذي تم بناؤه بعد تحليل 100% لكل حرف في متجرك.</p>
+                <p class="text-secondary small mt-1 mb-0">هذا هو "عقل" الموظف — يحلل قاعدة بياناتك بالكامل ويبني خطة عمل ذكية تتكيف مع حجم وطبيعة متجرك.</p>
             </div>
             <button type="button" class="btn btn-primary" onclick="generateCoreStrategy()" id="genCoreBtn">
-                <i class="ti ti-sparkles me-1"></i> توليد الجوهر الاستراتيجي (AI Analysis)
+                <i class="ti ti-sparkles me-1"></i> توليد الجوهر الاستراتيجي
             </button>
         </div>
     </div>
     <div class="card-body">
         <div id="coreAlertBox" class="alert" style="display:none;"></div>
+        
+        <!-- Analysis Stats Panel (يظهر بعد التوليد) -->
+        <div id="analysisPanel" class="mb-3" style="display:none;">
+            <div class="row g-3 mb-3">
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background: rgba(var(--bs-primary-rgb), 0.06); border: 1px solid rgba(var(--bs-primary-rgb), 0.15);">
+                        <i class="ti ti-database fs-3 text-primary d-block mb-1"></i>
+                        <div class="fs-4 fw-bold text-primary" id="statTotalItems">—</div>
+                        <small class="text-secondary">إجمالي العناصر</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background: rgba(var(--bs-success-rgb), 0.06); border: 1px solid rgba(var(--bs-success-rgb), 0.15);">
+                        <i class="ti ti-category fs-3 text-success d-block mb-1"></i>
+                        <div class="fs-4 fw-bold text-success" id="statCategories">—</div>
+                        <small class="text-secondary">الفئات المكتشفة</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background: rgba(var(--bs-warning-rgb), 0.06); border: 1px solid rgba(var(--bs-warning-rgb), 0.15);">
+                        <i class="ti ti-gauge fs-3 text-warning d-block mb-1"></i>
+                        <div class="fs-6 fw-bold text-warning" id="statLevel">—</div>
+                        <small class="text-secondary">حجم المخزون</small>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="p-3 rounded-3 text-center" style="background: rgba(var(--bs-info-rgb), 0.06); border: 1px solid rgba(var(--bs-info-rgb), 0.15);">
+                        <i class="ti ti-route fs-3 text-info d-block mb-1"></i>
+                        <div class="fs-6 fw-bold text-info" id="statStrategy">—</div>
+                        <small class="text-secondary">أسلوب العرض</small>
+                    </div>
+                </div>
+            </div>
+            <!-- Categories chips -->
+            <div id="categoriesChips" class="d-flex flex-wrap gap-2 mb-3" style="display:none !important;"></div>
+        </div>
+        
         <div class="p-3 rounded-3 mb-3" style="background: rgba(var(--bs-primary-rgb), 0.03); border: 1px dashed var(--bs-primary-border-subtle);">
             <div class="d-flex align-items-center gap-2 mb-2 text-primary small fw-bold">
                 <i class="ti ti-shield-check"></i>
@@ -498,7 +535,7 @@
             </div>
             <textarea id="ai_core_strategy" class="form-control bg-transparent border-0" rows="12" 
                 style="font-size: 0.95rem; line-height: 1.6; color: var(--bs-body-color);" 
-                placeholder="انقر على الزر أعلاه ليقوم الذكاء الاصطناعي بتحليل جردك وقواعدك ورسم خطة عمل ثابتة 100% لمتجرك..."
+                placeholder="انقر على الزر أعلاه ليقوم الذكاء الاصطناعي بتحليل 100% من بياناتك واستخراج الفئات وبناء خطة عمل ذكية..."
                 readonly>{{ planning.ai_core_strategy or '' }}</textarea>
         </div>
         <div class="text-center">
@@ -815,11 +852,11 @@ async function generateCoreStrategy() {
     const textarea = document.getElementById('ai_core_strategy');
     const originalHTML = btn.innerHTML;
     
-    if(!confirm('سيقوم الذكاء الاصطناعي الآن بمسح شامل لجميع بياناتك وقواعدك لرسم خطة عمل ثابتة. هل تريد الاستمرار؟')) return;
+    if(!confirm('سيقوم الذكاء الاصطناعي بتحليل 100% من بياناتك واستخراج الفئات والأنماط لبناء خطة عمل ذكية. هل تريد الاستمرار؟')) return;
 
     btn.disabled = true;
-    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري التحليل والتحميل...';
-    textarea.placeholder = "جاري قراءة الجرد وتحليل ملاحظات الأعمدة... يرجى الانتظار ثوانٍ...";
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري تحليل قاعدة البيانات...';
+    textarea.placeholder = "جاري مسح شامل لكل صف في قاعدة البيانات... استخراج الفئات والأنماط... بناء الاستراتيجية...";
 
     try {
         const res = await fetch('/merchant/api/planning/generate-core-strategy', {
@@ -830,7 +867,41 @@ async function generateCoreStrategy() {
         
         if(data.status === 'success') {
             textarea.value = data.strategy;
-            showGlobalFeedback('coreAlertBox', 'تم بنجاح', 'تم توليد وحفظ الجوهر الاستراتيجي بنجاح. الموظف الآن يعمل بذكاء 100%.', 'success');
+            
+            // عرض لوحة التحليل المرئية
+            if (data.analysis) {
+                const a = data.analysis;
+                document.getElementById('statTotalItems').textContent = a.total_items;
+                document.getElementById('statCategories').textContent = a.categories_count;
+                document.getElementById('statLevel').textContent = a.inventory_level;
+                
+                // ترجمة نوع الاستراتيجية للعرض
+                const strategyLabels = {
+                    'عرض_مباشر': 'عرض مباشر',
+                    'فئات_بسيطة': 'فئات بسيطة',
+                    'فئات_إلزامية': 'فئات إلزامية'
+                };
+                document.getElementById('statStrategy').textContent = strategyLabels[a.strategy_type] || a.strategy_type;
+                
+                // عرض شرائح الفئات المكتشفة
+                const chipsContainer = document.getElementById('categoriesChips');
+                if (a.categories && Object.keys(a.categories).length > 0) {
+                    let chipsHTML = '<small class="text-secondary me-2 fw-bold">الفئات:</small>';
+                    for (const [cat, count] of Object.entries(a.categories)) {
+                        chipsHTML += `<span class="badge rounded-pill text-bg-primary px-3 py-2" style="font-size: 0.8rem;">${cat} <span class="badge bg-white text-primary ms-1">${count}</span></span>`;
+                    }
+                    chipsContainer.innerHTML = chipsHTML;
+                    chipsContainer.style.display = 'flex';
+                    chipsContainer.style.cssText = 'display: flex !important;';
+                } else {
+                    chipsContainer.style.display = 'none';
+                    chipsContainer.style.cssText = 'display: none !important;';
+                }
+                
+                document.getElementById('analysisPanel').style.display = 'block';
+            }
+            
+            showGlobalFeedback('coreAlertBox', 'تم بنجاح', `تم تحليل ${data.analysis?.total_items || ''} عنصر واكتشاف ${data.analysis?.categories_count || 0} فئة. الموظف الآن يعمل بذكاء 100%.`, 'success');
             btn.innerHTML = '<i class="ti ti-check me-1"></i> تم التوليد!';
             setTimeout(() => {
                 btn.disabled = false;

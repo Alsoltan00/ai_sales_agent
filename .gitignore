@@ -34,3 +34,6 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Scratch scripts (may contain secrets)
+scratch/
