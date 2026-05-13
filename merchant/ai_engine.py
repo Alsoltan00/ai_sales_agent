@@ -241,6 +241,32 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     except Exception as e:
         print(f"[ENGINE] History error: {e}")
 
+    # ─── 4.5 PLANNING CONFIG + STRATEGY ──────────────────────────────────────
+    is_digital = False
+    custom_instructions = ""
+    ai_core_strategy = ""
+    ai_temperature = 0.1
+    ai_max_tokens = 600
+    order_flow = "in_chat"
+    routing = {}
+    try:
+        from merchant.planning.planning_config import get_planning_config
+        p_cfg = get_planning_config(client_id)
+        delivery_type = p_cfg.get("delivery_type", "physical")
+        order_flow = p_cfg.get("order_flow", "in_chat")
+        if delivery_type == "digital":
+            is_digital = True
+        
+        # بناء مصفوفة التوجيه الديناميكية
+        routing = get_routing_matrix(delivery_type, channel)
+        custom_instructions = (p_cfg.get("custom_instructions") or "").strip()
+        ai_core_strategy = (p_cfg.get("ai_core_strategy") or "").strip()
+        ai_temperature = float(p_cfg.get("ai_temperature") or 0.1)
+        ai_max_tokens = int(p_cfg.get("ai_max_tokens") or 600)
+    except Exception as e:
+        print(f"[ENGINE] Planning config error: {e}")
+        routing = get_routing_matrix("physical", channel)  # fallback
+
     # ─── 5. PRODUCT DATA (Smart Context-Aware Search) ─────────────────────────
     product_section = ""
     try:
@@ -279,6 +305,20 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             stop_words = {'ماذا', 'لديك', 'لديكم', 'عندك', 'عندكم', 'اعطني', 'اعطيني', 'ابغى', 'ابي', 'اريد', 'اختيارات', 'خيارات', 'ايش', 'وش', 'شنو', 'عرض', 'اعرض', 'قائمة', 'منتجات', 'خدمات', 'الكل', 'كل', 'جميع', 'شو', 'هل', 'في', 'من', 'على', 'مع', 'عن', 'الى', 'هذا', 'هذه', 'ذلك', 'تلك', 'لي', 'لك', 'ان', 'اذا', 'يا', 'او', 'كيف', 'متى', 'اين', 'لماذا', 'هنا'}
             keywords = [k.strip() for k in combined_text.replace("؟","").replace("?","").split() if len(k.strip()) >= 2 and k.strip().lower() not in stop_words]
             
+            # 🆕 تحسين: إذا كان هناك جوهر استراتيجي، نبحث عن كلمات البحث المفتاحية المرتبطة بالفئات المذكورة في رسالة المستخدم
+            if ai_core_strategy:
+                import re
+                # البحث عن أنماط مثل: • اسم الفئة (كلمات البحث: كذا، كذا)
+                cat_matches = re.findall(r"•\s*([^(]+)\s*\(كلمات البحث:\s*([^)]+)\)", ai_core_strategy)
+                for cat_name, cat_kws in cat_matches:
+                    cat_name_clean = cat_name.strip()
+                    # إذا ذكر المستخدم اسم الفئة في رسالته
+                    if cat_name_clean.lower() in combined_text.lower():
+                        # إضافة كلمات البحث الخاصة بهذه الفئة
+                        extra_kws = [ck.strip() for ck in cat_kws.split(",") if len(ck.strip()) >= 2]
+                        keywords.extend(extra_kws)
+                        print(f"[ENGINE] Smart category match: {cat_name_clean} -> Added keywords: {extra_kws}")
+
             # Remove duplicate keywords
             keywords = list(set(keywords))
 
@@ -389,34 +429,6 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 """
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
-
-    # ─── 6.5 DELIVERY TYPE + ROUTING MATRIX + CUSTOM INSTRUCTIONS ─────────────────
-    is_digital = False
-    custom_instructions = ""
-    ai_core_strategy = ""
-    ai_temperature = 0.1
-    ai_max_tokens = 600
-    order_flow = "in_chat"
-    routing = {}
-    try:
-        from merchant.planning.planning_config import get_planning_config
-        p_cfg = get_planning_config(client_id)
-        delivery_type = p_cfg.get("delivery_type", "physical")
-        order_flow = p_cfg.get("order_flow", "in_chat")
-        if delivery_type == "digital":
-            is_digital = True
-            print(f"[ENGINE] Digital product detected — shipping disabled")
-        # بناء مصفوفة التوجيه الديناميكية
-        routing = get_routing_matrix(delivery_type, channel)
-        print(f"[ENGINE] Routing Matrix: platform={routing['platform']}, auto={routing['auto_pulled']}, required={routing['required_fields']}, forbidden={routing['forbidden_fields']}")
-        custom_instructions = (p_cfg.get("custom_instructions") or "").strip()
-        ai_core_strategy = (p_cfg.get("ai_core_strategy") or "").strip()
-        ai_temperature = float(p_cfg.get("ai_temperature") or 0.1)
-        ai_max_tokens = int(p_cfg.get("ai_max_tokens") or 600)
-        print(f"[ENGINE] Model params: temp={ai_temperature}, max_tokens={ai_max_tokens}, order_flow={order_flow}")
-    except Exception as e:
-        print(f"[ENGINE] Planning config error: {e}")
-        routing = get_routing_matrix("physical", channel)  # fallback
 
     # ─── 6.6 SHIPPING DATA + ROUTING RULES ─────────────────────────────────────
     shipping_section = ""

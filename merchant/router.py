@@ -373,8 +373,8 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                 names_sample = [str(r.get(name_col, "")).strip() for r in products_raw if r.get(name_col)][:50]
                 clustering_prompt = f"""أنا لدي متجر يحتوي على المنتجات التالية: {", ".join(names_sample)}.
 أريدك أن تستخرج لي 5 إلى 8 "فئات كبرى" (Keywords Categories) منطقية تجمع هذه المنتجات.
-يجب أن تكون الفئات قصيرة (كلمة أو كلمتين).
-رد علي بتنسيق JSON فقط كقائمة نصوص: ["فئة1", "فئة2", ...]"""
+لكل فئة، استخرج أيضاً 3-4 "كلمات بحث مفتاحية" (Search Keywords) مرتبطة بها تساعد في البحث في قاعدة البيانات (مثال: فئة "إزالة المكياج" كلماتها هي: ["مزيل", "مكياج", "منظف"]).
+رد علي بتنسيق JSON حصراً ككائن (Object) مفتاحه اسم الفئة وقيمته قائمة الكلمات المفتاحية: {{"فئة1": ["كلمة1", "كلمة2"], ...}}"""
                 
                 try:
                     cluster_res = await get_ai_response(
@@ -383,13 +383,13 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                         phone_number="CLUSTERING",
                         channel="system"
                     )
-                    # تنظيف الرد وجلبه كـ list
+                    # تنظيف الرد وجلبه كـ dict
                     import re
-                    json_match = re.search(r'\[.*\]', cluster_res.replace("\n", ""), re.DOTALL)
+                    json_match = re.search(r'\{.*\}', cluster_res.replace("\n", ""), re.DOTALL)
                     if json_match:
-                        suggested_cats = json.loads(json_match.group(0))
-                        for cat in suggested_cats:
-                            categories_found[cat] = "تحليل ذكي"
+                        suggested_map = json.loads(json_match.group(0))
+                        for cat, keywords in suggested_map.items():
+                            categories_found[cat] = keywords # حفظ الكلمات المفتاحية بدلاً من نص ثابت
                 except:
                     pass
 
@@ -531,10 +531,14 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
 - استراتيجية العرض المُلزمة: {"عرض جميع العناصر مباشرة كأزرار (بدون فئات)" if inventory_strategy == "عرض_مباشر" else f"عرض الفئات أولاً ثم العناصر" if categories_found else "سؤال استكشافي ثم عرض"}
 """
         if categories_found:
-            auto_header += f"- عمود التصنيف: {category_column}\n"
-            auto_header += "- الفئات المتاحة (استخدمها حرفياً كأزرار):\n"
-            for cat, count in sorted(categories_found.items(), key=lambda x: x[1], reverse=True):
-                auto_header += f"  • {cat} ({count} عنصر)\n"
+            auto_header += f"- عمود التصنيف: {category_column or 'تحليل ذكي (Smart Analysis)'}\n"
+            auto_header += "- الفئات المتاحة (استخدمها حرفياً كأزرار، واستخدم كلمات البحث الملحقة بها للعثور على المنتجات في القاعدة):\n"
+            for cat, val in sorted(categories_found.items(), key=lambda x: x[0]):
+                if isinstance(val, list):
+                    # عرض الفئة مع كلمات البحث الخاصة بها
+                    auto_header += f"  • {cat} (كلمات البحث: {', '.join(val)})\n"
+                else:
+                    auto_header += f"  • {cat} ({val} عنصر)\n"
         
         if inventory_strategy == "عرض_مباشر" and total_items <= 6:
             # في حالة المنتجات القليلة: نضيف أسماء كل العناصر
