@@ -300,36 +300,55 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             active_cols = [k for k in products_raw[0].keys() if k not in disabled_cols]
         
         # ── تحديد عمود التصنيف المحتمل (الفئة/القسم) ──
-        category_keywords = ["فئة", "قسم", "تصنيف", "نوع", "مجموعة", "category", "type", "group", "section", "department"]
+        category_keywords = ["فئة", "قسم", "تصنيف", "نوع", "مجموعة", "ماركة", "براند", "category", "type", "group", "section", "department", "brand", "model"]
         category_column = None
         categories_found = {}
         
         for col_name in active_cols:
             col_lower = col_name.lower().strip()
             if any(kw in col_lower for kw in category_keywords):
-                category_column = col_name
-                break
-        
-        # إذا لم نجد عموداً بالاسم، نحاول الاكتشاف بالتكرار
-        # (العمود الذي يحتوي على قيم متكررة كثيراً يُرجح أنه فئة)
-        if not category_column and total_items > 6:
-            best_col = None
-            best_ratio = 0
-            for col_name in active_cols:
+                # التأكد من أن العمود يحتوي على قيم فعلية وليس فارغاً
                 unique_vals = set()
                 for row in products_raw:
                     val = str(row.get(col_name, "")).strip()
-                    if val and len(val) < 50:  # استبعاد النصوص الطويلة
-                        unique_vals.add(val)
-                if len(unique_vals) < 1:
+                    if val: unique_vals.add(val)
+                
+                # إذا كان عدد القيم الفريدة معقول (ليس منتجاً فريداً لكل صف)
+                if 1 < len(unique_vals) <= 60:
+                    category_column = col_name
+                    break
+        
+        # إذا لم نجد عموداً بالاسم، نحاول الاكتشاف بالتكرار
+        # (العمود الذي يحتوي على قيم متكررة كثيراً يُرجح أنه فئة)
+        if not category_column and total_items > 5:
+            best_col = None
+            best_ratio = 0
+            for col_name in active_cols:
+                # تخطي الأعمدة التي تبدو كأنها أسماء منتجات أو أوصاف طويلة
+                unique_vals = set()
+                total_non_empty = 0
+                for row in products_raw:
+                    val = str(row.get(col_name, "")).strip()
+                    if val:
+                        total_non_empty += 1
+                        if len(val) < 60: # استبعاد النصوص الطويلة جداً
+                            unique_vals.add(val)
+                
+                if len(unique_vals) < 2:
                     continue
-                # نسبة التكرار: كلما كان العدد الفريد أقل بكثير من الإجمالي = أعمدة تصنيف
-                ratio = total_items / len(unique_vals) if len(unique_vals) > 0 else 0
-                # نريد عموداً فيه 2-15 قيمة فريدة (فئات معقولة)
-                if 2 <= len(unique_vals) <= 15 and ratio > best_ratio:
-                    best_ratio = ratio
-                    best_col = col_name
-            if best_col and best_ratio >= 2:
+                
+                # نسبة التكرار
+                ratio = total_non_empty / len(unique_vals)
+                
+                # المعايير:
+                # 1. عدد القيم الفريدة بين 2 و 50 (فئات منطقية)
+                # 2. نسبة التكرار معقولة (على الأقل 1.2 عنصر لكل فئة في المتوسط)
+                if 2 <= len(unique_vals) <= 50 and ratio >= 1.2:
+                    if ratio > best_ratio:
+                        best_ratio = ratio
+                        best_col = col_name
+            
+            if best_col:
                 category_column = best_col
         
         # ── استخراج الفئات وعدد العناصر في كل فئة ──
