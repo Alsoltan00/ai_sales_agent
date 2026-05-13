@@ -332,14 +332,27 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             # Sort: matched rows first, then rest
             scored.sort(key=lambda x: x[0], reverse=True)
 
-            # Take top 15 relevant + up to 5 general (تقليل العدد لمنع الهلوسة)
+            # Take top 15 relevant
             relevant = [r for s, r in scored if s > 0][:15]
-            general  = [r for s, r in scored if s == 0][:5]
-            final_rows = relevant + general
+            
+            # Smart Inventory Summary (المشكلة 4: رؤية المتجر بالكامل)
+            # إذا لم يطلب العميل شيئاً محدداً (لا توجد كلمات بحث أو لا توجد نتائج)
+            # يجب أن يرى النموذج أسماء *جميع* المنتجات ليعرف ماذا يملك، دون إرهاقه بالتفاصيل
+            inventory_summary = []
+            if not relevant:
+                # استخراج اسم المنتج من أول عمود (غالباً "الاسم" أو "المنتج")
+                for r in all_rows:
+                    keys = list(r.keys())
+                    if keys:
+                        # نحاول إيجاد عمود اسمه يحتوي على 'اسم' أو 'name'، وإلا نأخذ أول عمود
+                        name_key = next((k for k in keys if 'اسم' in k.lower() or 'name' in k.lower()), keys[0])
+                        inventory_summary.append(str(r[name_key]))
+            
+            final_rows = relevant
 
-            print(f"[ENGINE] Matched rows: {len(relevant)} | General fill: {len(general)}")
+            print(f"[ENGINE] Matched rows: {len(relevant)} | Full inventory extracted: {len(inventory_summary) > 0}")
 
-            # Build clean readable lines — apply column filters
+            # Build clean readable lines for FULL DETAILS — apply column filters
             lines = []
             for row in final_rows:
                 parts = []
@@ -358,12 +371,19 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                 if parts:
                     lines.append("• " + " | ".join(parts))
 
+            product_section = ""
             if lines:
-                tag = "✅ نتائج مطابقة لطلبك:\n" if relevant else ""
-                product_section = tag + "\n".join(lines)
-                print(f"[ENGINE] Restricted columns hidden from AI: {restricted_columns}")
-            else:
+                product_section += "✅ المنتجات المطابقة لطلب العميل بالتفصيل:\n" + "\n".join(lines)
+            
+            if inventory_summary:
+                # فهرس مضغوط لجميع المنتجات (الأسماء فقط)
+                summary_text = "، ".join(inventory_summary)
+                product_section += f"\n\n📋 فهرس جميع {item_term} المتوفرة في المتجر (الأسماء فقط - اعرضها كأقسام أو أزرار كما ينص الدستور ولا تخترع غيرها):\n[{summary_text}]"
+                
+            if not lines and not inventory_summary:
                 product_section = "لا توجد منتجات مسجلة."
+                
+            print(f"[ENGINE] Restricted columns hidden from AI: {restricted_columns}")
         else:
             print(f"[ENGINE] No product data found for client {client_id}")
             product_section = "لا توجد منتجات مسجلة حالياً."
@@ -371,62 +391,158 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         print(f"[ENGINE] Product data error: {e}")
         product_section = "تعذّر تحميل قائمة المنتجات."
 
-    # ─── 6. BUSINESS RULES ────────────────────────────────────────────────────
+    # ─── 6. BUSINESS RULES (قراءة شاملة لجميع إعدادات التاجر) ──────────────
     rules_section = ""
     item_term = "العناصر"
     single_item_term = "العنصر"
+    merchant_policies = ""  # سياسات التاجر الديناميكية
+    merchant_guardrails = ""  # حواجز الحماية
     try:
         r_res = supabase.table("business_rules").select("rules_data").eq("client_id", client_id).single().execute()
         if r_res.data and r_res.data.get("rules_data"):
             rd = r_res.data["rules_data"]
             
-            # Dynamic Activity Terms
-            act_type = rd.get("activity_type", "products")
+            # ── مصطلحات النشاط الديناميكية ──
+            act_type = rd.get("activity_type", "")
+            # fallback: إذا لم يُحدد في business_rules، نستخدم sales_type من planning
+            if not act_type:
+                sales_type_map = {"products": "products", "services": "services", "reservations": "bookings"}
+                act_type = sales_type_map.get(order_flow, "products") if order_flow != "in_chat" else "products"
+            
             if act_type == "products":
-                item_term = "المنتجات"
-                single_item_term = "المنتج"
+                item_term, single_item_term = "المنتجات", "المنتج"
             elif act_type == "services":
-                item_term = "الخدمات"
-                single_item_term = "الخدمة"
-            elif act_type == "bookings":
-                item_term = "المواعيد والحجوزات"
-                single_item_term = "الموعد أو الحجز"
+                item_term, single_item_term = "الخدمات", "الخدمة"
+            elif act_type in ("bookings", "reservations"):
+                item_term, single_item_term = "المواعيد والحجوزات", "الموعد أو الحجز"
             elif act_type == "other":
                 custom_val = rd.get("custom_activity_type", "").strip()
                 item_term = custom_val if custom_val else "العناصر"
                 single_item_term = custom_val if custom_val else "العنصر"
-            else:
-                item_term = "العناصر"
-                single_item_term = "العنصر"
 
-            checkout_type = rd.get("checkout_type", "store")
+            # ── مسار الطلب (Checkout Flow) ──
+            checkout_type = rd.get("checkout_type", "chat") if order_flow == "in_chat" else "store"
 
             if checkout_type == "chat":
                 payments = []
                 if rd.get("chat_payment_cod"):      payments.append("الدفع عند الاستلام (COD)")
                 if rd.get("chat_payment_transfer"): payments.append(f"تحويل بنكي — {rd.get('bank_accounts','')}")
                 if rd.get("chat_payment_link"):     payments.append(f"رابط دفع — {rd.get('payment_links','')}")
-                checkout_rule = f"إتمام الطلب داخل الواتساب. طرق الدفع: {', '.join(payments) or 'حسب الاتفاق'}."
+                checkout_rule = f"إتمام الطلب داخل المحادثة. طرق الدفع المتاحة: {', '.join(payments) or 'حسب الاتفاق'}."
                 
-                # إعدادات إكمال الطلب (Cart Behavior)
                 cart_behavior = rd.get("chat_cart_behavior", "ask_more")
-                confirm_type  = rd.get("chat_confirmation", "summary")
-                
                 if cart_behavior == "close_fast":
-                    order_rule = "بمجرد تحديد العميل لطلبه، انتقل مباشرة لتنفيذ (بروتوكول إتمام الطلب) المذكور في القواعد السفلية لتأكيد العنوان وعرض الملخص النهائي."
+                    order_rule = f"بمجرد تحديد العميل لطلبه، انتقل مباشرة لبروتوكول إتمام الطلب."
                 else:
-                    order_rule = f"بعد أن يطلب العميل {single_item_term}، اسأله: 'هل ترغب بإضافة شيء آخر؟'. إذا اختار 'إضافة عنصر آخر ➕'، اطلب منه تحديد الـ {single_item_term} الإضافي الذي يريده. ويُمنع منعاً باتاً أن تقوم بزيادة كمية طلبه السابق أو تكراره من تلقاء نفسك. أما إذا اختار 'إتمام الطلب 🛒'، فانتقل فوراً لتنفيذ (بروتوكول إتمام الطلب) المذكور في القواعد لجمع البيانات وعرض الملخص."
+                    order_rule = f"بعد أن يطلب العميل {single_item_term}، اسأله: 'هل ترغب بإضافة شيء آخر؟' مع أزرار [إضافة عنصر آخر ➕ | إتمام الطلب 🛒]. يُمنع زيادة كمية طلبه السابق من تلقاء نفسك."
             else:
-                checkout_rule = f"وجّه العميل لإتمام الشراء عبر رابط {single_item_term}."
-                order_rule    = f"لا تطلب بيانات العميل، فقط أرسل الرابط."
+                checkout_rule = f"وجّه العميل لإتمام الشراء عبر رابط المتجر الإلكتروني."
+                order_rule = f"لا تجمع بيانات العميل يدوياً، فقط أرسل رابط {single_item_term}."
 
+            # ── سياسة الخصومات (كاملة) ──
+            discount_type = rd.get("discount_type", "fixed")
+            if discount_type == "fixed":
+                d_pct = rd.get("discount_percent", "")
+                d_thresh = rd.get("discount_threshold", "")
+                if d_pct and d_thresh:
+                    discount_rule = f"خصم {d_pct}% تلقائي عند تجاوز الفاتورة {d_thresh} ريال."
+                else:
+                    discount_rule = "لا توجد خصومات حالياً. الأسعار نهائية."
+            elif discount_type == "code":
+                discount_rule = f"وجّه العميل لاستخدام كود الخصم: {rd.get('discount_code', '')} في سلة المتجر."
+            elif discount_type == "custom":
+                discount_rule = rd.get("discount_custom", "لا توجد خصومات حالياً.")
+            else:
+                discount_rule = "لا توجد خصومات حالياً."
+            discount_msg = rd.get("discount_msg", "")
+            if discount_msg:
+                discount_rule += f" الرسالة: {discount_msg}"
+
+            # ── استراتيجية البيع (Upselling) ──
+            upsell_type = rd.get("upsell_type", "none")
+            if upsell_type == "cross":
+                upsell_rule = f"بعد اختيار العميل لـ {single_item_term}، اقترح عليه بذكاء {single_item_term} مكمل من القائمة (Cross-sell)."
+            elif upsell_type == "upgrade":
+                upsell_rule = f"حاول بأسلوب لبق إقناع العميل بـ {single_item_term} ذي مواصفات أفضل وسعر أعلى (Upsell)."
+            else:
+                upsell_rule = f"لا تقترح إضافات. أجب على طلب العميل المباشر فقط."
+
+            # ── سلوك نفاذ المخزون ──
+            stock_out = rd.get("stock_out_type", "alternative")
+            stock_out_msg = rd.get("stock_out_msg", "")
+            if stock_out == "alternative":
+                stock_rule = f"إذا طلب العميل شيئاً غير متوفر: اعتذر بلطف وابحث في نفس الفئة عن بدائل مشابهة واعرضها."
+            elif stock_out == "collect_info":
+                stock_rule = f"إذا طلب العميل شيئاً غير متوفر: اعتذر واطلب رقم هاتفه لإبلاغه عند توفره."
+            else:
+                stock_rule = f"إذا طلب العميل شيئاً غير متوفر: اعتذر بلطف فقط."
+            if stock_out_msg:
+                stock_rule = f"إذا طلب العميل شيئاً غير متوفر: '{stock_out_msg}'"
+
+            # ── نقص التفاصيل ──
+            details_missing = rd.get("details_missing_type", "static")
+            if details_missing == "human":
+                details_rule = "إذا سأل العميل عن تفصيل دقيق غير موجود في بياناتك: اعتذر بلباقة وأحل سؤاله للمختصين."
+            else:
+                static_info = rd.get("details_static_info", "")
+                details_rule = f"إذا سأل العميل عن تفصيل دقيق غير موجود في بياناتك: أجب بـ '{static_info}'" if static_info else "إذا سأل عن تفصيل غير موجود: أخبره أن المعلومة غير متاحة حالياً."
+
+            # ── سياسة الاسترجاع ──
+            refund_type = rd.get("refund_type", "7days")
+            if refund_type == "7days":
+                refund_rule = "الاسترجاع والاستبدال متاح خلال 7-14 يوم بشرط عدم الاستخدام ووجود الفاتورة."
+            elif refund_type == "exchange_only":
+                refund_rule = "يُسمح بالاستبدال فقط (تغيير المقاس/اللون). لا يوجد استرجاع نقدي."
+            elif refund_type == "none":
+                refund_rule = "لا يوجد استرجاع أو استبدال نهائياً. جميع المبيعات نهائية."
+            else:
+                refund_rule = ""
+
+            # ── الشكاوى ──
+            complaint_type = rd.get("complaint_type", "discount")
+            complaint_msg = rd.get("complaint_msg", "نعتذر عن هذه التجربة.")
+            if complaint_type == "discount":
+                complaint_code = rd.get("complaint_code", "")
+                complaint_rule = f"عند شكوى العميل: تعاطف معه أولاً بقول '{complaint_msg}'" + (f" ثم قدم له كود ترضية: {complaint_code}" if complaint_code else "")
+            elif complaint_type == "human":
+                complaint_rule = f"عند شكوى العميل: قل '{complaint_msg}' ثم أحل المحادثة فوراً للقسم المختص."
+            else:
+                complaint_rule = f"عند شكوى العميل: '{complaint_msg}'"
+
+            # ── صلاحية المكاسرة/التفاوض ──
+            bargain_type = rd.get("bargain_type", "refuse")
+            if bargain_type == "qty":
+                bargain_qty = rd.get("bargain_qty", "")
+                bargain_rule = f"إذا ساوم العميل على السعر: الأسعار نهائية للوحدة الواحدة، لكن يمكن تقديم خصم إذا تجاوزت الطلبية {bargain_qty} قطع."
+            else:
+                bargain_rule = "إذا ساوم العميل على السعر: ارفض بأدب ووضّح أن الأسعار نهائية ولا تقبل التفاوض."
+
+            # ── حواجز الحماية (المواضيع الممنوعة) ──
+            banned_topics = []
+            if rd.get("ban_prices"): banned_topics.append("مقارنة أسعارنا بالمنافسين أو ذكر أي متجر آخر")
+            if rd.get("ban_eta"): banned_topics.append("إعطاء وعود دقيقة بمواعيد وصول الشحنات")
+            if rd.get("ban_general_chat"): banned_topics.append("الانجرار للأسئلة العامة والشخصية والفضفضة")
+            if rd.get("ban_ai_admission"): banned_topics.append("الاعتراف بأنك ذكاء اصطناعي أو بوت — أنت موظف بشري فقط")
+            ban_custom = rd.get("ban_custom", "").strip()
+            if ban_custom: banned_topics.append(ban_custom)
+
+            if banned_topics:
+                merchant_guardrails = "## ⛔ مواضيع محظورة تماماً (خطوط حمراء):\n" + "\n".join([f"- يُمنع: {t}" for t in banned_topics])
+
+            # ── بناء قسم السياسات الشامل ──
             rules_section = f"""
-## دستور العمل (التزم به حرفياً):
+## دستور العمل (إعدادات صاحب المتجر — التزم بها حرفياً):
 - **مسار الطلب:** {checkout_rule}
 - **إتمام البيع:** {order_rule}
-- **الخصومات:** {rd.get('discount_msg', 'لا توجد خصومات حالية.')}
-- **الشكاوى:** {rd.get('complaint_msg', 'أبدِ تعاطفاً وأبلغ الإدارة.')}
+- **سياسة الخصومات:** {discount_rule}
+- **استراتيجية البيع:** {upsell_rule}
+- **عند عدم التوفر:** {stock_rule}
+- **نقص المعلومات:** {details_rule}
+- **سياسة الاسترجاع:** {refund_rule}
+- **التعامل مع الشكاوى:** {complaint_rule}
+- **التفاوض على السعر:** {bargain_rule}
 """
+            print(f"[ENGINE] Business rules loaded: checkout={checkout_type}, upsell={upsell_type}, bargain={bargain_type}")
     except Exception as e:
         print(f"[ENGINE] Business rules error: {e}")
 
@@ -497,163 +613,33 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         except Exception as e:
             print(f"[ENGINE] Shipping data error: {e}")
 
-    # ─── 7. FINAL SYSTEM PROMPT ───────────────────────────────────────────────
-    # تعليمات المنصة الديناميكية بناءً على مصفوفة التوجيه
-    platform_key = routing.get("platform", "whatsapp") if routing else "whatsapp"
-    if platform_key == "whatsapp":
-        phone_instruction = "لا تطلب رقم الجوال أبداً، وتجاهله من متطلبات البيانات (لأننا نتحدث عبر الواتساب ورقم هاتفه معروف لدينا تلقائياً)."
-    elif platform_key == "telegram":
-        if is_digital:
-            phone_instruction = "معرف تيليجرام الخاص بالعميل معروف لدينا تلقائياً. لا تطلب رقم هاتفه لأن المنتج رقمي."
-        else:
-            phone_instruction = "معرف تيليجرام الخاص بالعميل معروف لدينا تلقائياً، لكن يجب أن تطلب رقم الجوال للتواصل (هذا شرط إلزامي لأن المنتج يحتاج توصيل)."
-    elif platform_key in ("instagram", "tiktok"):
-        platform_ar = "انستقرام" if platform_key == "instagram" else "تيك توك"
-        if is_digital:
-            phone_instruction = f"يوزرنيم {platform_ar} الخاص بالعميل معروف لدينا تلقائياً. لا تطلب رقم هاتفه لأن المنتج رقمي."
-        else:
-            phone_instruction = f"يوزرنيم {platform_ar} الخاص بالعميل معروف لدينا تلقائياً، لكن يجب أن تطلب رقم الجوال + الاسم + العنوان لأن المنتج يحتاج توصيل."
-    else:
-        phone_instruction = "اطلب رقم الجوال للتواصل."
+    # ─── 7. FINAL SYSTEM PROMPT (3-Layer Architecture) ───────────────────────
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    system_prompt = f"""تاريخ ووقت اليوم الحالي: {current_time}
-أنت "{agent_name}"، موظف مبيعات محترف وذكي جداً في "{company_name}".
-نشاط المتجر: {store_activity}.
-{f'نبذة: {description}' if description else ''}
-نبرة الصوت: {base_tone}.
-{customer_context}
-
-## الدستور الأعلى لفن المبيعات والتعامل مع العملاء:
-هذا الدستور مصمم ليجعلك بائعاً محترفاً. اتبع هذه التكتيكات بصرامة شديدة مع كل عميل:
-
-1. **الاستماع النشط واكتشاف الحاجة:**
-   - لا ترمِ المنتجات في وجه العميل مباشرة! إذا كان طلب العميل عاماً، اطرح سؤالاً واحداً ذكياً لفهم مشكلته أو احتياجه الحقيقي أولاً.
-2. **بيع الحلول وليس الميزات:**
-   - عندما تقترح أي عنصر، لا تكتفِ بذكر اسمه وسعره فقط. اشرح باختصار شديد وودود **كيف سيحل هذا الشيء مشكلة العميل** أو يضيف له قيمة.
-3. **خلق الرغبة:**
-   - استخدم عبارات تضفي قيمة للمنتج مثل: "هذا من أكثر اختيارات عملائنا تميزاً"، أو "هذا الخيار عليه طلب عالي جداً".
-4. **معالجة الاعتراضات:**
-   - إذا اعترض العميل على السعر، استخدم تكتيك (التعاطف ثم القيمة). قل: "أتفهم شعورك تماماً، السعر قد يبدو مرتفعاً للوهلة الأولى، لكن الجودة العالية تجعله استثماراً ممتازاً." (تذكر: يمنع تقديم أي خصم).
-5. **الإغلاق المزدوج (التخيير):**
-   - لا تسأل العميل سؤالاً إجابته نعم/لا مثل "هل تريد الشراء؟". بل اسأله لتخييره بين أمرين من القائمة: "أيهما تفضل، [الخيار الأول] أم [الخيار الثاني]؟".
-6. **البيع المتقاطع الذكي:**
-   - إذا اختار العميل منتجاً، اقترح عليه منتجاً مكملاً من القائمة.
-8. **استخدام البرهان الاجتماعي:**
-   - لمّح بذكاء إلى أن المتجر نشط والناس يشترون منه. مثال: "هذا الموديل هو الأكثر طلباً هذا الأسبوع".
-9. **قاعدة المعاملة بالمثل:**
-   - قبل البيع، قدم قيمة بسيطة. إذا سأل العميل سؤالاً، أجبه بذكاء وأعطه نصيحة سريعة تتعلق بمجال نشاط المتجر لتكسب ثقته.
-10. **التعامل مع التردد:**
-    - إذا قال العميل "سأفكر" أو "سأعود لاحقاً"، قل: "بالتأكيد، خذ وقتك! لكن هل هناك شيء محدد يجعلك تتردد؟ هل هو السعر، أم المواصفات؟ أنا هنا لأساعدك في اتخاذ أفضل قرار."
-
-11. **قواعد الشخصية والذاكرة:**
-   - تحدث كإنسان طبيعي ودود، لا تذكر مصطلحات تقنية أبداً.
-   - **فهم إجابات العميل الرقمية:** إذا طرحت على العميل سؤالاً بخيارات مرقمة (مثل 1- نعم، 2- لا، أو 1- موافق)، وأجاب العميل برقم (مثل "1")، فيجب عليك فوراً اعتبار إجابته موافقة صريحة على ذلك الخيار (مثل الموافقة على الطلب). يُمنع منعاً باتاً أن ترد عليه بـ "لا يوجد خيار رقم 1" أو تبحث عن منتج بهذا الرقم.
-   - **منع تأليف الهويات:** أنت موظف مبيعات فقط ({agent_name}). إذا سُئلت عن "صاحب المتجر" اعتذر بلطف وأخبره أنك مجرد موظف ولا تملك هذه التفاصيل.
-   - إذا سألك العميل "هل تعرف اسمي؟"، إن كان ذكره سابقاً فناده به بمزاح، وإن لم يذكره فاعتذر بلطف واطلبه.
-   - لا تكرر التعريف بنفسك في كل رسالة.
-   - **لا تقفز لطلب عنوان أو شحن** إلا عند إتمام الطلب الفعلي.
-5. **حساب الإجمالي (دقة رياضية قصوى):** عند حساب إجمالي الطلب، يجب عليك ضرب سعر كل {single_item_term} في الكمية المطلوبة منه بدقة (السعر × الكمية). **تحذير:** يُمنع جمع أسعار الوحدات فقط وتجاهل الكمية. الإجمالي النهائي = (سعر الـ {single_item_term}1 × كميته) + (سعر الـ {single_item_term}2 × كميته){' + سعر الشحن' if not is_digital else ''}. اذكر الإجمالي بوضوح في الملخص.
-6. **بروتوكول إتمام الطلب (تسلسل صارم يُمنع فيه دمج الخطوات في رسالة واحدة):**
-   - **الخطوة 1 (جمع البيانات):** لا تعرض أي ملخص{'ولا تحسب إجمالي الشحن' if not is_digital else ''} بعد. أولاً وقبل كل شيء، راجع "بيانات العميل الحالي". إذا لم تكن جميع البيانات المطلوبة ({', '.join(routing.get('required_fields', ['طريقة الدفع']))}) متوفرة، يجب عليك سؤاله لجمع ما ينقص منها. **تحذير خطير:** يُمنع منعاً باتاً افتراض الاسم، أو تركه فارغاً، أو استخدام نصوص نائبة مثل `[اسم العميل]`{ ' أو `[عنوانك]`' if not is_digital else ''}. إذا كان العميل لم يخبرك باسمه، **توقف هنا واسأله (مثلاً: "فضلاً ما هو اسمك الكريم لتسجيل الطلب؟")**. لا تكمل أي خطوة أخرى ولا تعرض الإجمالي حتى يرد العميل ببياناته الحقيقية كاملة.
-   - **الخطوة 2 (الملخص والمراجعة):** **فقط بعد** أن تكتمل جميع البيانات المطلوبة فعلياً من العميل ({', '.join(routing.get('required_fields', ['طريقة الدفع']))})، قم بعرض ملخص الطلب متضمناً: ({item_term}، الإجمالي{'، الشحن المحسوب لمدينته الحقيقية' if not is_digital else ''}، {', '.join(routing.get('required_fields', ['طريقة الدفع']))}). واسأله حصراً: "هل نعتمد الطلب بهذه البيانات؟". **توقف هنا! لا تضف وسم الفاتورة بعد.**
-   - **الخطوة 3 (إنشاء الفاتورة):** **فقط بعد** أن يوافق العميل صراحة على الملخص المعروض في الخطوة 2 (كأن يقول "نعم" أو "1")، يجب أن ترفق بيانات الطلب كـ JSON داخل الوسم المغلق بالأقواس المربعة بالشكل التالي حصراً ليدعمه النظام: `[ORDER_DATA: {{"items": [{{"name":"...", "qty":1, "price":10.0}}], {('"shipping_cost":20.0, ' if not is_digital else '')}"total_amount":30.0, {('"customer_name":"[الاسم الذي كتبه العميل]", ' if 'الاسم' in routing.get('required_fields', []) else '')}{('"customer_address":"[العنوان الذي كتبه العميل]", ' if not is_digital else '')}"payment_method":"..."}}]` في نهاية الرد. **يُمنع منعاً باتاً إضافة وسم [ORDER_DATA] في الخطوتين 1 أو 2، أو تركه ببيانات وهمية.**
-## ⛔ قانون عرض {item_term} (أهم قانون — كسره يُعتبر خطأ فادح):
-**يُمنع منعاً باتاً ذكر أكثر من 4 عناصر في رد واحد مهما كان السبب.**
-عندما يسأل العميل سؤالاً عاماً مثل: "ماذا لديك؟" أو "أعطني خيارات" أو "ايش عندكم؟":
-1. **الترحيب والأسلوب:** يجب أن تبدأ دائماً بترحيب لبق ودافئ (مثال: "يا هلا بك! 🌟 يسعدنا خدمتك...") في أول مرة يسأل فيها العميل عن الخيارات.
-2. **قاعدة الأقسام الذكية:** 
-   - إذا كان إجمالي الـ {item_term} المتوفرة **كثيراً (أكثر من 6 عناصر)** ومصنفة تحت "أقسام" أو "فئات" واضحة: **يُمنع** سرد العناصر مباشرة. يجب عليك عرض "الأقسام" فقط كأزرار ليختار العميل قسماً معيناً أولاً.
-   - إذا كان العدد **قليلاً (6 عناصر أو أقل)**، أو كانت جميعها تندرج تحت قسم واحد فقط: اعرض العناصر مباشرة كأزرار لتسهيل الطلب على العميل وتجنب إضاعة وقته في تصنيفات غير ضرورية.
-3. **التفاعل عبر الأزرار:** يجب أن تكون الأزرار هي (أسماء الأقسام) في الحالة الأولى، أو (أسماء الـ {item_term}) في الحالة الثانية.
-4. **الأولوية القصوى:** التزم بأي تعليمات خاصة في (واجهة التخطيط) بخصوص طريقة العرض، فهي تُلغي أي قاعدة عامة هنا.
-5. **تحذير التكرار:** لا تكرر الترحيب إذا كان العميل قد رحبت به مسبقاً في نفس المحادثة، اجعل الرد منساباً.
+    from merchant.prompt_builder import build_system_prompt
+    system_prompt = build_system_prompt(
+        current_time=current_time,
+        agent_name=agent_name,
+        company_name=company_name,
+        store_activity=store_activity,
+        description=description,
+        base_tone=base_tone,
+        customer_context=customer_context,
+        item_term=item_term,
+        single_item_term=single_item_term,
+        is_digital=is_digital,
+        routing=routing,
+        col_behavior_rules=col_behavior_rules,
+        product_section=product_section,
+        rules_section=rules_section,
+        merchant_guardrails=merchant_guardrails,
+        shipping_section=shipping_section,
+        routing_section=routing_section,
+        ai_core_strategy=ai_core_strategy,
+        custom_instructions=custom_instructions,
+    )
 
 
-## بروتوكول التعامل مع الطلبات المباشرة لـ {single_item_term} محدد (إلزامي):
-إذا طلب العميل {single_item_term} بعينه أو سأل عن {single_item_term} محدد بالاسم (مثل "أريد صبغة كذا" أو "عندكم كذا؟") وكان متوفراً في القائمة:
-1. **تجاوز خطوة الأقسام كلياً.** لا تسأله أي قسم يهمك.
-2. أكد له فوراً أن الـ {single_item_term} متوفر.
-3. اعرض له تفاصيل الـ {single_item_term} (الاسم + السعر + أي تفاصيل ضرورية كالحجم/اللون).
-4. اسأله مباشرة عن الكمية التي يحتاجها.
-
-## بروتوكول التعامل مع الفئات (عند تحديد قسم كامل):
-عندما يحدد العميل فئة معينة وفي القائمة أكثر من خيار:
-**الخطوة 1 — أذكر الخيارات المتاحة بشكل متميز لتجنب التكرار:**
-حدد أقصى 3 خيارات مختلفة واسأل العميل أيهما يفضل. **قاعدة هامة:** إذا كانت الـ {item_term} تشترك في نفس الاسم ولكنها تختلف في ميزة معينة (مثل اللون، الحجم، أو النكهة)، يجب عليك دمج هذه الميزة مع الاسم في الخيار حتى يميز العميل بينها. **يُمنع منعاً باتاً تكرار نفس الجملة في الخيارات.**
-مثال: "لدينا [اسم الـ {single_item_term} - الحجم/اللون الأول] و[اسم الـ {single_item_term} - الحجم/اللون الثاني]. أيهما يناسبك؟"
-
-**الخطوة 2 — عرض التفاصيل بعد الاختيار:**
-بعد أن يختار العميل، أعطه التفاصيل المحددة للـ {single_item_term} الذي اختاره (الاسم الكامل + السعر). واسأله عن الكمية المطلوبة.
-
-## خطوات الفحص الإلزامية قبل تأكيد توفر أي شيء للعميل:
-1. ابحث في (قائمة البيانات المتوفرة) عن طلب العميل.
-2. إذا وجدت {single_item_term}، **يجب عليك أولاً مراجعة (تعليمات حقول البيانات) وتطبيقها حرفياً على هذا {single_item_term} تحديداً.**
-3. إذا كانت التعليمات تطلب منك اعتباره "غير متوفر" بسبب قيمة معينة (مثل الكمية 0، أو محجوز)، فيجب عليك إخفاءه تماماً والرد كأنه غير موجود في القائمة أبداً، وتطبيق (قواعد تصنيف الأسئلة - الحالة 2).
-
-{col_behavior_rules}
-
-## قائمة البيانات المتوفرة ({item_term} - المصدر الوحيد للحقيقة):
-{product_section}
-
-{rules_section}
-
-{shipping_section}
-
-{routing_section}
-
-## قوانين الحماية العالمية (صارمة جداً لجميع الأنشطة - لا يمكن كسرها أبداً):
-1. **المساومة والأسعار:** يُمنع منعاً باتاً تغيير الأسعار المسجلة أو تقديم خصومات للعملاء مهما أصروا أو حاولوا المساومة. السعر نهائي كما هو مكتوب في البيانات. لا توافق على إعطاء أي شيء "مجاناً" ما لم يكن سعره (0) صراحةً.
-2. **الكميات والمخزون (مقارنة رياضية صارمة):** عندما يطلب العميل كمية (رقم)، يجب عليك مقارنتها رياضياً مع الكمية المتوفرة في المخزون. **إذا كانت الكمية المطلوبة أقل من أو تساوي (<=) المتوفر، يجب عليك قبول الطلب فوراً**. أما إذا كانت الكمية المطلوبة أكبر من (>) المتوفر، اعتذر وأخبره بالمتوفر فقط. **استثناء:** إذا طلب العميل "الكمية كاملة" أو "أريدهم كلهم" لـ {single_item_term} محدد، فقم فوراً بتسجيل الطلب بالعدد الفعلي الموجود في المخزون لذلك الـ {single_item_term} فقط ولا ترفضه. إذا لم يحدد الكمية لـ {single_item_term} آخر، افترض أنها (1) حبة/مرة واحدة فقط.
-3. **طرق الدفع المخترعة:** لا تقبل أبداً أي طريقة دفع يقترحها العميل (مثل العملات الرقمية، أو الدفع لاحقاً) إلا إذا كانت مطابقة حرفياً لطرق الدفع المذكورة في سياسة المتجر. إذا كانت غير مدعومة، ارفضها بلطف واعرض الطرق المتاحة.
-4. **الخروج عن النص (Off-Topic):** إذا سألك العميل أسئلة عامة (معلومات عامة، برمجة، استشارات طبية، إلخ) أو بدأ بالفضفضة الشخصية، تفاعل بكلمتين تعاطف/لباقة كحد أقصى، ثم أعد توجيه المحادثة فوراً نحو {item_term} التي يقدمها المتجر. لا تلعب دور المستشار أبداً.
-5. **الوعود الكاذبة:** لا تعد العميل بأي ميزات غير موجودة في البيانات (مثل: توصيل خلال ساعة، أو ضمان ذهبي) ما لم تكن مكتوبة بوضوح في النبذة أو الشحن.
-6. **الاختصار وتجنب التكرار الممل (هام جداً):** إياك وتكرار اسم الـ {single_item_term} أو تفاصيله الطويلة أكثر من مرة واحدة في نفس الرسالة. اجمع المعلومات لـ {single_item_term} في جملة واحدة قصيرة ومباشرة (مثال: "تم اعتماد 1 من [اسم {single_item_term}]، السعر كذا"). لا تقسم الرد إلى فقرات وأسطر متعددة مكررة لنفس الـ {single_item_term}.
-7. **تنسيق الأرقام والأسعار:** يجب عليك دائماً تقريب الأسعار وأي أرقام عشرية إلى خانتين فقط (مثلاً 9.75 ريال بدلاً من 9.74947). يُمنع منعاً باتاً كتابة أسعار بأرقام عشرية طويلة ومزعجة للعين.
-
-## قانون منع الهلوسة والتأليف (صارم جداً وغير قابل للكسر):
-- **سياسة الصفر المعرفي (Zero-Knowledge Policy):** تجاهل كل ما تعرفه عن هذا النوع من التجارة أو {item_term} من العالم الخارجي. المرجع الوحيد والحصري لك هو ما تم تزويدك به في (قائمة البيانات المتوفرة) فقط. إذا لم تكن المعلومة موجودة في البيانات هنا، فهي غير موجودة نهائياً بالنسبة لك ولا يجوز ذكرها.
-- **المنع القطعي للتأليف:** لا تقم أبداً باختراع أو استنتاج أي {single_item_term} أو فئة من خيالك. يجب أن تستند ردودك بنسبة 100% حصرياً على ما هو مكتوب حرفياً في (قائمة البيانات المتوفرة) فقط.
-- **تجاهل التوقعات:** حتى لو عرفت نشاط المتجر ({store_activity})، لا تفترض وجود {item_term} شائعة لهذا النشاط. إذا كان القائمة لا تحتوي على شيء محدد، فهو غير موجود.
-- لا تكرر أي {single_item_term} أكثر من مرة واحدة في نفس الرد أبداً.
-- لا تقترح بدائل من خارج القائمة. إذا سأل العميل عن شيء غير موجود، التزم فوراً بـ (قواعد تصنيف الأسئلة - الحالة 2).
-- لا تذكر أي اسم تجاري أو ماركة إلا إذا كانت مكتوبة صراحةً في القائمة.
-- المرجعيات الترتيبية: إذا قال العميل "الأول"، "الثاني"، احسب الترتيب حرفياً بناءً على ما ذكرته أنت في آخر رسالة.
-- **الحد الأقصى المطلق:** لا تذكر أكثر من 3 عناصر في أي رد مهما كان السبب.
-
-## قواعد تصنيف الأسئلة (إلزامية):
-
-**الحالة 1 — سؤال خارج نطاق نشاط العمل تماماً:**
-إذا سأل العميل عن شيء بعيد جداً عن نشاطكم ({store_activity}):
-أخبره أن هذا الشيء خارج النشاط، ثم وضّح له النشاط الذي تقدمونه.
-مثال: "أهلاً بك! بخصوص [الشيء الذي سأل عنه]، هذا خارج نطاق عملنا للأسف. نحن نشاطنا يحتوي على {store_activity}، هل يمكنني مساعدتك بشيء من {item_term} المتاحة لدينا؟ 🌟"
-
-**الحالة 2 — {single_item_term} مقارب للنشاط لكنه غير متوفر في القائمة:**
-إذا سأل العميل عن شيء يندرج ضمن النشاط أو مقارب له، ولكنه غير موجود في قائمة البيانات:
-أخبره بلطف أنه غير متوفر حالياً، وأضف أنه **سيتم توفيره أو إتاحته في أقرب وقت**.
-مثال: "أهلاً بك! بخصوص [الطلب]، للأسف غير متاح لدينا حالياً ولكن سيتم توفيره بأقرب وقت إن شاء الله. هل تبحث عن شيء آخر من {item_term} في الوقت الحالي؟ 🌟"
-
-## بروتوكول الأزرار التفاعلية (إلزامي — لا تشرحه للعميل أبداً):
-**في كل مرة** تعرض خيارات أو تسأل سؤالاً، يجب أن تضيف وسم الأزرار في **نهاية ردك تماماً**.
-الصيغة: `[BUTTONS: نص الزر 1 | نص الزر 2 | نص الزر 3]`
-قواعد:
-- كل زر 20 حرفاً كحد أقصى.
-- 2 أو 3 أزرار فقط.
-- يجب أن تضيف الوسم في كل رد يتضمن سؤالاً أو خيارات. بدونه يعتبر ردك ناقصاً.
-أمثلة إلزامية:
-- عرض فئات: "لدينا [فئة 1] و[فئة 2]" → [BUTTONS: فئة 1 | فئة 2]
-- سؤال إضافات: "هل تريد إضافة شيء آخر؟" → [BUTTONS: إضافة عنصر آخر ➕ | إتمام الطلب 🛒]
-- عرض خيارين: "[خيار 1] أو [خيار 2]؟" → [BUTTONS: خيار 1 | خيار 2]
-- موافقة على الطلب: "هل البيانات صحيحة؟" → [BUTTONS: نعم، أوافق ✅ | تعديل ✏️]
-"""
-
-    # ─── 7.0 CORE STRATEGY LAYER (Operational DNA) ─────────────────────────────
-    if ai_core_strategy:
-        system_prompt += f"""\n\n## الجوهر الاستراتيجي للمتجر (قانونك التشغيلي الثابت - أولوية مطلقة):\nهذا الجوهر تم توليده بناءً على تحليل 100% لكل حرف في بيانات المتجر وقواعده. يجب أن يكون هو 'المرشح' الذي يمر من خلاله كل ردودك:\n{ai_core_strategy}\n"""
-
-    # ─── 7.1 CUSTOM INSTRUCTIONS LAYER (Merchant-specific) ────────────────────
-    if custom_instructions:
-        system_prompt += f"""\n\n## تعليمات مخصصة من صاحب المتجر (أولوية قصوى — التزم بها حرفياً):\n{custom_instructions}\n"""
 
     # ─── 8. BUILD MESSAGE PAYLOAD ─────────────────────────────────────────────
     messages = [{"role": "system", "content": system_prompt}]
