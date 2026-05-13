@@ -1,6 +1,6 @@
 """
 merchant/reception/telegram_receiver.py
-ط§ط³طھظ‚ط¨ط§ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ظ…ظ† طھظٹظ„ظٹط¬ط±ط§ظ… ط¹ط¨ط± Webhook
+استقبال الرسائل من تيليجرام عبر Webhook
 """
 import json
 import httpx
@@ -12,7 +12,7 @@ router = APIRouter(tags=["Telegram Webhook"])
 
 
 def _find_client_by_token(bot_token: str) -> dict | None:
-    """ط§ظ„ط¨ط­ط« ط¹ظ† ط§ظ„طھط§ط¬ط± ط¨ظˆط§ط³ط·ط© ط±ظ…ط² ط§ظ„ط¨ظˆطھ"""
+    """البحث عن التاجر بواسطة رمز البوت"""
     supabase = get_supabase_client()
     try:
         res = supabase.table("channels_config").select("client_id").eq("telegram_bot_token", bot_token).single().execute()
@@ -25,7 +25,7 @@ def _find_client_by_token(bot_token: str) -> dict | None:
 
 
 async def _send_telegram_message(bot_token: str, chat_id: int, text: str):
-    """ط¥ط±ط³ط§ظ„ ط±ط¯ ط¹ط¨ط± طھظٹظ„ظٹط¬ط±ط§ظ…"""
+    """إرسال رد عبر تيليجرام"""
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
     async with httpx.AsyncClient() as client:
         await client.post(url, json={"chat_id": chat_id, "text": text}, timeout=10)
@@ -33,7 +33,7 @@ async def _send_telegram_message(bot_token: str, chat_id: int, text: str):
 
 @router.post("/telegram/{bot_token}")
 async def telegram_webhook(bot_token: str, request: Request):
-    """Webhook ظ„ط§ط³طھظ‚ط¨ط§ظ„ ط±ط³ط§ط¦ظ„ طھظٹظ„ظٹط¬ط±ط§ظ…"""
+    """Webhook لاستقبال رسائل تيليجرام"""
     try:
         body = await request.json()
         
@@ -80,7 +80,7 @@ async def telegram_webhook(bot_token: str, request: Request):
         chat_id     = message["chat"]["id"]
         text        = message.get("text", "")
         from_user   = message.get("from", {})
-        phone_str   = str(chat_id)  # طھظٹظ„ظٹط¬ط±ط§ظ… ظٹط³طھط®ط¯ظ… chat_id ظƒظ…ط¹ط±ظپ
+        phone_str   = str(chat_id)  # تيليجرام يستخدم chat_id كمعرف
 
         if not text:
             return Response(status_code=200)

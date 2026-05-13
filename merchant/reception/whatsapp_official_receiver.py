@@ -1,6 +1,6 @@
 """
 merchant/reception/whatsapp_official_receiver.py
-ط§ط³طھظ‚ط¨ط§ظ„ ط§ظ„ط±ط³ط§ط¦ظ„ ط¹ط¨ط± WhatsApp Cloud API ط§ظ„ط±ط³ظ…ظٹ ظ…ظ† Meta
+استقبال الرسائل عبر WhatsApp Cloud API الرسمي من Meta
 """
 import httpx
 from fastapi import APIRouter, Request, Response, Query, BackgroundTasks
@@ -51,7 +51,7 @@ def _is_authorized(client_id: str, phone: str) -> bool:
 
 
 async def _send_official_message(access_token: str, phone_number_id: str, to_phone: str, text: str):
-    """ط¥ط±ط³ط§ظ„ ط±ط¯ ط¹ط¨ط± Meta Cloud API"""
+    """إرسال رد عبر Meta Cloud API"""
     url = f"https://graph.facebook.com/v19.0/{phone_number_id}/messages"
     headers = {
         "Authorization": f"Bearer {access_token}",
@@ -94,7 +94,7 @@ async def verify_official_webhook(request: Request):
 
 @router.post("/whatsapp/official")
 async def official_webhook(request: Request, background_tasks: BackgroundTasks):
-    """Webhook ظ„ط§ط³طھظ‚ط¨ط§ظ„ ط±ط³ط§ط¦ظ„ ظˆط§طھط³ط§ط¨ ط§ظ„ط±ط³ظ…ظٹ"""
+    """Webhook لاستقبال رسائل واتساب الرسمي"""
     try:
         body = await request.json()
 
@@ -164,7 +164,7 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                         client_id    = cfg["client_id"]
                         access_token = cfg["meta_access_token"]
 
-                        # ط§ظ„طھط­ظ‚ظ‚ ظ…ظ† ط§ظ„طµظ„ط§ط­ظٹط©
+                        # التحقق من الصلاحية
                         if not _is_authorized(client_id, from_phone):
                             continue
 
