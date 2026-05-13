@@ -358,6 +358,41 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                 if cat_val:
                     categories_found[cat_val] = categories_found.get(cat_val, 0) + 1
         
+        # 🆕 FALLBACK: إذا لم يتم العثور على فئات وعندي منتجات كثيرة، نطلب من الـ AI استنتاج الفئات من الأسماء
+        if not categories_found and total_items > 10:
+            # البحث عن عمود الاسم
+            name_col = None
+            for col_name in active_cols:
+                if any(kw in col_name.lower() for kw in ["اسم", "name", "منتج", "service", "عنوان"]):
+                    name_col = col_name
+                    break
+            if not name_col and active_cols: name_col = active_cols[0]
+            
+            if name_col:
+                # أخذ عينة كبيرة من الأسماء (أول 50 اسم) لتصنيفها
+                names_sample = [str(r.get(name_col, "")).strip() for r in products_raw if r.get(name_col)][:50]
+                clustering_prompt = f"""أنا لدي متجر يحتوي على المنتجات التالية: {", ".join(names_sample)}.
+أريدك أن تستخرج لي 5 إلى 8 "فئات كبرى" (Keywords Categories) منطقية تجمع هذه المنتجات.
+يجب أن تكون الفئات قصيرة (كلمة أو كلمتين).
+رد علي بتنسيق JSON فقط كقائمة نصوص: ["فئة1", "فئة2", ...]"""
+                
+                try:
+                    cluster_res = await get_ai_response(
+                        client_id=user["id"],
+                        user_message=clustering_prompt,
+                        phone_number="CLUSTERING",
+                        channel="system"
+                    )
+                    # تنظيف الرد وجلبه كـ list
+                    import re
+                    json_match = re.search(r'\[.*\]', cluster_res.replace("\n", ""), re.DOTALL)
+                    if json_match:
+                        suggested_cats = json.loads(json_match.group(0))
+                        for cat in suggested_cats:
+                            categories_found[cat] = "تحليل ذكي"
+                except:
+                    pass
+
         # ── تحديد مستوى حجم المخزون ──
         if total_items <= 6:
             inventory_level = "صغير"
@@ -372,12 +407,16 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         # ── بناء خريطة ملخص البيانات ──
         # عينة ذكية: أخذ عينة ممثلة من كل فئة (بدلاً من أول 10)
         sample_products = []
-        if categories_found and len(categories_found) > 0:
-            items_per_cat = max(1, min(3, 15 // len(categories_found)))
-            for cat_name in list(categories_found.keys()):
-                cat_items = [r for r in products_raw if str(r.get(category_column, "")).strip() == cat_name]
-                sample_products.extend(cat_items[:items_per_cat])
-            # لا نزيد عن 20 عنصر في العينة
+        if categories_found:
+            if category_column:
+                items_per_cat = max(1, min(3, 15 // len(categories_found)))
+                for cat_name in list(categories_found.keys()):
+                    cat_items = [r for r in products_raw if str(r.get(category_column, "")).strip() == cat_name]
+                    sample_products.extend(cat_items[:items_per_cat])
+            else:
+                # إذا كانت الفئات مستنتجة ذكياً، نكتفي بأول 20 منتج كعينة عامة للفهم
+                sample_products = products_raw[:20]
+            
             sample_products = sample_products[:20]
         else:
             sample_products = products_raw[:15]
