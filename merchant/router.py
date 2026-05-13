@@ -167,6 +167,7 @@ class PlanningRequest(BaseModel):
     custom_instructions: str = None
     ai_temperature: float = None
     ai_max_tokens: int = None
+    ai_core_strategy: str = None
 
 @router.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request, user: dict = Depends(verify_merchant)):
@@ -250,6 +251,68 @@ async def api_generate_instructions(payload: GenerateInstructionsRequest, user: 
         return {"status": "success", "instructions": clean_text}
     except Exception as e:
         return {"status": "error", "message": f"فشل توليد التعليمات: {str(e)}"}
+
+@router.post("/api/planning/generate-core-strategy")
+async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
+    """توليد 'الجوهر الاستراتيجي' للموظف الآلي بناءً على تحليل شامل لكل حرف في المتجر"""
+    from merchant.ai_engine import get_ai_response
+    from database.db_client import get_db_client
+    
+    db = get_db_client()
+    
+    try:
+        # 1. جلب كل البيانات الممكنة للتحليل
+        # أ - جلب المنتجات/الخدمات
+        data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).execute()
+        products_raw = data_res.data[0].get("data", []) if data_res.data else []
+        
+        # ب - جلب ملاحظات تدريب الأعمدة
+        col_res = db.table("column_training").select("column_name, note").eq("client_id", user["id"]).execute()
+        col_notes = col_res.data or []
+        
+        # ج - جلب قواعد العمل
+        rules_res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).execute()
+        biz_rules = rules_res.data[0].get("rules_data", {}) if rules_res.data else {}
+        
+        # د - جلب إعدادات التخطيط العامة
+        plan_res = db.table("planning_config").select("*").eq("client_id", user["id"]).single().execute()
+        plan_data = plan_res.data or {}
+
+        # 2. بناء طلب التحليل العميق
+        analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي". 
+مهمتك هي إجراء تحليل جراحي شامل لبيانات هذا المتجر وتوليد "الجوهر الاستراتيجي الثابت" (AI Core Strategy).
+هذا الجوهر سيكون هو "عقل" الموظف الآلي الذي لا يخرج عنه أبداً.
+
+البيانات المتوفرة للتحليل:
+- النشاط: {plan_data.get('store_activity')}
+- وصف العمل: {plan_data.get('business_description')}
+- المنتجات/الخدمات (الجرد): {json.dumps(products_raw[:50], ensure_ascii=False)} 
+- ملاحظات التدريب (كل حرف مهم): {json.dumps(col_notes, ensure_ascii=False)}
+- قواعد العمل: {json.dumps(biz_rules, ensure_ascii=False)}
+
+المطلوب منك توليد "وثيقة استراتيجية" تشمل:
+1. تحديد الهوية (هل أنا وكيل فئات أم عرض مباشر؟ ولماذا بناءً على الجرد؟).
+2. بروتوكول العرض المثالي (كيف سأشرح المنتجات بناءً على ملاحظات الأعمدة؟).
+3. استراتيجية الإغلاق (كيف سأقنع العميل بناءً على طبيعة النشاط؟).
+4. قوانين "الجوهر" (محرمات ومسموحات خاصة جداً بهذا المتجر فقط مستنبطة من بياناته).
+
+اكتب الاستراتيجية باللغة العربية بأسلوب "دستوري" صارم ومفصل جداً (100% دقة). لا تترك مجالاً للتخمين.
+واجعلها شاملة لكل حرف قرأته في البيانات."""
+
+        # 3. طلب التحليل من الذكاء الاصطناعي
+        core_strategy = await get_ai_response(
+            client_id=user["id"],
+            user_message=analysis_prompt,
+            phone_number="STRATEGY_GEN",
+            channel="system"
+        )
+        
+        # 4. حفظ الاستراتيجية في قاعدة البيانات
+        db.table("planning_config").update({"ai_core_strategy": core_strategy}).eq("client_id", user["id"]).execute()
+        
+        return {"status": "success", "strategy": core_strategy}
+    except Exception as e:
+        return {"status": "error", "message": f"فشل توليد الجوهر الاستراتيجي: {str(e)}"}
 
 @router.get("/api/planning/columns")
 async def api_get_columns(user: dict = Depends(verify_merchant)):
@@ -956,6 +1019,11 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
     if engine:
         try:
             with engine.begin() as conn:
+                pc_cols = [r[0] for r in conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='planning_config'")).fetchall()]
+                if 'ai_max_tokens' not in pc_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
+                if 'ai_core_strategy' not in pc_cols:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_core_strategy TEXT DEFAULT '';"))
                 conn.execute(text("""
                     CREATE TABLE IF NOT EXISTS merchant_ai_insights (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

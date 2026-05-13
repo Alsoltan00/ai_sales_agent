@@ -476,6 +476,40 @@
     </div>
 </div>
 
+<!-- AI Core Strategy (The DNA) -->
+<div class="card card-lg mb-4 border-primary shadow-sm" style="border-width: 2px;">
+    <div class="card-header border-bottom-0 pb-0">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0 fw-bold"><i class="ti ti-dna me-2 text-primary"></i>الجوهر الاستراتيجي للموظف (Operational DNA)</h5>
+                <p class="text-secondary small mt-1 mb-0">هذا هو "عقل" الموظف الذي تم بناؤه بعد تحليل 100% لكل حرف في متجرك.</p>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="generateCoreStrategy()" id="genCoreBtn">
+                <i class="ti ti-sparkles me-1"></i> توليد الجوهر الاستراتيجي (AI Analysis)
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="coreAlertBox" class="alert" style="display:none;"></div>
+        <div class="p-3 rounded-3 mb-3" style="background: rgba(var(--bs-primary-rgb), 0.03); border: 1px dashed var(--bs-primary-border-subtle);">
+            <div class="d-flex align-items-center gap-2 mb-2 text-primary small fw-bold">
+                <i class="ti ti-shield-check"></i>
+                <span>خطة العمل الجوهرية (المحفوظة حالياً):</span>
+            </div>
+            <textarea id="ai_core_strategy" class="form-control bg-transparent border-0" rows="12" 
+                style="font-size: 0.95rem; line-height: 1.6; color: var(--bs-body-color);" 
+                placeholder="انقر على الزر أعلاه ليقوم الذكاء الاصطناعي بتحليل جردك وقواعدك ورسم خطة عمل ثابتة 100% لمتجرك..."
+                readonly>{{ planning.ai_core_strategy or '' }}</textarea>
+        </div>
+        <div class="text-center">
+            <small class="text-secondary">
+                <i class="ti ti-info-circle me-1"></i>
+                يُنصح بإعادة توليد الجوهر الاستراتيجي كلما قمت بتغييرات كبيرة في (البيانات) أو (تدريب الأعمدة).
+            </small>
+        </div>
+    </div>
+</div>
+
 <!-- Column Training -->
 <div class="card card-lg">
     <div class="card-header border-bottom-0">
@@ -772,6 +806,43 @@ async function saveCols() {
         }
     } catch(err) {
         showGlobalFeedback('colsAlertBox', 'خطأ فني', 'تعذر الحفظ بسبب خطأ في الاتصال بالسيرفر.', 'danger');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+    }
+}
+async function generateCoreStrategy() {
+    const btn = document.getElementById('genCoreBtn');
+    const textarea = document.getElementById('ai_core_strategy');
+    const originalHTML = btn.innerHTML;
+    
+    if(!confirm('سيقوم الذكاء الاصطناعي الآن بمسح شامل لجميع بياناتك وقواعدك لرسم خطة عمل ثابتة. هل تريد الاستمرار؟')) return;
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري التحليل والتحميل...';
+    textarea.placeholder = "جاري قراءة الجرد وتحليل ملاحظات الأعمدة... يرجى الانتظار ثوانٍ...";
+
+    try {
+        const res = await fetch('/merchant/api/planning/generate-core-strategy', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await res.json();
+        
+        if(data.status === 'success') {
+            textarea.value = data.strategy;
+            showGlobalFeedback('coreAlertBox', 'تم بنجاح', 'تم توليد وحفظ الجوهر الاستراتيجي بنجاح. الموظف الآن يعمل بذكاء 100%.', 'success');
+            btn.innerHTML = '<i class="ti ti-check me-1"></i> تم التوليد!';
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }, 3000);
+        } else {
+            showGlobalFeedback('coreAlertBox', 'فشل التحليل', data.message, 'danger');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+        }
+    } catch(err) {
+        showGlobalFeedback('coreAlertBox', 'خطأ فني', 'حدث خطأ أثناء محاولة توليد الاستراتيجية.', 'danger');
         btn.disabled = false;
         btn.innerHTML = originalHTML;
     }

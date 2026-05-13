@@ -409,6 +409,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         routing = get_routing_matrix(delivery_type, channel)
         print(f"[ENGINE] Routing Matrix: platform={routing['platform']}, auto={routing['auto_pulled']}, required={routing['required_fields']}, forbidden={routing['forbidden_fields']}")
         custom_instructions = (p_cfg.get("custom_instructions") or "").strip()
+        ai_core_strategy = (p_cfg.get("ai_core_strategy") or "").strip()
         ai_temperature = float(p_cfg.get("ai_temperature") or 0.1)
         ai_max_tokens = int(p_cfg.get("ai_max_tokens") or 600)
         print(f"[ENGINE] Model params: temp={ai_temperature}, max_tokens={ai_max_tokens}, order_flow={order_flow}")
@@ -632,6 +633,10 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 - عرض خيارين: "[خيار 1] أو [خيار 2]؟" → [BUTTONS: خيار 1 | خيار 2]
 - موافقة على الطلب: "هل البيانات صحيحة؟" → [BUTTONS: نعم، أوافق ✅ | تعديل ✏️]
 """
+
+    # ─── 7.0 CORE STRATEGY LAYER (Operational DNA) ─────────────────────────────
+    if ai_core_strategy:
+        system_prompt += f"""\n\n## الجوهر الاستراتيجي للمتجر (قانونك التشغيلي الثابت - أولوية مطلقة):\nهذا الجوهر تم توليده بناءً على تحليل 100% لكل حرف في بيانات المتجر وقواعده. يجب أن يكون هو 'المرشح' الذي يمر من خلاله كل ردودك:\n{ai_core_strategy}\n"""
 
     # ─── 7.1 CUSTOM INSTRUCTIONS LAYER (Merchant-specific) ────────────────────
     if custom_instructions:
