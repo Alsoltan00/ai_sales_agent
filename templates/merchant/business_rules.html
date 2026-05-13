@@ -201,7 +201,7 @@
                     <div class="card settings-card">
                         <div class="settings-group">
                             <h5 class="fw-bold mb-3"><i class="ti ti-trending-up text-primary me-2"></i>استراتيجية زيادة المبيعات (Upselling)</h5>
-                            <p class="text-secondary small mb-3">هل ترغب أن يقوم الموظف باقتراح منتجات أخرى لزيادة قيمة السلة؟</p>
+                            <p class="text-secondary small mb-3">هل ترغب أن يقوم الموظف باقتراح خيارات أخرى لزيادة قيمة السلة؟</p>
                             <div class="d-flex flex-column gap-3">
                                 <label class="radio-card">
                                     <input type="radio" name="upsell_type" value="none" {% if rules.upsell_type == 'none' or not rules.upsell_type %}checked{% endif %}>
@@ -214,14 +214,14 @@
                                     <input type="radio" name="upsell_type" value="cross" {% if rules.upsell_type == 'cross' %}checked{% endif %}>
                                     <div class="radio-card-content">
                                         <span class="radio-card-title text-primary"><i class="ti ti-arrows-right-left me-1"></i> الاقتراح التكميلي (Cross-sell)</span>
-                                        <p class="radio-card-desc">يقترح منتجاً مكملاً للطلب (مثال: إذا طلب العميل حذاء، يُعرض عليه جوارب متناسقة).</p>
+                                        <p class="radio-card-desc">يقترح خياراً مكملاً للطلب (مثال: إضافة خدمة تكميلية للطلب الأساسي).</p>
                                     </div>
                                 </label>
                                 <label class="radio-card">
                                     <input type="radio" name="upsell_type" value="upgrade" {% if rules.upsell_type == 'upgrade' %}checked{% endif %}>
                                     <div class="radio-card-content">
                                         <span class="radio-card-title text-success"><i class="ti ti-arrow-up-circle me-1"></i> ترقية البيعة (Upsell)</span>
-                                        <p class="radio-card-desc">يحاول بأسلوب لبق إقناع العميل بمنتج ذو مواصفات أفضل وسعر أعلى.</p>
+                                        <p class="radio-card-desc">يحاول بأسلوب لبق إقناع العميل بخيار ذو مواصفات أفضل وسعر أعلى.</p>
                                     </div>
                                 </label>
                             </div>
@@ -229,20 +229,20 @@
 
                         <div class="settings-group">
                             <h5 class="fw-bold mb-3"><i class="ti ti-box-off text-danger me-2"></i>عند نفاذ المخزون</h5>
-                            <p class="text-secondary small mb-3">كيف يتصرف الموظف الآلي إذا طلب العميل منتجاً غير متوفر؟</p>
+                            <p class="text-secondary small mb-3">كيف يتصرف الموظف الآلي إذا طلب العميل شيئاً غير متوفر؟</p>
                             <div class="d-flex flex-column gap-3">
                                 <label class="radio-card">
                                     <input type="radio" name="stock_out_type" value="alternative" {% if rules.stock_out_type == 'alternative' or not rules.stock_out_type %}checked{% endif %}>
                                     <div class="radio-card-content">
-                                        <span class="radio-card-title">الاعتذار وعرض منتج بديل</span>
-                                        <p class="radio-card-desc">يبحث في نفس الفئة عن منتجات مشابهة ويعرضها كبديل لإنقاذ البيعة.</p>
+                                        <span class="radio-card-title">الاعتذار وعرض بديل</span>
+                                        <p class="radio-card-desc">يبحث في نفس الفئة عن خيارات مشابهة ويعرضها كبديل لإنقاذ البيعة.</p>
                                     </div>
                                 </label>
                                 <label class="radio-card">
                                     <input type="radio" name="stock_out_type" value="collect_info" {% if rules.stock_out_type == 'collect_info' %}checked{% endif %}>
                                     <div class="radio-card-content">
                                         <span class="radio-card-title">أخذ بيانات العميل للانتظار</span>
-                                        <p class="radio-card-desc">يأخذ رقم الهاتف ويعد العميل بإبلاغه فور توفر المنتج.</p>
+                                        <p class="radio-card-desc">يأخذ رقم الهاتف ويعد العميل بإبلاغه فور توفره.</p>
                                     </div>
                                 </label>
                                 <label class="radio-card">
@@ -260,8 +260,8 @@
                         </div>
 
                         <div class="settings-group">
-                            <h5 class="fw-bold mb-3"><i class="ti ti-file-unknown text-warning me-2"></i>نقص تفاصيل المنتجات</h5>
-                            <p class="text-secondary small mb-3">إذا سأل العميل عن تفصيل دقيق غير موجود في ملف البيانات (مثل نوعية القماش، الكفالة):</p>
+                            <h5 class="fw-bold mb-3"><i class="ti ti-file-unknown text-warning me-2"></i>نقص التفاصيل</h5>
+                            <p class="text-secondary small mb-3">إذا سأل العميل عن تفصيل دقيق غير موجود في ملف البيانات (مثل موعد الانتهاء، التفاصيل الدقيقة):</p>
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label class="radio-card">
@@ -269,7 +269,7 @@
                                         <div class="radio-card-content">
                                             <span class="radio-card-title">استخدام إجابة موحدة للجميع</span>
                                             <p class="radio-card-desc mt-2">
-                                                <input type="text" name="details_static_info" class="form-control form-control-sm bg-white" value="{{ rules.details_static_info or '' }}" placeholder="مثال: جميع منتجاتنا أصلية 100%">
+                                                <input type="text" name="details_static_info" class="form-control form-control-sm bg-white" value="{{ rules.details_static_info or '' }}" placeholder="مثال: جميع خياراتنا موثوقة ومضمونة">
                                             </p>
                                         </div>
                                     </label>
@@ -349,7 +349,7 @@
                                     <input type="radio" name="refund_type" value="none" {% if rules.refund_type == 'none' %}checked{% endif %}>
                                     <div class="radio-card-content">
                                         <span class="radio-card-title text-danger">غير متاح نهائياً</span>
-                                        <p class="radio-card-desc">لا يوجد استرجاع أو استبدال للمنتجات المباعة.</p>
+                                        <p class="radio-card-desc">لا يوجد استرجاع أو استبدال للطلبات المباعة.</p>
                                     </div>
                                 </label>
                             </div>
@@ -363,15 +363,15 @@
                                 <label class="radio-card">
                                     <input type="radio" name="chat_cart_behavior" value="ask_more" {% if rules.chat_cart_behavior == 'ask_more' or not rules.chat_cart_behavior %}checked{% endif %}>
                                     <div class="radio-card-content">
-                                        <span class="radio-card-title">السؤال عن منتجات إضافية</span>
-                                        <p class="radio-card-desc">بعد اختيار المنتج الأول، يسأل العميل: "هل ترغب بإضافة شيء آخر للطلب؟" قبل إتمام الطلب.</p>
+                                        <span class="radio-card-title">السؤال عن إضافات أخرى</span>
+                                        <p class="radio-card-desc">بعد اختيار العنصر الأول، يسأل العميل: "هل ترغب بإضافة شيء آخر للطلب؟" قبل إتمام الطلب.</p>
                                     </div>
                                 </label>
                                 <label class="radio-card">
                                     <input type="radio" name="chat_cart_behavior" value="close_fast" {% if rules.chat_cart_behavior == 'close_fast' %}checked{% endif %}>
                                     <div class="radio-card-content">
                                         <span class="radio-card-title">إغلاق الطلب مباشرة</span>
-                                        <p class="radio-card-desc">بمجرد اختيار العميل للمنتج الأول وتأكيده، ينتقل فوراً لطلب بيانات الشحن أو الدفع لإنهاء الطلب بسرعة.</p>
+                                        <p class="radio-card-desc">بمجرد اختيار العميل للعنصر الأول وتأكيده، ينتقل فوراً لطلب البيانات لإنهاء الطلب بسرعة.</p>
                                     </div>
                                 </label>
                             </div>
