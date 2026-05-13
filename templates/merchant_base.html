@@ -134,6 +134,14 @@
       </a>
     </li>
 
+    <!-- AI Playground -->
+    <li class="nav-item">
+      <a class="nav-link {% if '/merchant/playground' in request.url.path %}active{% endif %}" href="/merchant/playground">
+        <span class="nav-icon"><i class="ti ti-test-pipe text-info"></i></span>
+        <span class="text">مختبر الذكاء (Sandbox)</span>
+      </a>
+    </li>
+
     <!-- Data Sync -->
     <li class="nav-item">
       <a class="nav-link {% if '/merchant/data-sync' in request.url.path %}active{% endif %}" href="/merchant/data-sync">
@@ -302,6 +310,11 @@
       <li class="nav-item">
         <a class="nav-link {% if '/merchant/business-rules' in request.url.path %}active{% endif %}" href="/merchant/business-rules">
           <span class="nav-icon"><i class="ti ti-gavel"></i></span> <span class="text">قواعد العمل</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if '/merchant/playground' in request.url.path %}active{% endif %}" href="/merchant/playground">
+          <span class="nav-icon"><i class="ti ti-test-pipe text-info"></i></span> <span class="text">مختبر الذكاء (Sandbox)</span>
         </a>
       </li>
       <li class="nav-item">

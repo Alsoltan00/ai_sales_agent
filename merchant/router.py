@@ -1031,3 +1031,44 @@ async def api_delete_customer(customer_id: str, user: dict = Depends(verify_merc
         return {"status": "success", "message": "تم حذف العميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
 
+
+# --- AI Playground (Simulation) ---
+
+@router.get("/playground", response_class=HTMLResponse)
+async def playground_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة مختبر الذكاء (التجربة الحية)"""
+    return templates.TemplateResponse("merchant/playground.html", {"request": request, "user": user})
+
+class PlaygroundChatRequest(BaseModel):
+    message: str
+    platform: str = "whatsapp" # whatsapp, telegram, instagram, tiktok
+    reset_memory: bool = False
+
+@router.post("/api/playground-chat")
+async def api_playground_chat(payload: PlaygroundChatRequest, user: dict = Depends(verify_merchant)):
+    """API لمحاكاة الدردشة مع الذكاء الاصطناعي عبر منصات مختلفة"""
+    from merchant.ai_engine import get_ai_response
+    from database.db_client import get_db_client
+    
+    # معرف وهمي للجلسة لمحاكاة منصة الاختبار
+    test_phone = f"PLAYGROUND_{payload.platform.upper()}"
+    
+    db = get_db_client()
+    
+    # إذا طلب المستخدم تصفير الذاكرة قبل الإرسال
+    if payload.reset_memory:
+        try:
+            db.table("message_logs").delete().eq("client_id", user["id"]).eq("phone_number", test_phone).execute()
+        except:
+            pass
+
+    try:
+        response = await get_ai_response(
+            client_id=user["id"],
+            user_message=payload.message,
+            phone_number=test_phone,
+            channel=payload.platform
+        )
+        return {"status": "success", "response": response}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
