@@ -290,6 +290,9 @@ def _migrate_database():
                 if 'ai_max_tokens' not in pc_cols2:
                     conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
                     print("[DB] Added ai_max_tokens column to planning_config")
+                if 'ai_core_strategy' not in pc_cols2:
+                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_core_strategy TEXT DEFAULT '';"))
+                    print("[DB] Added ai_core_strategy column to planning_config")
             except Exception as e:
                 print(f"[DB] Error adding AI tuning columns: {e}")
 

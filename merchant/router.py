@@ -278,37 +278,45 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         plan_res = db.table("planning_config").select("*").eq("client_id", user["id"]).single().execute()
         plan_data = plan_res.data or {}
 
-        # 2. بناء طلب التحليل العميق
+        # 2. بناء طلب التحليل العميق (نأخذ عينة من 10 منتجات فقط لفهم الهيكلية وتوفير المساحة)
+        sample_products = products_raw[:10]
         analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي". 
-مهمتك هي إجراء تحليل جراحي شامل لبيانات هذا المتجر وتوليد "الجوهر الاستراتيجي الثابت" (AI Core Strategy).
-هذا الجوهر سيكون هو "عقل" الموظف الآلي الذي لا يخرج عنه أبداً.
+مهمتك هي إجراء تحليل جراحي شامل لهيكلية بيانات هذا المتجر وتوليد "الجوهر الاستراتيجي الثابت" (AI Core Strategy).
 
-البيانات المتوفرة للتحليل:
+البيانات المتوفرة للتحليل (عينة):
 - النشاط: {plan_data.get('store_activity')}
 - وصف العمل: {plan_data.get('business_description')}
-- المنتجات/الخدمات (الجرد): {json.dumps(products_raw[:50], ensure_ascii=False)} 
-- ملاحظات التدريب (كل حرف مهم): {json.dumps(col_notes, ensure_ascii=False)}
-- قواعد العمل: {json.dumps(biz_rules, ensure_ascii=False)}
+- عينة من الجرد (لفهم الهيكلية): {json.dumps(sample_products, ensure_ascii=False)} 
+- ملاحظات التدريب لكل عمود: {json.dumps(col_notes, ensure_ascii=False)}
+- قواعد العمل العامة: {json.dumps(biz_rules, ensure_ascii=False)}
 
-المطلوب منك توليد "وثيقة استراتيجية" تشمل:
-1. تحديد الهوية (هل أنا وكيل فئات أم عرض مباشر؟ ولماذا بناءً على الجرد؟).
-2. بروتوكول العرض المثالي (كيف سأشرح المنتجات بناءً على ملاحظات الأعمدة؟).
-3. استراتيجية الإغلاق (كيف سأقنع العميل بناءً على طبيعة النشاط؟).
-4. قوانين "الجوهر" (محرمات ومسموحات خاصة جداً بهذا المتجر فقط مستنبطة من بياناته).
+المطلوب منك تحليل "كل حرف" في العينة وملاحظات الأعمدة لتوليد دستور تشغيلي يشمل:
+1. تحديد الهوية (هل أنا وكيل فئات أم عرض مباشر؟).
+2. بروتوكول العرض المثالي بناءً على ملاحظاتك للأعمدة.
+3. استراتيجية الإغلاق وقوانين الجوهر الصارمة.
 
-اكتب الاستراتيجية باللغة العربية بأسلوب "دستوري" صارم ومفصل جداً (100% دقة). لا تترك مجالاً للتخمين.
-واجعلها شاملة لكل حرف قرأته في البيانات."""
+اكتب الاستراتيجية باللغة العربية بأسلوب "دستوري" صارم ومفصل جداً (100% دقة)."""
 
-        # 3. طلب التحليل من الذكاء الاصطناعي
-        core_strategy = await get_ai_response(
-            client_id=user["id"],
-            user_message=analysis_prompt,
-            phone_number="STRATEGY_GEN",
-            channel="system"
-        )
+        # 3. طلب التحليل (نقلل عدد الكلمات الناتجة لضمان النجاح)
+        try:
+            core_strategy = await get_ai_response(
+                client_id=user["id"],
+                user_message=analysis_prompt,
+                phone_number="STRATEGY_GEN",
+                channel="system"
+            )
+        except Exception as e:
+            if "context_length_exceeded" in str(e):
+                 return {"status": "error", "message": "بيانات المتجر كبيرة جداً للتحليل الحالي، يرجى تقليل ملاحظات الأعمدة أو الوصف."}
+            raise e
         
-        # 4. حفظ الاستراتيجية في قاعدة البيانات
-        db.table("planning_config").update({"ai_core_strategy": core_strategy}).eq("client_id", user["id"]).execute()
+        # 4. حفظ الاستراتيجية
+        try:
+            db.table("planning_config").update({"ai_core_strategy": core_strategy}).eq("client_id", user["id"]).execute()
+        except Exception as db_err:
+            if "column" in str(db_err) and "does not exist" in str(db_err):
+                 return {"status": "error", "message": "قاعدة البيانات لم يتم تحديثها بالعمود الجديد. يرجى إعادة تشغيل السيرفر أو التواصل مع الدعم."}
+            raise db_err
         
         return {"status": "success", "strategy": core_strategy}
     except Exception as e:
