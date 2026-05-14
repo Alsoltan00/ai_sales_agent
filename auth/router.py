@@ -23,7 +23,7 @@ class RegisterRequest(BaseModel):
     store_link: str = None
 
 @router.get("/login", response_class=HTMLResponse)
-async def login_page(request: Request):
+def login_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:
@@ -35,7 +35,7 @@ async def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "view": "login"})
 
 @router.get("/register", response_class=HTMLResponse)
-async def register_page(request: Request):
+def register_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:
@@ -44,11 +44,11 @@ async def register_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "view": "register"})
 
 @router.get("/register/success", response_class=HTMLResponse)
-async def register_success_page(request: Request):
+def register_success_page(request: Request):
     return templates.TemplateResponse("register_success.html", {"request": request})
 
 @router.post("/api/auth/login")
-async def api_login(request: Request, payload: LoginRequest):
+def api_login(request: Request, payload: LoginRequest):
     user_data = authenticate_user(payload.contact_info, payload.password)
     
     if user_data:
@@ -66,7 +66,7 @@ async def api_login(request: Request, payload: LoginRequest):
     )
 
 @router.post("/api/auth/register")
-async def api_register(payload: RegisterRequest):
+def api_register(payload: RegisterRequest):
     success, message = register_new_client(
         payload.company_name, 
         payload.contact_number, 
@@ -84,13 +84,13 @@ async def api_register(payload: RegisterRequest):
 
 @router.get("/logout")
 @router.get("/auth/logout")
-async def logout(request: Request):
+def logout(request: Request):
     """تسجيل الخروج وإنهاء الجلسة"""
     destroy_session(request)
     return RedirectResponse(url="/login", status_code=303)
 
 @router.get("/create-demo-users")
-async def create_demo():
+def create_demo():
     from database.db_client import get_db_client
     import json
     db = get_db_client()
@@ -115,6 +115,6 @@ async def create_demo():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 @router.get("/subscriptions", response_class=HTMLResponse)
-async def subscriptions_page(request: Request):
+def subscriptions_page(request: Request):
     """صفحة خطط الاشتراك (سيتم إعدادها لاحقاً)"""
     return templates.TemplateResponse("subscriptions.html", {"request": request})

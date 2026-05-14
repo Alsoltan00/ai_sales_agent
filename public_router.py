@@ -12,7 +12,7 @@ templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
 @router.get("/print/{order_id}")
-async def print_template(request: Request, order_id: str, template: str = "invoice_a4", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "true", footer: str = ""):
+def print_template(request: Request, order_id: str, template: str = "invoice_a4", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "true", footer: str = ""):
     """Universal print endpoint - supports multiple template types and sizes"""
     try:
         order_res = supabase.table("orders").select("*").eq("id", order_id).execute()
@@ -94,7 +94,7 @@ async def print_template(request: Request, order_id: str, template: str = "invoi
         raise HTTPException(status_code=500, detail=f"خطأ: {str(e)}")
 
 @router.get("/invoice/{order_id}")
-async def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "false", footer: str = ""):
+def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "false", footer: str = ""):
     try:
         # Fetch order
         order_res = supabase.table("orders").select("*").eq("id", order_id).execute()

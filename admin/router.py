@@ -26,7 +26,7 @@ def sanitize_data(data):
     return str(data)
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
+def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
     """لوحة تحكم الإدارة الرئيسية"""
     supabase = get_supabase_client()
     
@@ -48,7 +48,7 @@ async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
 
 # مسارات طلبات العملاء الجدد
 @router.get("/api/requests/pending")
-async def get_pending_requests(user: dict = Depends(verify_admin)):
+def get_pending_requests(user: dict = Depends(verify_admin)):
     """جلب جميع طلبات الحسابات المعلقة"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
@@ -59,7 +59,7 @@ async def get_pending_requests(user: dict = Depends(verify_admin)):
     return {"status": "success", "data": res.data}
 
 @router.post("/api/requests/{request_id}/accept")
-async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
+def accept_request(request_id: str, user: dict = Depends(verify_admin)):
     """الموافقة على طلب عميل وإنشاء حساب له"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
@@ -118,12 +118,12 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/requests", response_class=HTMLResponse)
-async def admin_requests(request: Request, user: dict = Depends(verify_admin)):
+def admin_requests(request: Request, user: dict = Depends(verify_admin)):
     """صفحة طلبات العملاء الجدد (بانتظار الموافقة)"""
     return templates.TemplateResponse("admin_new_clients.html", {"request": request, "user": user})
 
 @router.post("/api/requests/{request_id}/reject")
-async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
+def reject_request(request_id: str, user: dict = Depends(verify_admin)):
     """رفض طلب العميل"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
@@ -137,7 +137,7 @@ async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": "حدث خطأ أثناء الرفض"}
 
 @router.get("/clients", response_class=HTMLResponse)
-async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
+def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     """قائمة جميع العملاء النشطين"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_clients") and not perms.get("is_admin"):
@@ -149,7 +149,7 @@ async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": safe_clients})
 
 @router.get("/subscriptions", response_class=HTMLResponse)
-async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
+def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
     """إدارة اشتراكات العملاء والخطط مع تنظيف كامل للبيانات"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_subscriptions") and not perms.get("is_admin"):
@@ -199,7 +199,7 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
     })
 
 @router.post("/api/plans")
-async def api_create_plan(payload: dict, user: dict = Depends(verify_admin)):
+def api_create_plan(payload: dict, user: dict = Depends(verify_admin)):
     """إنشاء خطة اشتراك جديدة"""
     if not user.get("permissions", {}).get("can_manage_subscriptions") and not user.get("permissions", {}).get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
@@ -212,7 +212,7 @@ async def api_create_plan(payload: dict, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": str(e)}
 
 @router.put("/api/plans/{plan_id}")
-async def api_update_plan(plan_id: str, payload: dict, user: dict = Depends(verify_admin)):
+def api_update_plan(plan_id: str, payload: dict, user: dict = Depends(verify_admin)):
     """تحديث خطة اشتراك موجودة"""
     if not user.get("permissions", {}).get("can_manage_subscriptions") and not user.get("permissions", {}).get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
@@ -225,7 +225,7 @@ async def api_update_plan(plan_id: str, payload: dict, user: dict = Depends(veri
         return {"status": "error", "message": str(e)}
 
 @router.delete("/api/plans/{plan_id}")
-async def api_delete_plan(plan_id: str, user: dict = Depends(verify_admin)):
+def api_delete_plan(plan_id: str, user: dict = Depends(verify_admin)):
     """حذف خطة اشتراك"""
     if not user.get("permissions", {}).get("can_manage_subscriptions") and not user.get("permissions", {}).get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
@@ -238,7 +238,7 @@ async def api_delete_plan(plan_id: str, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": str(e)}
 
 @router.post("/api/subscriptions/{client_id}/renew")
-async def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
     """تجديد اشتراك عميل"""
     if not user.get("permissions", {}).get("can_manage_subscriptions") and not user.get("permissions", {}).get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية")
@@ -282,7 +282,7 @@ async def renew_subscription(client_id: str, payload: dict, user: dict = Depends
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/users", response_class=HTMLResponse)
-async def admin_users(request: Request, user: dict = Depends(verify_admin)):
+def admin_users(request: Request, user: dict = Depends(verify_admin)):
     """إدارة موظفي النظام (الأدمن)"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -302,7 +302,7 @@ async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": safe_users})
 
 @router.post("/api/users")
-async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
+def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
     """إنشاء مستخدم إداري جديد"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -337,7 +337,7 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": f"فشل الإضافة: {str(e)}"}
 
 @router.put("/api/users/{user_id}")
-async def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
+def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
     """تحديث بيانات/صلاحيات مستخدم إداري"""
     perms = current_user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -373,7 +373,7 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
         return {"status": "error", "message": f"فشل التحديث: {str(e)}"}
 
 @router.delete("/api/users/{user_id}")
-async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
+def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
     """حذف مستخدم إداري"""
     perms = current_user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -391,7 +391,7 @@ async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admi
 
 
 @router.get("/api/clients/{client_id}/onboarding-settings")
-async def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
+def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
     """جلب إعدادات نوع النشاط ومسار الطلب للعميل"""
     config = get_planning_config(client_id)
     return {"status": "success", "data": {
@@ -401,7 +401,7 @@ async def get_client_onboarding_settings(client_id: str, user: dict = Depends(ve
     }}
 
 @router.put("/api/clients/{client_id}/onboarding-settings")
-async def update_client_onboarding_settings(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+def update_client_onboarding_settings(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
     """تحديث إعدادات نوع النشاط ومسار الطلب للعميل"""
     sales_type = payload.get("sales_type")
     order_flow = payload.get("order_flow")
@@ -428,7 +428,7 @@ async def update_client_onboarding_settings(client_id: str, payload: dict, user:
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
 @router.get("/models-pool", response_class=HTMLResponse)
-async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
+def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
     """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -442,7 +442,7 @@ async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)
     return templates.TemplateResponse("admin/models_pool.html", {"request": request, "user": user, "models": safe_models})
 
 @router.post("/api/models-pool")
-async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
+def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
     """إضافة نموذج جديد للمكتبة العالمية"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -581,7 +581,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
         return {"status": "error", "message": f"خطأ تقني أثناء التجربة: {str(e)}"}
 
 @router.delete("/api/models-pool/{model_id}")
-async def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
+def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
     """حذف نموذج من المكتبة"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -597,7 +597,7 @@ async def admin_api_delete_global_model(model_id: str, user: dict = Depends(veri
 # --- إعدادات خادم واتساب (Evolution API) ---
 
 @router.get("/settings", response_class=HTMLResponse)
-async def admin_settings(request: Request, user: dict = Depends(verify_admin)):
+def admin_settings(request: Request, user: dict = Depends(verify_admin)):
     """صفحة الإعدادات العامة"""
     supabase = get_supabase_client()
     evolution_settings = {}
@@ -612,7 +612,7 @@ async def admin_settings(request: Request, user: dict = Depends(verify_admin)):
     })
 
 @router.get("/api/settings/evolution")
-async def get_evolution_settings(user: dict = Depends(verify_admin)):
+def get_evolution_settings(user: dict = Depends(verify_admin)):
     """جلب إعدادات Evolution API"""
     supabase = get_supabase_client()
     try:
@@ -624,7 +624,7 @@ async def get_evolution_settings(user: dict = Depends(verify_admin)):
     return {"status": "success", "data": {}}
 
 @router.post("/api/settings/evolution")
-async def save_evolution_settings(payload: dict, user: dict = Depends(verify_admin)):
+def save_evolution_settings(payload: dict, user: dict = Depends(verify_admin)):
     """حفظ إعدادات Evolution API"""
     supabase = get_supabase_client()
     value = {

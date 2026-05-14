@@ -43,7 +43,7 @@ def verify_merchant(request: Request):
     return user
 
 @router.get("/home", response_class=HTMLResponse)
-async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
+def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     """لوحة التاجر الرئيسية (Home) - مع فحص الإعداد الأولي"""
     settings = get_store_settings(user["id"])
     planning = get_planning_config(user["id"])
@@ -57,13 +57,13 @@ async def merchant_home(request: Request, user: dict = Depends(verify_merchant))
     })
 
 @router.get("/onboarding", response_class=HTMLResponse)
-async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
+def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الإعداد الأولي (Onboarding Wizard)"""
     planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/onboarding")
-async def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
+def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
     """حفظ الإعداد الأولي (نوع المبيعات + مسار الطلب + طبيعة المنتج)"""
     sales_type = payload.get("sales_type")
     order_flow = payload.get("order_flow")
@@ -95,13 +95,13 @@ class StoreSettingsRequest(BaseModel):
     store_url: str = None
 
 @router.get("/store", response_class=HTMLResponse)
-async def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
+def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات المتجر"""
     settings = get_store_settings(user["id"])
     return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
 
 @router.post("/api/store")
-async def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
+def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
     """تحديث بيانات المتجر"""
     success = update_store_settings(user["id"], payload.model_dump())
     if success:
@@ -112,7 +112,7 @@ async def api_update_store(request: Request, payload: StoreSettingsRequest, user
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
 @router.post("/api/store/logo")
-async def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
+def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
     """رفع شعار المتجر وحفظه محلياً"""
     try:
         # إنشاء المجلد إذا لم يكن موجوداً
@@ -144,7 +144,7 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 @router.post("/api/store/password")
-async def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(verify_merchant)):
+def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(verify_merchant)):
     """تغيير كلمة مرور التاجر"""
     import hashlib
     if len(payload.new_password) < 6:
@@ -170,13 +170,13 @@ class PlanningRequest(BaseModel):
     ai_core_strategy: str = None
 
 @router.get("/planning", response_class=HTMLResponse)
-async def planning_page(request: Request, user: dict = Depends(verify_merchant)):
+def planning_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة التخطيط"""
     planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/planning.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/planning")
-async def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_merchant)):
+def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات التخطيط"""
     success = update_planning_config(user["id"], payload.model_dump())
     if success:
@@ -589,7 +589,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         return {"status": "error", "message": f"فشل توليد الجوهر الاستراتيجي: {str(e)}"}
 
 @router.get("/api/planning/columns")
-async def api_get_columns(user: dict = Depends(verify_merchant)):
+def api_get_columns(user: dict = Depends(verify_merchant)):
     """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
     db = get_db_client()
     try:
@@ -631,7 +631,7 @@ class ColumnTrainingRequest(BaseModel):
     columns: list[ColumnTrainingItem]
 
 @router.post("/api/planning/columns")
-async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
+def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
     """حفظ إعدادات الأعمدة"""
     db = get_db_client()
     try:
@@ -661,7 +661,7 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
 # --- Business Rules ---
 
 @router.get("/business-rules", response_class=HTMLResponse)
-async def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
+def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة قواعد العمل (Business Rules)"""
     db = get_db_client()
     rules = {}
@@ -674,7 +674,7 @@ async def business_rules_page(request: Request, user: dict = Depends(verify_merc
     return templates.TemplateResponse("merchant/business_rules.html", {"request": request, "user": user, "rules": rules})
 
 @router.post("/api/business-rules")
-async def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
+def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث قواعد العمل"""
     db = get_db_client()
     try:
@@ -698,7 +698,7 @@ async def api_update_business_rules(payload: dict, user: dict = Depends(verify_m
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.post("/api/business-rules/payment")
-async def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
+def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
     db = get_db_client()
     try:
@@ -739,7 +739,7 @@ class SyncConfigRequest(BaseModel):
     sheet_name: str = ""
 
 @router.get("/data-sync", response_class=HTMLResponse)
-async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
+def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة مزامنة البيانات"""
     sync_config = get_sync_config(user["id"])
     return templates.TemplateResponse("merchant/data_sync.html", {"request": request, "user": user, "sync_config": sync_config})
@@ -825,7 +825,7 @@ class ChannelsConfigRequest(BaseModel):
     tiktok_shop_id: str = None
 
 @router.get("/channels", response_class=HTMLResponse)
-async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
+def channels_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الاستقبال والإرسال"""
     from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
     channels_config = get_channels_config(user["id"])
@@ -961,7 +961,7 @@ class AllowAllRequest(BaseModel):
     allow_all: bool
 
 @router.post("/api/authorized-numbers")
-async def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):
+def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):
     """إضافة رقم جديد"""
     success = add_authorized_number(user["id"], payload.phone_number, payload.label)
     if success:
@@ -969,7 +969,7 @@ async def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict
     return {"status": "error", "message": "حدث خطأ أثناء الإضافة"}
 
 @router.delete("/api/authorized-numbers/{record_id}")
-async def api_delete_authorized_number(record_id: str, user: dict = Depends(verify_merchant)):
+def api_delete_authorized_number(record_id: str, user: dict = Depends(verify_merchant)):
     """حذف رقم"""
     success = delete_authorized_number(user["id"], record_id)
     if success:
@@ -977,7 +977,7 @@ async def api_delete_authorized_number(record_id: str, user: dict = Depends(veri
     return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
 
 @router.post("/api/authorized-numbers/settings")
-async def api_update_authorized_settings(payload: dict, user: dict = Depends(verify_merchant)):
+def api_update_authorized_settings(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات الأرقام والمجموعات"""
     from merchant.authorized_numbers import set_allow_all, set_ignore_groups
     
@@ -993,7 +993,7 @@ class ClearMemoryRequest(BaseModel):
     phone_number: str
 
 @router.post("/api/clear-memory")
-async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
+def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
     """مسح سجل المحادثات لعميل محدد (تصفير الذاكرة)"""
     db = get_db_client()
     try:
@@ -1032,12 +1032,12 @@ async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = De
 # --- Data Display View ---
 
 @router.get("/data-view", response_class=HTMLResponse)
-async def data_view_page(request: Request, user: dict = Depends(verify_merchant)):
+def data_view_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة عرض البيانات المزامنة"""
     return templates.TemplateResponse("merchant/data_display.html", {"request": request, "user": user})
 
 @router.get("/api/data-view")
-async def api_get_data_view(user: dict = Depends(verify_merchant)):
+def api_get_data_view(user: dict = Depends(verify_merchant)):
     """جلب البيانات المزامنة للعرض"""
     db = get_db_client()
     try:
@@ -1062,7 +1062,7 @@ async def api_get_data_view(user: dict = Depends(verify_merchant)):
 # --- Orders Management ---
 
 @router.get("/orders", response_class=HTMLResponse)
-async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
+def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة الطلبات"""
     db = get_db_client()
     from merchant.store_management.store_settings import get_store_settings
@@ -1139,7 +1139,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     })
 
 @router.post("/api/orders")
-async def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
+def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
     """إنشاء طلب يدوي جديد"""
     db = get_db_client()
     try:
@@ -1172,7 +1172,7 @@ async def api_create_order(payload: dict, user: dict = Depends(verify_merchant))
         return {"status": "error", "message": str(e)}
 
 @router.put("/api/orders/{order_id}/status")
-async def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث حالة الطلب والدفع"""
     db = get_db_client()
     try:
@@ -1192,7 +1192,7 @@ async def api_update_order_status(order_id: str, payload: dict, user: dict = Dep
         return {"status": "error", "message": str(e)}
 
 @router.delete("/api/orders/{order_id}")
-async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
+def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
     """حذف طلب"""
     db = get_db_client()
     try:
@@ -1204,7 +1204,7 @@ async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant))
 # --- Shipping Management ---
 
 @router.get("/shipping", response_class=HTMLResponse)
-async def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
+def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات الشحن"""
     db = get_db_client()
     config = {}
@@ -1225,7 +1225,7 @@ async def shipping_page(request: Request, user: dict = Depends(verify_merchant))
     })
 
 @router.post("/api/shipping")
-async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
+def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
     """حفظ إعدادات الشحن ومناطق الشحن"""
     db = get_db_client()
     try:
@@ -1265,12 +1265,12 @@ async def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)
 # --- AI Insights ---
 
 @router.get("/insights", response_class=HTMLResponse)
-async def insights_page(request: Request, user: dict = Depends(verify_merchant)):
+def insights_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة رؤى العملاء المتقدمة"""
     return templates.TemplateResponse("merchant/insights.html", {"request": request, "user": user})
 
 @router.get("/api/insights")
-async def api_get_insights(user: dict = Depends(verify_merchant)):
+def api_get_insights(user: dict = Depends(verify_merchant)):
     """جلب آخر رؤى تم توليدها"""
     from merchant.insights import get_latest_insights
     try:
@@ -1319,7 +1319,7 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
 # --- Customer Management (CRM) ---
 
 @router.get("/customers", response_class=HTMLResponse)
-async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
+def customers_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة العملاء (تتكيف ديناميكياً مع نوع المتجر)"""
     from merchant.customers.customer_manager import get_all_customers
     customers = get_all_customers(user["id"])
@@ -1329,14 +1329,14 @@ async def customers_page(request: Request, user: dict = Depends(verify_merchant)
     })
 
 @router.get("/api/customers")
-async def api_get_customers(user: dict = Depends(verify_merchant)):
+def api_get_customers(user: dict = Depends(verify_merchant)):
     """جلب جميع العملاء كـ JSON"""
     from merchant.customers.customer_manager import get_all_customers
     customers = get_all_customers(user["id"])
     return {"status": "success", "customers": customers}
 
 @router.put("/api/customers/{customer_id}")
-async def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث بيانات عميل"""
     from merchant.customers.customer_manager import update_customer_data
     db = get_db_client()
@@ -1365,7 +1365,7 @@ async def api_update_customer(customer_id: str, payload: dict, user: dict = Depe
         return {"status": "error", "message": str(e)}
 
 @router.delete("/api/customers/{customer_id}")
-async def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant)):
+def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant)):
     """حذف عميل"""
     from merchant.customers.customer_manager import delete_customer
     success = delete_customer(user["id"], customer_id)
@@ -1377,7 +1377,7 @@ async def api_delete_customer(customer_id: str, user: dict = Depends(verify_merc
 # --- AI Playground (Simulation) ---
 
 @router.get("/playground", response_class=HTMLResponse)
-async def playground_page(request: Request, user: dict = Depends(verify_merchant)):
+def playground_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة مختبر الذكاء (التجربة الحية)"""
     return templates.TemplateResponse("merchant/playground.html", {"request": request, "user": user})
 

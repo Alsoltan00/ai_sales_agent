@@ -1,12 +1,21 @@
+import time
 from database.db_client import get_db_client
+
+_cache = {}
+CACHE_TTL = 30 # ثانية
 
 def get_planning_config(client_id: str) -> dict:
     """جلب إعدادات التخطيط والذكاء الاصطناعي"""
+    global _cache
+    now = time.time()
+    if client_id in _cache and now - _cache[client_id]['timestamp'] < CACHE_TTL:
+        return _cache[client_id]['data']
+        
     db = get_db_client()
     try:
         res = db.table("planning_config").select("sales_agent_name, dialect_instructions, company_description, store_activity, sales_type, order_flow, delivery_type, custom_instructions, ai_temperature, ai_max_tokens, ai_core_strategy").eq("client_id", client_id).single().execute()
         if res.data:
-            return {
+            data = {
                 "ai_agent_name": res.data.get("sales_agent_name"),
                 "ai_tone": res.data.get("dialect_instructions"),
                 "business_description": res.data.get("company_description"),
@@ -19,6 +28,8 @@ def get_planning_config(client_id: str) -> dict:
                 "ai_max_tokens": int(res.data.get("ai_max_tokens") or 600),
                 "ai_core_strategy": res.data.get("ai_core_strategy", "")
             }
+            _cache[client_id] = {'timestamp': now, 'data': data}
+            return data
         return {}
     except Exception as e:
         print(f"Error fetching planning config: {e}")
@@ -26,6 +37,10 @@ def get_planning_config(client_id: str) -> dict:
 
 def update_planning_config(client_id: str, data: dict) -> bool:
     """تحديث إعدادات التخطيط"""
+    global _cache
+    if client_id in _cache:
+        del _cache[client_id]
+        
     db = get_db_client()
     try:
         # خريطة تحويل من أسماء الحقول في الفرونت إند إلى أسماء الأعمدة في قاعدة البيانات
