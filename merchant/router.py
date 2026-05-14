@@ -27,9 +27,15 @@ def verify_merchant(request: Request):
     if not user or user.get("user_type") != "merchant":
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
     
-    # تهيئة افتراضية لتجنب الحجب في كل طلب
-    user["_planning"] = {}
-    user["_settings"] = {}
+    # جلب الإعدادات (باستخدام التخزين المؤقت لضمان سرعة الاستجابة ومنع الحجب)
+    try:
+        user["_planning"] = get_planning_config(user["id"])
+        user["_settings"] = get_store_settings(user["id"])
+    except Exception as e:
+        print(f"Error in verify_merchant metadata: {e}")
+        user["_planning"] = {}
+        user["_settings"] = {}
+        
     return user
 
 @router.get("/home", response_class=HTMLResponse)
