@@ -26,24 +26,14 @@ def verify_merchant(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "merchant":
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
-    # إرفاق إعدادات التخطيط للشريط الجانبي الشرطي
-    try:
-        planning = get_planning_config(user["id"])
-        user["_planning"] = planning
-    except:
-        user["_planning"] = {}
-        
-    # إرفاق الإعدادات العامة لفحص Onboarding
-    try:
-        settings = get_store_settings(user["id"])
-        user["_settings"] = settings
-    except:
-        user["_settings"] = {}
-        
+    
+    # تهيئة افتراضية لتجنب الحجب في كل طلب
+    user["_planning"] = {}
+    user["_settings"] = {}
     return user
 
 @router.get("/home", response_class=HTMLResponse)
-def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
+async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     """لوحة التاجر الرئيسية (Home) - مع فحص الإعداد الأولي"""
     settings = get_store_settings(user["id"])
     planning = get_planning_config(user["id"])
@@ -57,7 +47,7 @@ def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     })
 
 @router.get("/onboarding", response_class=HTMLResponse)
-def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
+async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الإعداد الأولي (Onboarding Wizard)"""
     planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user, "planning": planning})
@@ -170,7 +160,7 @@ class PlanningRequest(BaseModel):
     ai_core_strategy: str = None
 
 @router.get("/planning", response_class=HTMLResponse)
-def planning_page(request: Request, user: dict = Depends(verify_merchant)):
+async def planning_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة التخطيط"""
     planning = get_planning_config(user["id"])
     return templates.TemplateResponse("merchant/planning.html", {"request": request, "user": user, "planning": planning})
@@ -739,7 +729,7 @@ class SyncConfigRequest(BaseModel):
     sheet_name: str = ""
 
 @router.get("/data-sync", response_class=HTMLResponse)
-def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
+async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة مزامنة البيانات"""
     sync_config = get_sync_config(user["id"])
     return templates.TemplateResponse("merchant/data_sync.html", {"request": request, "user": user, "sync_config": sync_config})
@@ -825,7 +815,7 @@ class ChannelsConfigRequest(BaseModel):
     tiktok_shop_id: str = None
 
 @router.get("/channels", response_class=HTMLResponse)
-def channels_page(request: Request, user: dict = Depends(verify_merchant)):
+async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الاستقبال والإرسال"""
     from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
     channels_config = get_channels_config(user["id"])
@@ -1032,7 +1022,7 @@ def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(
 # --- Data Display View ---
 
 @router.get("/data-view", response_class=HTMLResponse)
-def data_view_page(request: Request, user: dict = Depends(verify_merchant)):
+async def data_view_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة عرض البيانات المزامنة"""
     return templates.TemplateResponse("merchant/data_display.html", {"request": request, "user": user})
 
@@ -1062,7 +1052,7 @@ def api_get_data_view(user: dict = Depends(verify_merchant)):
 # --- Orders Management ---
 
 @router.get("/orders", response_class=HTMLResponse)
-def orders_page(request: Request, user: dict = Depends(verify_merchant)):
+async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة الطلبات"""
     db = get_db_client()
     from merchant.store_management.store_settings import get_store_settings
@@ -1204,7 +1194,7 @@ def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
 # --- Shipping Management ---
 
 @router.get("/shipping", response_class=HTMLResponse)
-def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
+async def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات الشحن"""
     db = get_db_client()
     config = {}
@@ -1265,7 +1255,7 @@ def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
 # --- AI Insights ---
 
 @router.get("/insights", response_class=HTMLResponse)
-def insights_page(request: Request, user: dict = Depends(verify_merchant)):
+async def insights_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة رؤى العملاء المتقدمة"""
     return templates.TemplateResponse("merchant/insights.html", {"request": request, "user": user})
 
@@ -1319,7 +1309,7 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
 # --- Customer Management (CRM) ---
 
 @router.get("/customers", response_class=HTMLResponse)
-def customers_page(request: Request, user: dict = Depends(verify_merchant)):
+async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة العملاء (تتكيف ديناميكياً مع نوع المتجر)"""
     from merchant.customers.customer_manager import get_all_customers
     customers = get_all_customers(user["id"])
@@ -1377,7 +1367,7 @@ def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant))
 # --- AI Playground (Simulation) ---
 
 @router.get("/playground", response_class=HTMLResponse)
-def playground_page(request: Request, user: dict = Depends(verify_merchant)):
+async def playground_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة مختبر الذكاء (التجربة الحية)"""
     return templates.TemplateResponse("merchant/playground.html", {"request": request, "user": user})
 

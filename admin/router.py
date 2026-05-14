@@ -26,7 +26,7 @@ def sanitize_data(data):
     return str(data)
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
+async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
     """لوحة تحكم الإدارة الرئيسية"""
     supabase = get_supabase_client()
     

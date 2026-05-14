@@ -23,7 +23,7 @@ class RegisterRequest(BaseModel):
     store_link: str = None
 
 @router.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
+async def login_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:
@@ -35,7 +35,7 @@ def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request, "view": "login"})
 
 @router.get("/register", response_class=HTMLResponse)
-def register_page(request: Request):
+async def register_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:

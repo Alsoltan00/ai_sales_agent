@@ -302,7 +302,7 @@ def _migrate_database():
         print(f"[DB ERROR] Background migration failed: {e}")
 
 @app.get("/", response_class=RedirectResponse)
-def root_redirect():
+async def root_redirect():
     """توجيه الجذر إلى صفحة تسجيل الدخول"""
     return RedirectResponse(url="/login")
 
