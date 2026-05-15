@@ -233,7 +233,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             return {"status": "error", "message": "لا توجد بيانات مزامنة في المتجر حالياً. يرجى إضافة بيانات أولاً من صفحة (مزامنة البيانات)."}
 
         # ═══════════════════════════════════════════════════════════════
-        # 2. التحليل الآلي المحلي — استخراج الفئات والأنماط (بدون AI)
+        # 2. التحليل الآلي المحلي — استخراج الفئات والأنماط (خوارزميات فائقة السرعة)
         # ═══════════════════════════════════════════════════════════════
         
         # استخراج أسماء الأعمدة المفعلة
@@ -241,6 +241,10 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         active_cols = []
         if products_raw:
             active_cols = [k for k in products_raw[0].keys() if k not in disabled_cols]
+        
+        # ── أخذ عينة للتحليل السريع (لتفادي البطء في قواعد البيانات الضخمة 250k+) ──
+        sample_size = min(total_items, 3000)
+        analysis_sample = products_raw[:sample_size]
         
         # ── تحديد عمود التصنيف المحتمل (الفئة/القسم) ──
         category_keywords = ["فئة", "قسم", "تصنيف", "نوع", "مجموعة", "ماركة", "براند", "category", "type", "group", "section", "department", "brand", "model"]
@@ -250,43 +254,36 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         for col_name in active_cols:
             col_lower = col_name.lower().strip()
             if any(kw in col_lower for kw in category_keywords):
-                # التأكد من أن العمود يحتوي على قيم فعلية وليس فارغاً
                 unique_vals = set()
-                for row in products_raw:
+                for row in analysis_sample:
                     val = str(row.get(col_name, "")).strip()
                     if val: unique_vals.add(val)
                 
-                # إذا كان عدد القيم الفريدة معقول (ليس منتجاً فريداً لكل صف)
-                if 1 < len(unique_vals) <= 60:
+                # إذا كان عدد القيم الفريدة معقول (يدعم حتى 200 فئة للمتاجر الضخمة)
+                if 1 < len(unique_vals) <= 200:
                     category_column = col_name
                     break
         
-        # إذا لم نجد عموداً بالاسم، نحاول الاكتشاف بالتكرار
-        # (العمود الذي يحتوي على قيم متكررة كثيراً يُرجح أنه فئة)
+        # الاكتشاف بالتكرار إذا لم نجد الكلمات المفتاحية (يعتمد على العينة فقط للسرعة)
         if not category_column and total_items > 5:
             best_col = None
             best_ratio = 0
             for col_name in active_cols:
-                # تخطي الأعمدة التي تبدو كأنها أسماء منتجات أو أوصاف طويلة
                 unique_vals = set()
                 total_non_empty = 0
-                for row in products_raw:
+                for row in analysis_sample:
                     val = str(row.get(col_name, "")).strip()
                     if val:
                         total_non_empty += 1
-                        if len(val) < 60: # استبعاد النصوص الطويلة جداً
+                        if len(val) < 80: # استبعاد النصوص الطويلة
                             unique_vals.add(val)
                 
                 if len(unique_vals) < 2:
                     continue
                 
-                # نسبة التكرار
                 ratio = total_non_empty / len(unique_vals)
                 
-                # المعايير:
-                # 1. عدد القيم الفريدة بين 2 و 50 (فئات منطقية)
-                # 2. نسبة التكرار معقولة (على الأقل 1.2 عنصر لكل فئة في المتوسط)
-                if 2 <= len(unique_vals) <= 50 and ratio >= 1.2:
+                if 2 <= len(unique_vals) <= min(200, total_non_empty // 2) and ratio >= 1.5:
                     if ratio > best_ratio:
                         best_ratio = ratio
                         best_col = col_name
@@ -294,12 +291,20 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             if best_col:
                 category_column = best_col
         
-        # ── استخراج الفئات وعدد العناصر في كل فئة ──
+        # ── استخراج الفئات وعدد العناصر الحقيقي (سريع جداً باستخدام Counter) ──
         if category_column:
-            for row in products_raw:
-                cat_val = str(row.get(category_column, "")).strip()
-                if cat_val:
-                    categories_found[cat_val] = categories_found.get(cat_val, 0) + 1
+            from collections import Counter
+            cat_counter = Counter(str(row.get(category_column, "")).strip() for row in products_raw)
+            cat_counter.pop("", None)
+            
+            if len(cat_counter) > 40:
+                # أخذ أهم 40 فئة فقط لتجنب إغراق الذكاء الاصطناعي وتجاوز حدود الـ Tokens
+                categories_found = dict(cat_counter.most_common(40))
+                other_count = sum(count for _, count in cat_counter.most_common()[40:])
+                if other_count > 0:
+                    categories_found["فئات أخرى..."] = other_count
+            else:
+                categories_found = dict(cat_counter)
         
         # 🆕 FALLBACK: إذا لم يتم العثور على فئات وعندي منتجات كثيرة، نطلب من الـ AI استنتاج الفئات من الأسماء
         if not categories_found and total_items > 10:
@@ -312,8 +317,8 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             if not name_col and active_cols: name_col = active_cols[0]
             
             if name_col:
-                # أخذ عينة كبيرة من الأسماء (أول 50 اسم) لتصنيفها
-                names_sample = [str(r.get(name_col, "")).strip() for r in products_raw if r.get(name_col)][:50]
+                # تقليل العينة لـ 30 فقط لتسريع التوليد (يكفي لاكتشاف النمط العام)
+                names_sample = [str(r.get(name_col, "")).strip() for r in analysis_sample if r.get(name_col)][:30]
                 clustering_prompt = f"""أنا لدي متجر يحتوي على المنتجات التالية: {", ".join(names_sample)}.
 أريدك أن تستخرج لي 5 إلى 8 "فئات كبرى" (Keywords Categories) منطقية تجمع هذه المنتجات.
 لكل فئة، استخرج أيضاً 3-4 "كلمات بحث مفتاحية" (Search Keywords) مرتبطة بها تساعد في البحث في قاعدة البيانات (مثال: فئة "إزالة المكياج" كلماتها هي: ["مزيل", "مكياج", "منظف"]).
@@ -348,21 +353,27 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             inventory_strategy = "فئات_إلزامية"
         
         # ── بناء خريطة ملخص البيانات ──
-        # عينة ذكية: أخذ عينة ممثلة من كل فئة (بدلاً من أول 10)
         sample_products = []
-        if categories_found:
-            if category_column:
-                items_per_cat = max(1, min(3, 15 // len(categories_found)))
-                for cat_name in list(categories_found.keys()):
-                    cat_items = [r for r in products_raw if str(r.get(category_column, "")).strip() == cat_name]
-                    sample_products.extend(cat_items[:items_per_cat])
-            else:
-                # إذا كانت الفئات مستنتجة ذكياً، نكتفي بأول 20 منتج كعينة عامة للفهم
-                sample_products = products_raw[:20]
-            
-            sample_products = sample_products[:20]
+        if categories_found and category_column:
+            items_per_cat = max(1, min(3, 15 // len(categories_found)))
+            for cat_name in list(categories_found.keys())[:15]: # أخذ عينة من أهم 15 فئة كحد أقصى
+                cat_items = [r for r in analysis_sample if str(r.get(category_column, "")).strip() == cat_name]
+                sample_products.extend(cat_items[:items_per_cat])
+            sample_products = sample_products[:15]
         else:
-            sample_products = products_raw[:15]
+            sample_products = analysis_sample[:15]
+            
+        # تنظيف العينة وتقليص النصوص الطويلة جداً لتقليل استهلاك التوكنز وتسريع الذكاء الاصطناعي
+        clean_sample = []
+        for row in sample_products:
+            c_row = {}
+            for k in active_cols:
+                v = str(row.get(k, "")).strip()
+                if v:
+                    # قص النصوص التي تتجاوز 100 حرف
+                    c_row[k] = v if len(v) <= 100 else v[:97] + "..."
+            if c_row:
+                clean_sample.append(c_row)
         
         # ── بناء ملخص الأعمدة النشطة مع ملاحظاتها ──
         col_summary = []
@@ -415,8 +426,8 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
 ## قواعد العمل المحفوظة:
 {json.dumps(biz_rules, ensure_ascii=False) if biz_rules else 'لا توجد قواعد عمل.'}
 
-## عينة ممثلة من البيانات (لفهم الهيكلية والمحتوى):
-{json.dumps(sample_products, ensure_ascii=False)}
+## عينة ممثلة من البيانات (مختصرة لفهم الهيكلية والمحتوى):
+{json.dumps(clean_sample, ensure_ascii=False)}
 
 ═══════════════════════════════════════
 📝 المطلوب:
@@ -496,7 +507,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             
             if name_col:
                 auto_header += f"\n- **العناصر الكاملة (اعرضها جميعاً مباشرة):**\n"
-                for i, row in enumerate(products_raw, 1):
+                for i, row in enumerate(products_raw[:6], 1):
                     item_name = str(row.get(name_col, f"عنصر {i}")).strip()
                     auto_header += f"  {i}. {item_name}\n"
         
