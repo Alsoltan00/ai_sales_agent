@@ -34,16 +34,28 @@ async def verify_merchant(request: Request):
         import time
         start_t = time.time()
         print(f"[VERIFY] Start metadata fetch for merchant: {user['id']}")
-        planning_task = get_planning_config(user["id"])
-        settings_task = get_store_settings(user["id"])
         
-        planning_res, settings_res = await asyncio.gather(planning_task, settings_task)
-        
-        user["_planning"] = planning_res
-        user["_settings"] = settings_res
-        print(f"[VERIFY] Metadata fetched in {time.time() - start_t:.3f}s for {user['id']}")
+        # إضافة مهلة زمنية قصيرة لجلب الإعدادات لضمان عدم تعليق الصفحة إذا كانت قاعدة البيانات بطيئة
+        try:
+            planning_task = get_planning_config(user["id"])
+            settings_task = get_store_settings(user["id"])
+            
+            # انتظار لمدة أقصاها 4 ثوانٍ فقط لجلب البيانات
+            planning_res, settings_res = await asyncio.wait_for(
+                asyncio.gather(planning_task, settings_task),
+                timeout=4.0
+            )
+            
+            user["_planning"] = planning_res
+            user["_settings"] = settings_res
+            print(f"[VERIFY] Metadata fetched in {time.time() - start_t:.3f}s for {user['id']}")
+        except asyncio.TimeoutError:
+            print(f"[VERIFY TIMEOUT] Database was slow, using defaults for {user['id']}")
+            user["_planning"] = {}
+            user["_settings"] = {}
+            
     except Exception as e:
-        print(f"[VERIFY ERROR] Metadata fetch failed for {user['id']}: {e}")
+        print(f"[VERIFY ERROR] Critical failure in verify_merchant for {user['id']}: {e}")
         user["_planning"] = {}
         user["_settings"] = {}
         
