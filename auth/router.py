@@ -88,12 +88,10 @@ async def do_login_form(request: Request, contact_info: str = Form(...), passwor
             # عرض صفحة نجاح مباشرة بدون أي redirect
             html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>OK</title>
-<meta http-equiv="refresh" content="2;url={redirect_url}">
 </head><body style="background:#0f172a;color:white;font-family:Arial;text-align:center;padding:80px;">
 <h1>&#10004; Login OK</h1>
 <p>Welcome {user_name}</p>
-<p>Redirecting in 2 seconds...</p>
-<p><a href="{redirect_url}" style="color:#f59e0b;font-size:1.2em;">Click here if not redirected</a></p>
+<p style="margin-top:30px;"><a href="{redirect_url}" style="color:#f59e0b;font-size:1.5em;font-weight:bold;">&#9654; ادخل لوحة التحكم</a></p>
 </body></html>"""
             return HTMLResponse(content=html, status_code=200)
         
