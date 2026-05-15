@@ -192,11 +192,13 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                             print(f"[WA OFF LOG] Error saving user message: {e}")
 
                         # توليد الرد
+                        base_url = f"{scheme}://{host}"
                         ai_reply = await get_ai_response(
                             client_id=client_id,
                             phone_number=from_phone,
                             user_message=text,
-                            channel="whatsapp_official"
+                            channel="whatsapp_official",
+                            base_url=base_url
                         )
                         
                         # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة

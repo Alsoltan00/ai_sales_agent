@@ -139,8 +139,10 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
         elif host and ":" not in host and host != "localhost":
             scheme = "https"
 
+        base_url = f"{scheme}://{host}"
+
         # إضافة المعالجة إلى المهام الخلفية لضمان إرجاع استجابة 200 فوراً وتجنب إعادة الإرسال (Retries) من الخادم
-        background_tasks.add_task(_process_evolution_message, instance_name, body, host, scheme)
+        background_tasks.add_task(_process_evolution_message, instance_name, body, host, scheme, base_url)
 
     except Exception as e:
         print(f"[CRITICAL ERROR] Evolution webhook routing error: {e}")
@@ -154,7 +156,7 @@ def _get_phone_lock(phone: str):
         _phone_locks[phone] = asyncio.Lock()
     return _phone_locks[phone]
 
-async def _process_evolution_message(instance_name: str, body: dict, host: str, scheme: str):
+async def _process_evolution_message(instance_name: str, body: dict, host: str, scheme: str, base_url: str):
     msg_id = None
     try:
         data = body.get("data", {})
@@ -314,7 +316,8 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             image_base64=image_base64,
             audio_base64=audio_base64,
             message_id=msg_id,
-            channel="whatsapp_evolution"
+            channel="whatsapp_evolution",
+            base_url=base_url
         )
 
         # --- تفعيل الحفظ التلقائي للطلبات ---

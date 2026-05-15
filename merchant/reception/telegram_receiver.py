@@ -113,11 +113,13 @@ async def telegram_webhook(bot_token: str, request: Request):
             print(f"[TG LOG] Error saving user message: {e}")
 
         # توليد الرد
+        base_url = f"{scheme}://{host}"
         ai_reply = await get_ai_response(
             client_id=client_id,
             phone_number=phone_str,
             user_message=text,
-            channel="telegram"
+            channel="telegram",
+            base_url=base_url
         )
         
         # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة

@@ -65,12 +65,13 @@ def get_routing_matrix(delivery_type: str, channel: str) -> dict:
 
 async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                           image_base64: str = None, audio_base64: str = None,
-                          message_id: str = None, channel: str = "whatsapp"):
+                          message_id: str = None, channel: str = "whatsapp",
+                          base_url: str = None):
     """
     High-Precision AI Engine v4.0
     - Strict data injection from DB (no hallucination)
     - Full error logging for diagnosis
-    - Correct OR query support
+    - CRM-aware (Memory of past orders and invoice links)
     """
     supabase = get_supabase_client()
 
@@ -96,6 +97,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 1.5 CUSTOMER PROFILE LOOKUP (CRM) ───────────────────────────────
     customer_context = ""
+    latest_invoice_link = ""
     try:
         from merchant.customers.customer_manager import get_or_create_customer
         # تنظيف المعرف الرئيسي
@@ -111,7 +113,14 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             c_phone = customer.get("phone_number") or ""
             c_orders = customer.get("total_orders", 0)
             
-            if c_name or c_addr:
+            # جلب آخر رابط فاتورة للعميل لتمكين الرد على "أعطني الرابط مجدداً"
+            try:
+                order_res = supabase.table("orders").select("id").eq("client_id", client_id).eq("customer_phone", clean_identifier).order("created_at", desc=True).limit(1).execute()
+                if order_res.data and base_url:
+                    latest_invoice_link = f"{base_url}/invoice/{order_res.data[0]['id']}"
+            except: pass
+
+            if c_name or c_addr or latest_invoice_link:
                 customer_context = f"""
 ## بيانات العميل الحالي (هذا العميل معروف لدينا مسبقاً):
 - اسم العميل: {c_name if c_name else 'غير معروف'}
@@ -119,15 +128,16 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 - العنوان السابق: {c_addr if c_addr else 'غير معروف'}
 - المدينة: {c_city if c_city else 'غير معروفة'}
 - عدد الطلبات السابقة: {c_orders}
+- رابط آخر فاتورة له: {latest_invoice_link if latest_invoice_link else 'لا يوجد حالياً'}
 
 **تعليمات صارمة للتعامل مع هذا العميل (تجربة بشرية مخصصة):**
 1. **الترحيب المخصص:** نظراً لأننا نعرف اسم العميل ({c_name})، خاطبه باسمه الأول بود وتلقائية منذ البداية (مثل: "أهلاً بك مرة أخرى يا {c_name}"). **يُمنع منعاً باتاً** سؤاله "ما هو اسمك؟" لأنك تعرفه بالفعل.
-2. **عند إتمام الطلب (Checkout):** إذا وصل العميل لمرحلة تسجيل الطلب، **يُمنع** أن تطلب منه إدخال بياناته من الصفر. بدلاً من ذلك، اعرض عليه بياناته السابقة المسجلة لدينا بوضوح (الاسم، رقم الهاتف، العنوان، المدينة).
-3. **تأكيد البيانات:** قل له نصاً أو بأسلوبك: "هل نعتمد نفس بياناتك السابقة للشحن/التسجيل؟ (الاسم: {c_name}، العنوان: {c_addr}...) أم ترغب بتغييرها؟". 
-4. **تحديث أو اعتماد:** إذا وافق، اعتمد هذه البيانات فوراً للطلب. إذا رغب بالتغيير، خذ منه البيانات الجديدة للطلب الحالي.
-5. **استكمال النواقص:** إذا كانت إحدى البيانات المطلوبة غائبة في سجله السابق (مثلاً المدينة غير معروفة)، اعرض ما تملكه واطلب منه استكمال الناقص فقط.
+2. **روابط الفواتير:** إذا طلب العميل رابط فاتورته أو سأل "أين الفاتورة؟"، قم فوراً بتزويده بالرابط التالي: ({latest_invoice_link}) وأخبره أنها فاتورة آخر طلب له. **يُمنع** قول "ليس لدي صلاحية" أو "ستصلك لاحقاً" إذا كان الرابط موجوداً أعلاه.
+3. **عند إتمام الطلب (Checkout):** إذا وصل العميل لمرحلة تسجيل الطلب، **يُمنع** أن تطلب منه إدخال بياناته من الصفر. بدلاً من ذلك، اعرض عليه بياناته السابقة المسجلة لدينا بوضوح (الاسم، رقم الهاتف، العنوان، المدينة).
+4. **تأكيد البيانات:** قل له نصاً أو بأسلوبك: "هل نعتمد نفس بياناتك السابقة للشحن/التسجيل؟ (الاسم: {c_name}، العنوان: {c_addr}...) أم ترغب بتغييرها؟". 
+5. **تحديث أو اعتماد:** إذا وافق، اعتمد هذه البيانات فوراً للطلب. إذا رغب بالتغيير، خذ منه البيانات الجديدة للطلب الحالي.
 """
-                print(f"[ENGINE] Customer CRM data injected: {c_name or 'NEW'} with {c_orders} previous orders.")
+                print(f"[ENGINE] Customer CRM data injected: {c_name or 'NEW'} | Latest Link: {bool(latest_invoice_link)}")
             else:
                 customer_context = "\n## بيانات العميل الحالي: عميل جديد (لا توجد بيانات سابقة). عامله باحترافية واجمع بياناته (الاسم، العنوان، إلخ) عند مرحلة إتمام الطلب بشكل كامل."
                 print(f"[ENGINE] New customer: {clean_identifier}")
