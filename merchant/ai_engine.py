@@ -98,30 +98,31 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
     # ─── 1.5 CUSTOMER PROFILE LOOKUP (CRM) ───────────────────────────────
     customer_context = ""
     latest_invoice_link = ""
-    try:
-        from merchant.customers.customer_manager import get_or_create_customer
-        # تنظيف المعرف الرئيسي
-        clean_identifier = phone_number.split("@")[0].replace("+", "")
-        platform = "whatsapp" if channel.startswith("whatsapp") else channel
-        
-        customer = get_or_create_customer(client_id, platform, clean_identifier, clean_identifier if platform.startswith("whatsapp") else None)
-        
-        if customer:
-            c_name = customer.get("customer_name") or ""
-            c_addr = customer.get("customer_address") or ""
-            c_city = customer.get("customer_city") or ""
-            c_phone = customer.get("phone_number") or ""
-            c_orders = customer.get("total_orders", 0)
+    if phone_number != "STRATEGY_GEN":
+        try:
+            from merchant.customers.customer_manager import get_or_create_customer
+            # تنظيف المعرف الرئيسي
+            clean_identifier = phone_number.split("@")[0].replace("+", "")
+            platform = "whatsapp" if channel.startswith("whatsapp") else channel
             
-            # جلب آخر رابط فاتورة للعميل لتمكين الرد على "أعطني الرابط مجدداً"
-            try:
-                order_res = supabase.table("orders").select("id").eq("client_id", client_id).eq("customer_phone", clean_identifier).order("created_at", desc=True).limit(1).execute()
-                if order_res.data and base_url:
-                    latest_invoice_link = f"{base_url}/invoice/{order_res.data[0]['id']}"
-            except: pass
+            customer = get_or_create_customer(client_id, platform, clean_identifier, clean_identifier if platform.startswith("whatsapp") else None)
+            
+            if customer:
+                c_name = customer.get("customer_name") or ""
+                c_addr = customer.get("customer_address") or ""
+                c_city = customer.get("customer_city") or ""
+                c_phone = customer.get("phone_number") or ""
+                c_orders = customer.get("total_orders", 0)
+                
+                # جلب آخر رابط فاتورة للعميل لتمكين الرد على "أعطني الرابط مجدداً"
+                try:
+                    order_res = supabase.table("orders").select("id").eq("client_id", client_id).eq("customer_phone", clean_identifier).order("created_at", desc=True).limit(1).execute()
+                    if order_res.data and base_url:
+                        latest_invoice_link = f"{base_url}/invoice/{order_res.data[0]['id']}"
+                except: pass
 
-            if c_name or c_addr or latest_invoice_link:
-                customer_context = f"""
+                if c_name or c_addr or latest_invoice_link:
+                    customer_context = f"""
 ## بيانات العميل الحالي (هذا العميل معروف لدينا مسبقاً):
 - اسم العميل: {c_name if c_name else 'غير معروف'}
 - رقم الهاتف: {c_phone if c_phone else 'غير معروف'}
@@ -137,12 +138,12 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 4. **تأكيد البيانات:** قل له نصاً أو بأسلوبك: "هل نعتمد نفس بياناتك السابقة للشحن/التسجيل؟ (الاسم: {c_name}، العنوان: {c_addr}...) أم ترغب بتغييرها؟". 
 5. **تحديث أو اعتماد:** إذا وافق، اعتمد هذه البيانات فوراً للطلب. إذا رغب بالتغيير، خذ منه البيانات الجديدة للطلب الحالي.
 """
-                print(f"[ENGINE] Customer CRM data injected: {c_name or 'NEW'} | Latest Link: {bool(latest_invoice_link)}")
-            else:
-                customer_context = "\n## بيانات العميل الحالي: عميل جديد (لا توجد بيانات سابقة). عامله باحترافية واجمع بياناته (الاسم، العنوان، إلخ) عند مرحلة إتمام الطلب بشكل كامل."
-                print(f"[ENGINE] New customer: {clean_identifier}")
-    except Exception as e:
-        print(f"[ENGINE] Customer CRM lookup error: {e}")
+                    print(f"[ENGINE] Customer CRM data injected: {c_name or 'NEW'} | Latest Link: {bool(latest_invoice_link)}")
+                else:
+                    customer_context = "\n## بيانات العميل الحالي: عميل جديد (لا توجد بيانات سابقة). عامله باحترافية واجمع بياناته (الاسم، العنوان، إلخ) عند مرحلة إتمام الطلب بشكل كامل."
+                    print(f"[ENGINE] New customer: {clean_identifier}")
+        except Exception as e:
+            print(f"[ENGINE] Customer CRM lookup error: {e}")
 
     # ─── 2. AI MODEL RESOLUTION ──────────────────────────────────────────────
     api_key, model_id, provider = None, "gpt-3.5-turbo", "openai"
@@ -223,41 +224,42 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 4. CONVERSATION HISTORY (Context Extraction) ───────────────────────────
     history = []
-    # التنظيف للبحث الشامل: إزالة أي لواحق مثل @s.whatsapp.net أو :1 للأجهزة المرتبطة
-    clean_p = phone_number.replace("+", "").split("@")[0].split(":")[0]
-    if clean_p.startswith("00"): clean_p = clean_p[2:]
-    
-    # مصفوفة الاحتمالات لضمان جلب الذاكرة مهما كان تنسيق الرقم المخزن
-    v_search = [clean_p, f"{clean_p}@s.whatsapp.net", f"+{clean_p}", f"00{clean_p}"]
-    or_filter = ",".join([f"phone_number.eq.{x}" for x in v_search])
     recent_context_text = ""
+    if phone_number != "STRATEGY_GEN":
+        # التنظيف للبحث الشامل: إزالة أي لواحق مثل @s.whatsapp.net أو :1 للأجهزة المرتبطة
+        clean_p = phone_number.replace("+", "").split("@")[0].split(":")[0]
+        if clean_p.startswith("00"): clean_p = clean_p[2:]
+        
+        # مصفوفة الاحتمالات لضمان جلب الذاكرة مهما كان تنسيق الرقم المخزن
+        v_search = [clean_p, f"{clean_p}@s.whatsapp.net", f"+{clean_p}", f"00{clean_p}"]
+        or_filter = ",".join([f"phone_number.eq.{x}" for x in v_search])
 
-    try:
-        # Fetch last 8 exchanges ordered by time ascending
-        h_res = supabase.table("message_logs") \
-            .select("message_text, ai_response") \
-            .or_(or_filter) \
-            .eq("client_id", client_id) \
-            .order("timestamp", desc=True) \
-            .limit(8) \
-            .execute()
+        try:
+            # Fetch last 8 exchanges ordered by time ascending
+            h_res = supabase.table("message_logs") \
+                .select("message_text, ai_response") \
+                .or_(or_filter) \
+                .eq("client_id", client_id) \
+                .order("timestamp", desc=True) \
+                .limit(8) \
+                .execute()
 
-        if h_res.data:
-            # Enrich keywords from the most recent 2 exchanges
-            recent_exchanges = h_res.data[:2]
-            for msg in recent_exchanges:
-                recent_context_text += f" {msg.get('message_text', '')} {msg.get('ai_response', '')}"
-                
-            for m in reversed(h_res.data):
-                u = (m.get("message_text") or "").strip()
-                a = (m.get("ai_response") or "").strip()
-                if u: history.append({"role": "user",      "content": u})
-                if a: history.append({"role": "assistant", "content": a})
-            print(f"[ENGINE] History loaded: {len(history)} messages")
-        else:
-            print(f"[ENGINE] No history for {clean_p}")
-    except Exception as e:
-        print(f"[ENGINE] History error: {e}")
+            if h_res.data:
+                # Enrich keywords from the most recent 2 exchanges
+                recent_exchanges = h_res.data[:2]
+                for msg in recent_exchanges:
+                    recent_context_text += f" {msg.get('message_text', '')} {msg.get('ai_response', '')}"
+                    
+                for m in reversed(h_res.data):
+                    u = (m.get("message_text") or "").strip()
+                    a = (m.get("ai_response") or "").strip()
+                    if u: history.append({"role": "user",      "content": u})
+                    if a: history.append({"role": "assistant", "content": a})
+                print(f"[ENGINE] History loaded: {len(history)} messages")
+            else:
+                print(f"[ENGINE] No history for {clean_p}")
+        except Exception as e:
+            print(f"[ENGINE] History error: {e}")
 
     # ─── 4.5 PLANNING CONFIG + STRATEGY ──────────────────────────────────────
     is_digital = False
@@ -287,127 +289,130 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     # ─── 5. PRODUCT DATA (Smart Context-Aware Search) ─────────────────────────
     product_section = ""
-    try:
-        data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
-        if data_res.data and data_res.data[0].get("data"):
-            all_rows = data_res.data[0]["data"]
-            total = len(all_rows)
-            print(f"[ENGINE] Total products in DB: {total}")
+    if phone_number == "STRATEGY_GEN":
+        product_section = "Products data is explicitly omitted during STRATEGY_GEN."
+    else:
+        try:
+            data_res = supabase.table("merchant_manual_data").select("data").eq("client_id", client_id).execute()
+            if data_res.data and data_res.data[0].get("data"):
+                all_rows = data_res.data[0]["data"]
+                total = len(all_rows)
+                print(f"[ENGINE] Total products in DB: {total}")
 
-            # ── إزالة التكرارات: نستخدم بصمة نصية لكل صف ──
-            seen_fingerprints = set()
-            unique_rows = []
-            for row in all_rows:
-                # بناء بصمة من القيم الأساسية (تجاهل المفاتيح التقنية)
-                fp_parts = []
-                for k, v in row.items():
-                    v_str = str(v).strip().lower()
-                    if v_str.isdigit() and len(v_str) >= 13:  # تجاهل timestamps
-                        continue
-                    if k in disabled_columns:
-                        continue
-                    fp_parts.append(v_str)
-                fingerprint = "|".join(sorted(fp_parts))
-                if fingerprint not in seen_fingerprints:
-                    seen_fingerprints.add(fingerprint)
-                    unique_rows.append(row)
-            
-            dedup_removed = total - len(unique_rows)
-            if dedup_removed > 0:
-                print(f"[ENGINE] Deduplication: removed {dedup_removed} duplicate rows")
-            all_rows = unique_rows
-
-            # Extract keywords from user message AND recent context (≥2 chars)
-            combined_text = recent_context_text + " " + user_message
-            # تجاهل الكلمات العامة جداً التي لا تفيد في البحث
-            stop_words = {'ماذا', 'لديك', 'لديكم', 'عندك', 'عندكم', 'اعطني', 'اعطيني', 'ابغى', 'ابي', 'اريد', 'اختيارات', 'خيارات', 'ايش', 'وش', 'شنو', 'عرض', 'اعرض', 'قائمة', 'منتجات', 'خدمات', 'الكل', 'كل', 'جميع', 'شو', 'هل', 'في', 'من', 'على', 'مع', 'عن', 'الى', 'هذا', 'هذه', 'ذلك', 'تلك', 'لي', 'لك', 'ان', 'اذا', 'يا', 'او', 'كيف', 'متى', 'اين', 'لماذا', 'هنا'}
-            keywords = [k.strip() for k in combined_text.replace("؟","").replace("?","").split() if len(k.strip()) >= 2 and k.strip().lower() not in stop_words]
-            
-            # 🆕 تحسين: إذا كان هناك جوهر استراتيجي، نبحث عن كلمات البحث المفتاحية المرتبطة بالفئات المذكورة في رسالة المستخدم
-            if ai_core_strategy:
-                import re
-                # البحث عن أنماط مثل: • اسم الفئة (كلمات البحث: كذا، كذا)
-                cat_matches = re.findall(r"•\s*([^(]+)\s*\(كلمات البحث:\s*([^)]+)\)", ai_core_strategy)
-                for cat_name, cat_kws in cat_matches:
-                    cat_name_clean = cat_name.strip()
-                    # إذا ذكر المستخدم اسم الفئة في رسالته
-                    if cat_name_clean.lower() in combined_text.lower():
-                        # إضافة كلمات البحث الخاصة بهذه الفئة
-                        extra_kws = [ck.strip() for ck in cat_kws.split(",") if len(ck.strip()) >= 2]
-                        keywords.extend(extra_kws)
-                        print(f"[ENGINE] Smart category match: {cat_name_clean} -> Added keywords: {extra_kws}")
-
-            # Remove duplicate keywords
-            keywords = list(set(keywords))
-
-            # Score rows by keyword relevance
-            scored = []
-            for row in all_rows:
-                row_text = " ".join(str(v) for v in row.values()).lower()
-                score = sum(1 for kw in keywords if kw.lower() in row_text)
-                scored.append((score, row))
-
-            # Sort: matched rows first, then rest
-            scored.sort(key=lambda x: x[0], reverse=True)
-
-            # Take top 15 relevant
-            relevant = [r for s, r in scored if s > 0][:15]
-            
-            # Smart Inventory Summary (المشكلة 4: رؤية المتجر بالكامل)
-            # إذا لم يطلب العميل شيئاً محدداً (لا توجد كلمات بحث أو لا توجد نتائج)
-            # يجب أن يرى النموذج أسماء *جميع* المنتجات ليعرف ماذا يملك، دون إرهاقه بالتفاصيل
-            inventory_summary = []
-            if not relevant:
-                # استخراج اسم المنتج من أول عمود (غالباً "الاسم" أو "المنتج")
-                for r in all_rows:
-                    keys = list(r.keys())
-                    if keys:
-                        # نحاول إيجاد عمود اسمه يحتوي على 'اسم' أو 'name'، وإلا نأخذ أول عمود
-                        name_key = next((k for k in keys if 'اسم' in k.lower() or 'name' in k.lower()), keys[0])
-                        inventory_summary.append(str(r[name_key]))
-            
-            final_rows = relevant
-
-            print(f"[ENGINE] Matched rows: {len(relevant)} | Full inventory extracted: {len(inventory_summary) > 0}")
-
-            # Build clean readable lines for FULL DETAILS — apply column filters
-            lines = []
-            for row in final_rows:
-                parts = []
-                for k, v in row.items():
-                    v_str = str(v)
-                    # 1. حذف الطوابع الزمنية (Unix timestamps — 13 رقماً)
-                    if v_str.isdigit() and len(v_str) >= 13:
-                        continue
-                    # 2. حذف الأعمدة الموقوفة (is_disabled) كلياً
-                    if k in disabled_columns:
-                        continue
-                    # 3. حذف الأعمدة "عند الطلب" — لا يراها النموذج إلا عند الطلب
-                    if k in restricted_columns:
-                        continue
-                    parts.append(f"{k}: {v}")
-                if parts:
-                    lines.append("• " + " | ".join(parts))
-
-            product_section = ""
-            if lines:
-                product_section += "✅ المنتجات المطابقة لطلب العميل بالتفصيل:\n" + "\n".join(lines)
-            
-            if inventory_summary:
-                # فهرس مضغوط لجميع المنتجات (الأسماء فقط)
-                summary_text = "، ".join(inventory_summary)
-                product_section += f"\n\n📋 فهرس جميع {item_term} المتوفرة في المتجر (الأسماء فقط - اعرضها كأقسام أو أزرار كما ينص الدستور ولا تخترع غيرها):\n[{summary_text}]"
+                # ── إزالة التكرارات: نستخدم بصمة نصية لكل صف ──
+                seen_fingerprints = set()
+                unique_rows = []
+                for row in all_rows:
+                    # بناء بصمة من القيم الأساسية (تجاهل المفاتيح التقنية)
+                    fp_parts = []
+                    for k, v in row.items():
+                        v_str = str(v).strip().lower()
+                        if v_str.isdigit() and len(v_str) >= 13:  # تجاهل timestamps
+                            continue
+                        if k in disabled_columns:
+                            continue
+                        fp_parts.append(v_str)
+                    fingerprint = "|".join(sorted(fp_parts))
+                    if fingerprint not in seen_fingerprints:
+                        seen_fingerprints.add(fingerprint)
+                        unique_rows.append(row)
                 
-            if not lines and not inventory_summary:
-                product_section = "لا توجد منتجات مسجلة."
+                dedup_removed = total - len(unique_rows)
+                if dedup_removed > 0:
+                    print(f"[ENGINE] Deduplication: removed {dedup_removed} duplicate rows")
+                all_rows = unique_rows
+
+                # Extract keywords from user message AND recent context (≥2 chars)
+                combined_text = recent_context_text + " " + user_message
+                # تجاهل الكلمات العامة جداً التي لا تفيد في البحث
+                stop_words = {'ماذا', 'لديك', 'لديكم', 'عندك', 'عندكم', 'اعطني', 'اعطيني', 'ابغى', 'ابي', 'اريد', 'اختيارات', 'خيارات', 'ايش', 'وش', 'شنو', 'عرض', 'اعرض', 'قائمة', 'منتجات', 'خدمات', 'الكل', 'كل', 'جميع', 'شو', 'هل', 'في', 'من', 'على', 'مع', 'عن', 'الى', 'هذا', 'هذه', 'ذلك', 'تلك', 'لي', 'لك', 'ان', 'اذا', 'يا', 'او', 'كيف', 'متى', 'اين', 'لماذا', 'هنا'}
+                keywords = [k.strip() for k in combined_text.replace("؟","").replace("?","").split() if len(k.strip()) >= 2 and k.strip().lower() not in stop_words]
                 
-            print(f"[ENGINE] Restricted columns hidden from AI: {restricted_columns}")
-        else:
-            print(f"[ENGINE] No product data found for client {client_id}")
-            product_section = "لا توجد منتجات مسجلة حالياً."
-    except Exception as e:
-        print(f"[ENGINE] Product data error: {e}")
-        product_section = "تعذّر تحميل قائمة المنتجات."
+                # 🆕 تحسين: إذا كان هناك جوهر استراتيجي، نبحث عن كلمات البحث المفتاحية المرتبطة بالفئات المذكورة في رسالة المستخدم
+                if ai_core_strategy:
+                    import re
+                    # البحث عن أنماط مثل: • اسم الفئة (كلمات البحث: كذا، كذا)
+                    cat_matches = re.findall(r"•\s*([^(]+)\s*\(كلمات البحث:\s*([^)]+)\)", ai_core_strategy)
+                    for cat_name, cat_kws in cat_matches:
+                        cat_name_clean = cat_name.strip()
+                        # إذا ذكر المستخدم اسم الفئة في رسالته
+                        if cat_name_clean.lower() in combined_text.lower():
+                            # إضافة كلمات البحث الخاصة بهذه الفئة
+                            extra_kws = [ck.strip() for ck in cat_kws.split(",") if len(ck.strip()) >= 2]
+                            keywords.extend(extra_kws)
+                            print(f"[ENGINE] Smart category match: {cat_name_clean} -> Added keywords: {extra_kws}")
+
+                # Remove duplicate keywords
+                keywords = list(set(keywords))
+
+                # Score rows by keyword relevance
+                scored = []
+                for row in all_rows:
+                    row_text = " ".join(str(v) for v in row.values()).lower()
+                    score = sum(1 for kw in keywords if kw.lower() in row_text)
+                    scored.append((score, row))
+
+                # Sort: matched rows first, then rest
+                scored.sort(key=lambda x: x[0], reverse=True)
+
+                # Take top 15 relevant
+                relevant = [r for s, r in scored if s > 0][:15]
+                
+                # Smart Inventory Summary (المشكلة 4: رؤية المتجر بالكامل)
+                # إذا لم يطلب العميل شيئاً محدداً (لا توجد كلمات بحث أو لا توجد نتائج)
+                # يجب أن يرى النموذج أسماء *جميع* المنتجات ليعرف ماذا يملك، دون إرهاقه بالتفاصيل
+                inventory_summary = []
+                if not relevant:
+                    # استخراج اسم المنتج من أول عمود (غالباً "الاسم" أو "المنتج")
+                    for r in all_rows:
+                        keys = list(r.keys())
+                        if keys:
+                            # نحاول إيجاد عمود اسمه يحتوي على 'اسم' أو 'name'، وإلا نأخذ أول عمود
+                            name_key = next((k for k in keys if 'اسم' in k.lower() or 'name' in k.lower()), keys[0])
+                            inventory_summary.append(str(r[name_key]))
+                
+                final_rows = relevant
+
+                print(f"[ENGINE] Matched rows: {len(relevant)} | Full inventory extracted: {len(inventory_summary) > 0}")
+
+                # Build clean readable lines for FULL DETAILS — apply column filters
+                lines = []
+                for row in final_rows:
+                    parts = []
+                    for k, v in row.items():
+                        v_str = str(v)
+                        # 1. حذف الطوابع الزمنية (Unix timestamps — 13 رقماً)
+                        if v_str.isdigit() and len(v_str) >= 13:
+                            continue
+                        # 2. حذف الأعمدة الموقوفة (is_disabled) كلياً
+                        if k in disabled_columns:
+                            continue
+                        # 3. حذف الأعمدة "عند الطلب" — لا يراها النموذج إلا عند الطلب
+                        if k in restricted_columns:
+                            continue
+                        parts.append(f"{k}: {v}")
+                    if parts:
+                        lines.append("• " + " | ".join(parts))
+
+                product_section = ""
+                if lines:
+                    product_section += "✅ المنتجات المطابقة لطلب العميل بالتفصيل:\n" + "\n".join(lines)
+                
+                if inventory_summary:
+                    # فهرس مضغوط لجميع المنتجات (الأسماء فقط)
+                    summary_text = "، ".join(inventory_summary)
+                    product_section += f"\n\n📋 فهرس جميع {item_term} المتوفرة في المتجر (الأسماء فقط - اعرضها كأقسام أو أزرار كما ينص الدستور ولا تخترع غيرها):\n[{summary_text}]"
+                    
+                if not lines and not inventory_summary:
+                    product_section = "لا توجد منتجات مسجلة."
+                    
+                print(f"[ENGINE] Restricted columns hidden from AI: {restricted_columns}")
+            else:
+                print(f"[ENGINE] No product data found for client {client_id}")
+                product_section = "لا توجد منتجات مسجلة حالياً."
+        except Exception as e:
+            print(f"[ENGINE] Product data error: {e}")
+            product_section = "تعذّر تحميل قائمة المنتجات."
 
     # ─── 6. BUSINESS RULES (قراءة شاملة لجميع إعدادات التاجر) ──────────────
     rules_section = ""
@@ -689,8 +694,9 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
             else:
                 response = await _call_openrouter(api_key, model_id, messages, ai_temperature, ai_max_tokens)
 
-            _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
-            supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
+            if phone_number != "STRATEGY_GEN":
+                _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
+                supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
             return response
 
         except Exception as e:
