@@ -33,7 +33,7 @@ async def login_page(request: Request):
         if user.get("user_type") == "admin_user":
             return RedirectResponse(url="/admin/dashboard", status_code=303)
         else:
-            return RedirectResponse(url="/merchant/home", status_code=303)
+            return RedirectResponse(url="/merchant/dashboard", status_code=303)
             
     return templates.TemplateResponse("login.html", {"request": request, "view": "login"})
 
@@ -42,7 +42,7 @@ async def register_page(request: Request):
     # Check if already logged in
     user = request.session.get("user")
     if user:
-        return RedirectResponse(url="/merchant/home", status_code=303)
+        return RedirectResponse(url="/merchant/dashboard", status_code=303)
             
     return templates.TemplateResponse("login.html", {"request": request, "view": "register"})
 
@@ -59,7 +59,7 @@ async def api_login(request: Request, payload: LoginRequest):
         if user_data:
             print(f"[AUTH] Authentication success for: {payload.contact_info} (Type: {user_data['user_type']})")
             create_session(request, user_data)
-            redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/home"
+            redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/dashboard"
             print(f"[AUTH] Session created, sending response with redirect to: {redirect_url}")
             return {"status": "success", "redirect_url": redirect_url}
             

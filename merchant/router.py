@@ -61,9 +61,9 @@ async def verify_merchant(request: Request):
         
     return user
 
-@router.get("/home", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
-    """لوحة التاجر الرئيسية (Home) - مع فحص الإعداد الأولي"""
+    """لوحة التاجر الرئيسية (Dashboard) - مع فحص الإعداد الأولي"""
     settings = user["_settings"]
     planning = user["_planning"]
     

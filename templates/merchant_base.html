@@ -78,7 +78,7 @@
 <div id="miniSidebar">
   <!-- Logo -->
   <div class="brand-logo">
-    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
+    <a href="/merchant/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
       <span style="font-size:1.6rem;">🤖</span>
       <span class="fw-bold fs-5 site-logo-text">الوكيل الذكي</span>
     </a>
@@ -88,7 +88,7 @@
     {% if user and user._settings and user._settings.onboarding_completed %}
     <!-- Dashboard -->
     <li class="nav-item">
-      <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
+      <a class="nav-link {% if request.url.path == '/merchant/dashboard' %}active{% endif %}" href="/merchant/dashboard">
         <span class="nav-icon"><i class="ti ti-home"></i></span>
         <span class="text">الرئيسية</span>
       </a>
@@ -273,7 +273,7 @@
 <!-- ═══════════════════════ MOBILE OFFCANVAS SIDEBAR ═══════════════════════ -->
 <div class="offcanvas offcanvasNav offcanvas-end" tabindex="-1" id="mobileSidebar">
   <div class="offcanvas-header border-bottom">
-    <a href="/merchant/home" class="d-flex align-items-center gap-2 text-decoration-none">
+    <a href="/merchant/dashboard" class="d-flex align-items-center gap-2 text-decoration-none">
       <span style="font-size:1.4rem;">🤖</span>
       <span class="fw-bold fs-5">الوكيل الذكي</span>
     </a>
@@ -283,7 +283,7 @@
     <ul class="navbar-nav flex-column">
       {% if user and user._settings and user._settings.onboarding_completed %}
       <li class="nav-item">
-        <a class="nav-link {% if request.url.path == '/merchant/home' %}active{% endif %}" href="/merchant/home">
+        <a class="nav-link {% if request.url.path == '/merchant/dashboard' %}active{% endif %}" href="/merchant/dashboard">
           <span class="nav-icon"><i class="ti ti-home"></i></span> <span class="text">الرئيسية</span>
         </a>
       </li>
