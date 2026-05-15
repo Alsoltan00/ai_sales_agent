@@ -13,6 +13,7 @@ from config.settings import PORT, HOST, DEBUG
 app = FastAPI(title="AI Sales Agent", version="2.0", description="نظام وكيل المبيعات الذكي")
 
 # إعداد الجلسات
+# app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET", "super-secret-sales-agent-key-12345"),

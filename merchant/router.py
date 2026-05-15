@@ -71,9 +71,15 @@ async def merchant_home(request: Request, user: dict = Depends(verify_merchant))
     if not settings.get("onboarding_completed"):
         return RedirectResponse(url="/merchant/onboarding", status_code=302)
     
-    return templates.TemplateResponse("merchant_home.html", {
-        "request": request, "user": user, "settings": settings, "planning": planning
-    })
+    try:
+        # رندرة يدوية بالكامل لضمان عدم وجود مشاكل في تسليم البيانات
+        content = templates.get_template("merchant_home.html").render({
+            "request": request, "user": user, "settings": settings, "planning": planning
+        })
+        return HTMLResponse(content=content, status_code=200)
+    except Exception as e:
+        print(f"[RENDER ERROR] Failed to render dashboard: {e}")
+        return HTMLResponse(content=f"<h1>حدث خطأ في عرض الصفحة</h1><p>{str(e)}</p>", status_code=500)
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
