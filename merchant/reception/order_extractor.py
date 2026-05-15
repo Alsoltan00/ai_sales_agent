@@ -17,10 +17,10 @@ from datetime import datetime
 _REQUIRED_ALWAYS = ["customer_name", "items"]
 
 # حقول إضافية للمتاجر الفيزيائية فقط
-_REQUIRED_PHYSICAL = ["customer_phone", "customer_address", "customer_city"]
+_REQUIRED_PHYSICAL = ["customer_address", "customer_city"]
 
-# حقول إضافية لمتاجر الحجز/الخدمات
-_REQUIRED_BOOKING = ["customer_phone"]
+# حقول إضافية لمتاجر الحجز/الخدمات (رقم الهاتف يسحب تلقائياً لذلك لا داعي لاشتراطه على الذكاء الاصطناعي)
+_REQUIRED_BOOKING = []
 
 
 def validate_order_data(order_data: dict, delivery_type: str = "physical") -> tuple[bool, str]:
