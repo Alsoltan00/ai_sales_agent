@@ -191,74 +191,7 @@ def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_me
         return {"status": "success", "message": "تم تحديث بيانات التخطيط بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
-class GenerateInstructionsRequest(BaseModel):
-    business_description: str
-    store_activity: str
-    ai_tone: str = "احترافي"
 
-@router.post("/api/planning/generate-instructions")
-async def api_generate_instructions(payload: GenerateInstructionsRequest, user: dict = Depends(verify_merchant)):
-    """توليد تعليمات احترافية باستخدام الذكاء الاصطناعي مع إدراك كامل لسياق المتجر"""
-    from merchant.ai_engine import get_ai_response
-    from merchant.planning.planning_config import get_planning_config
-    
-    # جلب إعدادات المتجر الكاملة لمعرفة السياق (رقمي/فيزيائي/شات/رابط)
-    config = await get_planning_config(user["id"])
-    sales_type = config.get("sales_type", "products") # products, services, bookings
-    order_flow = config.get("order_flow", "in_chat") # in_chat, store_link
-    delivery_type = config.get("delivery_type", "physical") # physical, digital
-    
-    # بناء "المخطط الذكي" بناءً على البيانات الحقيقية
-    context_logic = ""
-    if delivery_type == "digital":
-        context_logic = "- المتجر يبيع منتجات/خدمات رقمية. يمنع منعاً باتاً طلب عنوان شحن أو مدينة. ركز على طلب (الاسم + البريد الإلكتروني أو وسيلة التسليم الرقمية)."
-    else:
-        context_logic = "- المتجر يبيع منتجات فيزيائية. يجب طلب (الاسم + المدينة + العنوان) لضمان الشحن الصحيح."
-
-    if order_flow == "store_link":
-        context_logic += "\n- طريقة الطلب هي (رابط المتجر). وظيفتك هي إقناع العميل وتزويده بالرابط لإتمام الطلب هناك، ولا تقم بجمع بياناته يدوياً."
-    else:
-        context_logic += "\n- طريقة الطلب هي (داخل الدردشة). يجب عليك جمع البيانات وبناء طلب كامل ليقوم النظام بإصدار فاتورة."
-
-    meta_prompt = f"""أنت "مهندس ذكاء اصطناعي خبير" متخصص في تصميم وكلاء المبيعات.
-بناءً على "سياق المتجر" التالي، قم بكتابة "بروتوكول عمل" شامل ودقيق جداً.
-
-سياق المتجر الحالي:
-- نوع النشاط: {payload.store_activity}
-- نوع المبيعات: {sales_type}
-- طريقة التسليم: {delivery_type}
-- مسار الطلب: {order_flow}
-- منطق العمل المطلوب:
-{context_logic}
-
-الهدف: كتابة تعليمات نظام (Custom Instructions) تجعل الوكيل يعمل بدقة 100% بناءً على هذا السياق.
-
-يجب أن تتضمن التعليمات:
-1. الشخصية: (الاسم: {config.get('ai_agent_name', 'الوكيل')}) واللهجة: {payload.ai_tone}.
-2. بروتوكول البيانات: ما هي الحقول التي يجب جمعها (بناءً على السياق أعلاه) وما هي الحقول المحظور طلبها؟
-3. خطوات المحادثة: (ترحيب -> عرض قيمة -> معالجة اعتراض -> جمع بيانات -> إغلاق).
-4. قوانين صارمة: (أمثلة: لا تخرج عن السياق الرقمي/الفيزيائي، لا تخمن الأسعار).
-
-اكتب التعليمات باللغة العربية بأسلوب هيكلي صارم يمنع أي تداخل في الاحتمالات."""
-
-    try:
-        generated_text = await get_ai_response(
-            client_id=user["id"],
-            user_message=meta_prompt,
-            phone_number="SYSTEM_GEN",
-            channel="system"
-        )
-        
-        clean_text = generated_text.strip()
-        if "```" in clean_text:
-            import re
-            match = re.search(r'```(?:markdown)?(.*?)```', clean_text, re.DOTALL)
-            if match:
-                clean_text = match.group(1).strip()
-
-        return {"status": "success", "instructions": clean_text}
-    except Exception as e:
-        return {"status": "error", "message": f"فشل توليد التعليمات: {str(e)}"}
 
 @router.post("/api/planning/generate-core-strategy")
 async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):

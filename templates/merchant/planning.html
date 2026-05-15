@@ -39,54 +39,7 @@
 .toggle-icon { color: var(--bs-secondary-color); font-size: 0.85rem; margin-right: 10px; }
 @keyframes tagPop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
-/* Template Library Styles */
-.template-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 12px;
-    margin-bottom: 20px;
-}
-.template-card {
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: 14px;
-    padding: 16px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    position: relative;
-}
-.template-card:hover {
-    border-color: var(--bs-primary);
-    background: rgba(var(--bs-primary-rgb), 0.05);
-    transform: translateY(-4px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-}
-.template-card i {
-    font-size: 1.8rem;
-    color: var(--bs-primary);
-    transition: 0.3s;
-}
-.template-card:hover i { transform: scale(1.1); }
-.template-card span {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--bs-body-color);
-}
-.template-card .desc {
-    font-size: 0.72rem;
-    color: var(--bs-secondary-color);
-    line-height: 1.3;
-}
-.template-card.active {
-    border-color: var(--bs-primary);
-    background: rgba(var(--bs-primary-rgb), 0.08);
-    box-shadow: 0 0 0 2px var(--bs-primary) inset;
-}
+
 
 
 /* Dropdown */
@@ -387,40 +340,13 @@
                 </div>
             </div>
 
-            <!-- Custom Instructions -->
-            <div class="mb-4">
-                <label class="form-label fw-600 d-flex justify-content-between align-items-center">
-                    <span><i class="ti ti-brain me-1 text-primary"></i>تعليمات مخصصة للنموذج</span>
-                    <button type="button" class="btn btn-sm btn-outline-primary border-dashed" onclick="generateAIInstructions()" id="genAiBtn">
-                        <i class="ti ti-sparkles me-1"></i> توليد تعليمات ذكية (AI)
-                    </button>
+                <label class="form-label fw-600">
+                    <i class="ti ti-brain me-1 text-primary"></i>تعليمات مخصصة للنموذج
                     <span class="badge bg-warning-subtle text-warning ms-2 small">متقدم</span>
                 </label>
                 <p class="text-secondary small mb-3">اختر قالباً جاهزاً أو اكتب تعليماتك الخاصة ليتبعها الذكاء الاصطناعي حرفياً.</p>
 
-                <!-- Prompt Templates Library -->
-                <div class="template-grid">
-                    <div class="template-card" onclick="applyTemplate('seller')">
-                        <i class="ti ti-shopping-cart-copy"></i>
-                        <span>البائع الذكي</span>
-                        <p class="desc mb-0">يركز على إتمام البيع، اقتراح البدائل، وسرعة تحويل العميل للفاتورة.</p>
-                    </div>
-                    <div class="template-card" onclick="applyTemplate('advisor')">
-                        <i class="ti ti-certificate"></i>
-                        <span>المستشار الموثوق</span>
-                        <p class="desc mb-0">يركز على بناء الثقة، شرح المميزات الفنية، والردود المنطقية الطويلة.</p>
-                    </div>
-                    <div class="template-card" onclick="applyTemplate('express')">
-                        <i class="ti ti-bolt"></i>
-                        <span>الطلب السريع</span>
-                        <p class="desc mb-0">ردود قصيرة جداً، تركيز فوري على جمع البيانات، مثالي للمطاعم.</p>
-                    </div>
-                    <div class="template-card" onclick="applyTemplate('formal')">
-                        <i class="ti ti-school"></i>
-                        <span>اللباقة الرسمية</span>
-                        <p class="desc mb-0">يستخدم اللغة العربية الفصحى، أسلوب مهذب للغاية، وتنسيق ردود مرتب.</p>
-                    </div>
-                </div>
+
 
                 <textarea id="custom_instructions" class="form-control" rows="6"
                     style="border-radius: 12px; font-size: 0.9rem; border-color: var(--bs-primary-border-subtle);"
@@ -921,121 +847,6 @@ async function generateCoreStrategy() {
 
 loadColumns();
 
-// ─── Prompt Templates Library Logic ──────────────────────────────────────────
-function applyTemplate(id) {
-    const textarea = document.getElementById('custom_instructions');
-    
-    // سحب الإعدادات الحالية من الصفحة (أو من كود Jinja)
-    const isDigital = "{{ planning.delivery_type }}" === "digital";
-    const isStoreLink = "{{ planning.order_flow }}" === "store_link";
-    
-    const dataInstruction = isDigital 
-        ? "يمنع طلب العنوان؛ اطلب (الاسم + البريد الإلكتروني) لتسليم المنتج الرقمي." 
-        : "يجب طلب (الاسم + المدينة + العنوان بالتفصيل) لضمان الشحن.";
-        
-    const flowInstruction = isStoreLink
-        ? "وجه العميل دائماً للطلب عبر رابط المتجر ولا تجمع بياناته يدوياً."
-        : "قم بجمع بيانات العميل داخل الدردشة لبناء الفاتورة يدوياً.";
 
-    const templates = {
-        'seller': `أنت بائع محترف وهدفك الأساسي هو تحويل كل محادثة إلى "فاتورة".
-- السياق: ${dataInstruction}
-- مسار العمل: ${flowInstruction}
-- إذا سأل العميل عن السعر، اذكر القيمة والمميزات أولاً ثم السعر.
-- دائماً اقترح منتجاً إضافياً يكمل طلب العميل (Upsell).
-- لا تدع المحادثة تنتهي دون سؤال العميل: "هل أعتمد لك الطلب الآن؟".`,
-
-        'advisor': `أنت مستشار خبير وموثوق، هدفك بناء علاقة طويلة الأمد مع العميل.
-- السياق: ${dataInstruction}
-- مسار العمل: ${flowInstruction}
-- لا تستعجل البيع؛ ركز على شرح "لماذا" هذا المنتج هو الأنسب لمشكلة العميل.
-- استخدم لغة منطقية واعرض حقائق فنية ومميزات تفصيلية.
-- دائماً اختم ردك بتقديم نصيحة مجانية تتعلق بمجال عمل المتجر.`,
-
-        'express': `أنت ماكينة تنفيذ طلبات سريعة جداً.
-- السياق: ${dataInstruction}
-- ردودك يجب ألا تتجاوز 15 كلمة.
-- لا تستخدم مقدمات طويلة، ادخل في صلب الموضوع فوراً.
-- بمجرد ذكر العميل لمنتج، انتقل فوراً لجمع البيانات المطلوبة لتجهيز الطلب.`,
-
-        'formal': `أنت موظف استقبال في شركة كبرى، ردودك تعكس أقصى درجات الرقي.
-- السياق: ${dataInstruction}
-- استخدم اللغة العربية الفصحى المهذبة في جميع ردودك.
-- خاطب العميل بلقب "سيدي" أو "حضرتك" أو "عزيزي العميل".
-- نسق ردودك في نقاط واضحة ومنظمة (1، 2، 3).`
-    };
-
-    const content = templates[id];
-    
-    if (textarea.value && !confirm('هل أنت متأكد؟ سيتم استبدال التعليمات الحالية بالقالب المختار.')) {
-        return;
-    }
-    
-    textarea.value = content;
-    
-    // Visual feedback
-    const cards = document.querySelectorAll('.template-card');
-    cards.forEach(c => c.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    
-    textarea.style.backgroundColor = 'rgba(var(--bs-primary-rgb), 0.05)';
-    setTimeout(() => {
-        textarea.style.backgroundColor = 'var(--bs-body-bg)';
-    }, 500);
-}
-
-async function generateAIInstructions() {
-    const desc = document.getElementById('business_description').value;
-    const activity = document.getElementById('store_activity').value;
-    const tone = document.getElementById('ai_tone').value;
-    const btn = document.getElementById('genAiBtn');
-    const textarea = document.getElementById('custom_instructions');
-
-    if (!desc || !activity) {
-        alert('يرجى ملء "نشاط المتجر" و "وصف العمل" أولاً ليتمكن الذكاء الاصطناعي من تحليل تجارتك.');
-        return;
-    }
-
-    const originalHTML = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i> جاري التحليل والإنتاج...';
-    
-    try {
-        const res = await fetch('/merchant/api/planning/generate-instructions', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                business_description: desc,
-                store_activity: activity,
-                ai_tone: tone
-            })
-        });
-        const data = await res.json();
-        
-        if (data.status === 'success') {
-            if (textarea.value && !confirm('تم توليد تعليمات جديدة احترافية. هل تريد استبدال النص الحالي؟')) {
-                btn.disabled = false;
-                btn.innerHTML = originalHTML;
-                return;
-            }
-            textarea.value = data.instructions;
-            textarea.style.height = 'auto';
-            textarea.style.height = (textarea.scrollHeight) + 'px';
-            
-            // Success animation
-            textarea.classList.add('animate__animated', 'animate__pulse');
-            setTimeout(() => textarea.classList.remove('animate__animated', 'animate__pulse'), 1000);
-            
-            showGlobalFeedback('alertBox', 'تم التوليد بنجاح', 'قام الذكاء الاصطناعي بصياغة بروتوكول عمل مخصص لمتجرك.', 'success');
-        } else {
-            alert('فشل التوليد: ' + data.message);
-        }
-    } catch (err) {
-        alert('خطأ في الاتصال بالسيرفر');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalHTML;
-    }
-}
 </script>
 {% endblock %}
