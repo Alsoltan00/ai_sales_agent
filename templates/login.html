@@ -151,21 +151,23 @@
                 <p class="text-secondary">سجل دخولك لإدارة وكلاء المبيعات الذكية</p>
             </div>
 
-            <div id="loginAlert" class="alert alert-danger d-none rounded-4 border-0 bg-danger-subtle text-danger small"></div>
+            <div id="loginAlert" class="alert alert-danger d-none rounded-4 border-0 bg-danger-subtle text-danger small">
+                {% if error %}{{ error }}{% endif %}
+            </div>
 
-            <form onsubmit="handleLogin(event)">
+            <form action="/auth/do-login" method="POST">
                 <div class="mb-3">
                     <label class="form-label small fw-bold text-secondary">البريد أو رقم التواصل</label>
                     <div class="input-group">
                         <span class="input-group-text border-end-0 rounded-start-4"><i class="ti ti-mail fs-5"></i></span>
-                        <input type="text" id="loginContact" class="form-control border-start-0 rounded-end-4" placeholder="example@mail.com" required>
+                        <input type="text" name="contact_info" id="loginContact" class="form-control border-start-0 rounded-end-4" placeholder="example@mail.com" required>
                     </div>
                 </div>
                 <div class="mb-4">
                     <label class="form-label small fw-bold text-secondary">كلمة المرور</label>
                     <div class="input-group">
                         <span class="input-group-text border-end-0 rounded-start-4"><i class="ti ti-lock fs-5"></i></span>
-                        <input type="password" id="loginPassword" class="form-control border-start-0 rounded-end-4" placeholder="••••••••" required>
+                        <input type="password" name="password" id="loginPassword" class="form-control border-start-0 rounded-end-4" placeholder="••••••••" required>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary w-100 mb-4" id="loginBtn">تسجيل الدخول</button>
@@ -271,41 +273,13 @@
             }
         }
 
-        async function handleLogin(e) {
-            e.preventDefault();
-            const contactInfo = document.getElementById('loginContact').value;
-            const password = document.getElementById('loginPassword').value;
-            const btn = document.getElementById('loginBtn');
+        // Show error alert if server returned an error
+        (function() {
             const alertBox = document.getElementById('loginAlert');
-            
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> جاري التحقق...';
-            alertBox.classList.add('d-none');
-
-            try {
-                const res = await Promise.race([
-                    fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ contact_info: contactInfo, password: password })
-                    }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
-                ]);
-                const data = await res.json();
-                if (data.status === 'success') {
-                    window.location.href = data.redirect_url;
-                } else {
-                    alertBox.innerText = data.message;
-                    alertBox.classList.remove('d-none');
-                }
-            } catch (err) {
-                alertBox.innerText = err.message === 'timeout' ? 'انتهت مهلة الاتصال' : 'خطأ في الاتصال بالخادم';
+            if (alertBox && alertBox.textContent.trim()) {
                 alertBox.classList.remove('d-none');
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'تسجيل الدخول';
             }
-        }
+        })();
 
         async function handleRegister(e) {
             e.preventDefault();

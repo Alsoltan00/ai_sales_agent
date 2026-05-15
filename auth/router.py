@@ -72,6 +72,30 @@ async def api_login(request: Request, payload: LoginRequest):
         print(f"[AUTH ERROR] Critical failure: {e}")
         return JSONResponse(status_code=500, content={"status": "error", "message": f"خطأ في الخادم: {str(e)}"})
 
+@router.post("/auth/do-login")
+async def do_login_form(request: Request, contact_info: str = Form(...), password: str = Form(...)):
+    """تسجيل دخول تقليدي عبر Form POST مع إعادة توجيه من السيرفر مباشرة"""
+    print(f"[AUTH-FORM] Login attempt for: {contact_info}")
+    try:
+        user_data = await asyncio.to_thread(authenticate_user, contact_info, password)
+        
+        if user_data:
+            print(f"[AUTH-FORM] Success for: {contact_info} (Type: {user_data['user_type']})")
+            create_session(request, user_data)
+            redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/dashboard"
+            print(f"[AUTH-FORM] Redirecting to: {redirect_url}")
+            return RedirectResponse(url=redirect_url, status_code=303)
+        
+        print(f"[AUTH-FORM] Failed for: {contact_info}")
+        return templates.TemplateResponse("login.html", {
+            "request": request, "view": "login", "error": "بيانات الدخول غير صحيحة"
+        })
+    except Exception as e:
+        print(f"[AUTH-FORM ERROR] {e}")
+        return templates.TemplateResponse("login.html", {
+            "request": request, "view": "login", "error": f"خطأ في الخادم: {str(e)}"
+        })
+
 @router.post("/api/auth/register")
 async def api_register(payload: RegisterRequest):
     success, message = await asyncio.to_thread(
