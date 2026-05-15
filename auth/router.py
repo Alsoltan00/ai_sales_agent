@@ -74,26 +74,17 @@ async def api_login(request: Request, payload: LoginRequest):
 
 @router.post("/auth/do-login")
 async def do_login_form(request: Request, contact_info: str = Form(...), password: str = Form(...)):
-    """تسجيل دخول تقليدي - يعرض صفحة النجاح مباشرة بدون redirect"""
+    """تسجيل دخول تقليدي عبر Form POST مع إعادة توجيه من السيرفر مباشرة"""
     print(f"[AUTH-FORM] Login attempt for: {contact_info}")
     try:
         user_data = await asyncio.to_thread(authenticate_user, contact_info, password)
         
         if user_data:
-            print(f"[AUTH-FORM] Success for: {contact_info}")
+            print(f"[AUTH-FORM] Success for: {contact_info} (Type: {user_data['user_type']})")
             create_session(request, user_data)
-            user_name = user_data.get("name", "التاجر")
             redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/dashboard"
-            
-            # عرض صفحة نجاح مباشرة بدون أي redirect
-            html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>OK</title>
-</head><body style="background:#0f172a;color:white;font-family:Arial;text-align:center;padding:80px;">
-<h1>&#10004; Login OK</h1>
-<p>Welcome {user_name}</p>
-<p style="margin-top:30px;"><a href="{redirect_url}" style="color:#f59e0b;font-size:1.5em;font-weight:bold;">&#9654; ادخل لوحة التحكم</a></p>
-</body></html>"""
-            return HTMLResponse(content=html, status_code=200)
+            print(f"[AUTH-FORM] Redirecting to: {redirect_url}")
+            return RedirectResponse(url=redirect_url, status_code=303)
         
         print(f"[AUTH-FORM] Failed for: {contact_info}")
         return templates.TemplateResponse("login.html", {

@@ -62,23 +62,28 @@ async def verify_merchant(request: Request):
     return user
 
 @router.get("/dashboard", response_class=HTMLResponse)
-async def merchant_home(request: Request):
-    """لوحة التاجر - بدون verify_merchant لتجنب تجميد thread pool"""
-    user = request.session.get("user")
-    if not user or user.get("user_type") != "merchant":
-        return RedirectResponse(url="/login", status_code=302)
+async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
+    """لوحة التاجر الرئيسية (Dashboard)"""
+    settings = user["_settings"]
+    planning = user["_planning"]
     
-    user_name = user.get("name", "التاجر")
+    print(f"[DASHBOARD] Rendering for user: {user.get('name', 'unknown')}, settings: {bool(settings)}, onboarding: {settings.get('onboarding_completed')}")
     
-    # صفحة تشخيصية مؤقتة
-    html = f"""<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>لوحة التحكم</title></head>
-<body style="background:#0f172a;color:white;font-family:Arial;text-align:center;padding:80px;">
-<h1>&#10004; مرحباً {user_name}</h1>
-<p>تم الدخول للوحة التحكم بنجاح!</p>
-<p style="margin-top:20px;"><a href="/auth/logout" style="color:#f59e0b;">تسجيل الخروج</a></p>
-</body></html>"""
-    return HTMLResponse(content=html, status_code=200)
+    # التحقق من إكمال الإعدادات الأساسية
+    onboarding_completed = settings.get("onboarding_completed", False) if settings else False
+    if not onboarding_completed:
+        return RedirectResponse(url="/merchant/onboarding", status_code=303)
+
+    return templates.TemplateResponse(
+        "merchant_base.html",
+        {
+            "request": request,
+            "user": user,
+            "settings": settings,
+            "planning": planning,
+            "active_tab": "dashboard"
+        }
+    )
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):

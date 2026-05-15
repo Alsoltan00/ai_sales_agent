@@ -12,14 +12,14 @@ def _fetch_settings_sync(client_id: str):
     return res.data if res.data else {}
 
 async def get_store_settings(client_id: str):
-    """جلب إعدادات المتجر مع التخزين المؤقت + عدم حجب الـ Event Loop"""
+    """جلب إعدادات المتجر مع التخزين المؤقت - بدون asyncio.to_thread لتجنب اختناق thread pool"""
     now = time.time()
     if client_id in _cache:
         if now < _cache[client_id]["expiry"]:
             return _cache[client_id]["data"]
 
     try:
-        data = await asyncio.to_thread(_fetch_settings_sync, client_id)
+        data = _fetch_settings_sync(client_id)
         _cache[client_id] = {"data": data, "expiry": now + CACHE_TTL}
         return data
     except Exception as e:

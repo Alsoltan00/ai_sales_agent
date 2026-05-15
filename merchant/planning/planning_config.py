@@ -26,14 +26,14 @@ def _fetch_planning_sync(client_id: str):
     return {}
 
 async def get_planning_config(client_id: str):
-    """جلب إعدادات التخطيط مع التخزين المؤقت + عدم حجب الـ Event Loop"""
+    """جلب إعدادات التخطيط مع التخزين المؤقت - بدون asyncio.to_thread لتجنب اختناق thread pool"""
     global _cache
     now = time.time()
     if client_id in _cache and now - _cache[client_id]['timestamp'] < CACHE_TTL:
         return _cache[client_id]['data']
         
     try:
-        data = await asyncio.to_thread(_fetch_planning_sync, client_id)
+        data = _fetch_planning_sync(client_id)
         _cache[client_id] = {'timestamp': now, 'data': data}
         return data
     except Exception as e:
