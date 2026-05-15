@@ -96,6 +96,12 @@ class StoreSettingsRequest(BaseModel):
     email: str = None
     store_url: str = None
 
+@router.get("/store", response_class=HTMLResponse)
+async def store_page(request: Request, user: dict = Depends(verify_merchant)):
+    """صفحة إدارة المتجر (alias لـ /settings)"""
+    settings = user["_settings"]
+    return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
+
 @router.get("/settings", response_class=HTMLResponse)
 async def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات المتجر"""
@@ -633,11 +639,10 @@ class ColumnTrainingRequest(BaseModel):
     columns: list[ColumnTrainingItem]
 
 @router.post("/api/planning/columns")
-def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
-    """حفظ إعدادات الأعمدة"""
-    db = get_db_client()
-    try:
-        # حذف الأعمدة القديمة ثم إعادة إدراجها (بدلاً من SELECT+UPDATE/INSERT لكل عمود)
+async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify_merchant)):
+    """حفظ إعدادات الأعمدة - حذف كامل + إعادة إدراج دفعية"""
+    def _save():
+        db = get_db_client()
         db.table("column_training").delete().eq("client_id", user["id"]).execute()
         for col in payload.columns:
             db.table("column_training").insert({
@@ -647,6 +652,8 @@ def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify
                 "is_disabled": col.is_disabled,
                 "on_request": col.on_request
             }).execute()
+    try:
+        await asyncio.to_thread(_save)
         return {"status": "success", "message": "تم حفظ إعدادات الأعمدة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -675,11 +682,18 @@ def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchan
     """تحديث قواعد العمل"""
     db = get_db_client()
     try:
-        db.table("business_rules").upsert({
-            "client_id": user["id"],
-            "rules_data": payload,
-            "updated_at": datetime.now().isoformat()
-        }).execute()
+        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        if existing.data:
+            db.table("business_rules").update({
+                "rules_data": payload,
+                "updated_at": datetime.now().isoformat()
+            }).eq("client_id", user["id"]).execute()
+        else:
+            db.table("business_rules").insert({
+                "client_id": user["id"],
+                "rules_data": payload,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
         return {"status": "success", "message": "تم تحديث قواعد العمل بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -689,17 +703,22 @@ def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merch
     """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
     db = get_db_client()
     try:
-        # جلب القواعد الحالية فقط (استعلام واحد)
         res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
         current_rules = res.data.get("rules_data", {}) if res.data else {}
         for k, v in payload.items():
             current_rules[k] = v
-        # upsert بدلاً من check-then-update/insert
-        db.table("business_rules").upsert({
-            "client_id": user["id"],
-            "rules_data": current_rules,
-            "updated_at": datetime.now().isoformat()
-        }).execute()
+        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        if existing.data:
+            db.table("business_rules").update({
+                "rules_data": current_rules,
+                "updated_at": datetime.now().isoformat()
+            }).eq("client_id", user["id"]).execute()
+        else:
+            db.table("business_rules").insert({
+                "client_id": user["id"],
+                "rules_data": current_rules,
+                "updated_at": datetime.now().isoformat()
+            }).execute()
         return {"status": "success", "message": "تم تحديث إعدادات الدفع والضريبة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
