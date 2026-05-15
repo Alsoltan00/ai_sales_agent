@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.templating import Jinja2Templates
 from database.db_client import get_db_client
@@ -12,10 +13,10 @@ templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 templates = Jinja2Templates(directory=templates_dir)
 
 @router.get("/print/{order_id}")
-def print_template(request: Request, order_id: str, template: str = "invoice_a4", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "true", footer: str = ""):
+async def print_template(request: Request, order_id: str, template: str = "invoice_a4", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "true", footer: str = ""):
     """Universal print endpoint - supports multiple template types and sizes"""
     try:
-        order_res = supabase.table("orders").select("*").eq("id", order_id).execute()
+        order_res = await asyncio.to_thread(lambda: supabase.table("orders").select("*").eq("id", order_id).execute())
         if not order_res.data:
             raise HTTPException(status_code=404, detail="الطلب غير موجود")
         
@@ -50,7 +51,7 @@ def print_template(request: Request, order_id: str, template: str = "invoice_a4"
             order["total_amount"] = 0.0
 
         # Client info
-        client_res = supabase.table("clients").select("company_name, logo_url, contact_number, email").eq("id", client_id).execute()
+        client_res = await asyncio.to_thread(lambda: supabase.table("clients").select("company_name, logo_url, contact_number, email").eq("id", client_id).execute())
         client_info = client_res.data[0] if client_res.data else {}
 
         host = request.headers.get("host", request.url.hostname)
@@ -71,7 +72,7 @@ def print_template(request: Request, order_id: str, template: str = "invoice_a4"
         template_file = f"print/{template}.html"
 
         # Determine if digital product
-        planning = get_planning_config(client_id)
+        planning = await get_planning_config(client_id)
         is_digital = (planning.get("delivery_type") == "digital") if planning else False
 
         return templates.TemplateResponse(template_file, {
@@ -94,10 +95,10 @@ def print_template(request: Request, order_id: str, template: str = "invoice_a4"
         raise HTTPException(status_code=500, detail=f"خطأ: {str(e)}")
 
 @router.get("/invoice/{order_id}")
-def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "false", footer: str = ""):
+async def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", color: str = "#4361ee", show_logo: str = "true", show_qr: str = "false", footer: str = ""):
     try:
         # Fetch order
-        order_res = supabase.table("orders").select("*").eq("id", order_id).execute()
+        order_res = await asyncio.to_thread(lambda: supabase.table("orders").select("*").eq("id", order_id).execute())
         if not order_res.data:
             raise HTTPException(status_code=404, detail="الفاتورة غير موجودة")
         
@@ -136,7 +137,7 @@ def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", c
             order["total_amount"] = 0.0
 
         # Fetch client info for logo
-        client_res = supabase.table("clients").select("company_name, logo_url").eq("id", client_id).execute()
+        client_res = await asyncio.to_thread(lambda: supabase.table("clients").select("company_name, logo_url").eq("id", client_id).execute())
         client_info = client_res.data[0] if client_res.data else {}
 
         host = request.headers.get("host", request.url.hostname)
@@ -146,7 +147,7 @@ def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", c
         public_url = f"{scheme}://{host}/invoice/{order_id}"
 
         # Determine if digital product
-        planning = get_planning_config(client_id)
+        planning = await get_planning_config(client_id)
         is_digital = (planning.get("delivery_type") == "digital") if planning else False
 
         return templates.TemplateResponse("public_invoice.html", {
@@ -168,3 +169,4 @@ def view_public_invoice(request: Request, order_id: str, tpl: str = "classic", c
         error_details = traceback.format_exc()
         print(f"[ERROR] public invoice traceback:\n{error_details}")
         raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء عرض الفاتورة: {str(e)}")
+
