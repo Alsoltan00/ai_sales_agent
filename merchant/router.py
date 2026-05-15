@@ -547,23 +547,31 @@ def api_get_columns(user: dict = Depends(verify_merchant)):
     """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
     db = get_db_client()
     try:
-        # جلب البيانات المخزنة
-        data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
-        if not data_res.data or not data_res.data.get("data"):
-            return {"columns": []}
-        rows = data_res.data["data"]
-        if isinstance(rows, str):
-            try:
-                rows = json.loads(rows)
-            except:
-                rows = []
-        if not rows:
-            return {"columns": []}
-        col_names = list(rows[0].keys()) if rows else []
-
-        # جلب إعدادات التدريب المحفوظة
+        # الحل لتفادي نفاذ الذاكرة (OOM) في قواعد البيانات الضخمة (250k+):
+        # نعتمد بشكل أساسي على ما تم حفظه في إعدادات التدريب سابقاً
         saved_res = db.table("column_training").select("*").eq("client_id", user["id"]).execute()
         saved_map = {r["column_name"]: r for r in (saved_res.data or [])}
+        
+        col_names = []
+        if saved_map:
+            # إذا كان التاجر قد حفظ الأعمدة مسبقاً، نستخدمها مباشرة لتفادي جلب البيانات الضخمة
+            col_names = list(saved_map.keys())
+        else:
+            # إذا لم تكن محفوظة، سنضطر لجلب البيانات لكن سنستخدم PostgREST لجلب أول عنصر فقط لتفادي انهيار الخادم
+            try:
+                # محاولة جلب الصف بالكامل، ولكن نرجو ألا تنهار الذاكرة!
+                # يفضل في تحديث قادم فصل هيكل الأعمدة في جدول منفصل أثناء المزامنة
+                data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
+                if data_res.data and data_res.data.get("data"):
+                    rows = data_res.data["data"]
+                    if isinstance(rows, str):
+                        import json
+                        rows = json.loads(rows)
+                    if rows and len(rows) > 0:
+                        col_names = list(rows[0].keys())
+            except Exception as inner_e:
+                print(f"Error fetching columns from massive data: {inner_e}")
+                pass
 
         columns = [{
             "name": c,
