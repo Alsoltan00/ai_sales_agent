@@ -16,7 +16,9 @@ app = FastAPI(title="AI Sales Agent", version="2.0", description="نظام وك�
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET", "super-secret-sales-agent-key-12345"),
-    max_age=86400 * 7 # 7 أيام
+    max_age=86400 * 7,
+    same_site="lax",  # تحسين التوافق مع متصفحات الموبايل وSafari
+    https_only=False   # اجعلها True فقط إذا كنت تستخدم HTTPS في الإنتاج
 )
 
 # استيراد المسارات (Routers)
@@ -54,75 +56,58 @@ async def startup_event():
     asyncio.create_task(asyncio.to_thread(_migrate_database))
 
 def _migrate_database():
-    """تحديث قاعدة البيانات في الخلفية لضمان سرعة استجابة الخادم عند بدء التشغيل"""
-    print("[DB] Starting database schema verification (forgetting Supabase)...")
+    """تحديث قاعدة البيانات في الخلفية بطريقة آمنة لا تعيق تسجيل الدخول"""
+    print("[DB] Checking schema updates...")
     try:
         from database.db_client import get_db_engine
         from sqlalchemy import text, inspect
         engine = get_db_engine()
-        if not engine:
-            print("[DB] No engine found, skipping migrations.")
-            return
+        if not engine: return
 
-        with engine.connect() as conn:
-            inspector = inspect(engine)
-            
-            # 1. تحديث جدول العملاء
-            columns = [c['name'] for c in inspector.get_columns('clients')]
-            if 'ignore_groups' not in columns:
-                conn.execute(text("ALTER TABLE clients ADD COLUMN ignore_groups BOOLEAN DEFAULT TRUE;"))
-            if 'subscription_plan' not in columns:
-                conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_plan TEXT DEFAULT 'free';"))
-            if 'subscription_ends_at' not in columns:
-                conn.execute(text("ALTER TABLE clients ADD COLUMN subscription_ends_at TIMESTAMP;"))
-            if 'messages_used' not in columns:
-                conn.execute(text("ALTER TABLE clients ADD COLUMN messages_used INTEGER DEFAULT 0;"))
-            if 'logo_url' not in columns:
-                conn.execute(text("ALTER TABLE clients ADD COLUMN logo_url TEXT;"))
+        inspector = inspect(engine)
+        table_names = inspector.get_table_names()
 
-            # 2. تحديث جدول التخطيط
-            try:
-                plan_cols = [c['name'] for c in inspector.get_columns('planning_config')]
-                if 'store_activity' not in plan_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN store_activity TEXT;"))
-            except: pass
+        # 1. تحديث جدول العملاء
+        if 'clients' in table_names:
+            with engine.begin() as conn:
+                columns = [c['name'] for c in inspector.get_columns('clients')]
+                updates = [
+                    ('ignore_groups', 'BOOLEAN DEFAULT TRUE'),
+                    ('subscription_plan', "TEXT DEFAULT 'free'"),
+                    ('subscription_ends_at', 'TIMESTAMP'),
+                    ('messages_used', 'INTEGER DEFAULT 0'),
+                    ('logo_url', 'TEXT'),
+                    ('onboarding_completed', 'BOOLEAN DEFAULT FALSE')
+                ]
+                for col, sql_type in updates:
+                    if col not in columns:
+                        conn.execute(text(f"ALTER TABLE clients ADD COLUMN {col} {sql_type};"))
 
-            # 3. تحديث جدول الاشتراكات
-            try:
-                sub_columns = [c['name'] for c in inspector.get_columns('subscriptions')]
-                if 'messages_used' not in sub_columns:
-                    conn.execute(text("ALTER TABLE subscriptions ADD COLUMN messages_used INTEGER DEFAULT 0;"))
-            except: pass
-                
-            # 3. إنشاء الجداول المساعدة
+        # 2. إنشاء جداول أساسية
+        with engine.begin() as conn:
             conn.execute(text("CREATE TABLE IF NOT EXISTS business_rules (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), client_id UUID, rules_data JSONB, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS subscription_plans (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, label_ar TEXT, price DECIMAL(10, 2) DEFAULT 0, duration_days INTEGER DEFAULT 30, permissions JSONB DEFAULT '{}', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS global_ai_models (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), model_name TEXT NOT NULL, provider TEXT NOT NULL, api_key TEXT NOT NULL, model_id TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
+        
+        # 3. تحديث جدول التخطيط
+        if 'planning_config' in table_names:
+            with engine.begin() as conn:
+                pc_cols = [c['name'] for c in inspector.get_columns('planning_config')]
+                for col, sql_type in [
+                    ('store_activity', 'TEXT'),
+                    ('sales_type', 'TEXT'),
+                    ('order_flow', 'TEXT'),
+                    ('delivery_type', "TEXT DEFAULT 'physical'"),
+                    ('custom_instructions', "TEXT DEFAULT ''"),
+                    ('ai_temperature', "NUMERIC(3,2) DEFAULT 0.10"),
+                    ('ai_max_tokens', "INTEGER DEFAULT 600"),
+                    ('ai_core_strategy', "TEXT DEFAULT ''")
+                ]:
+                    if col not in pc_cols:
+                        conn.execute(text(f"ALTER TABLE planning_config ADD COLUMN {col} {sql_type};"))
 
-            # 4. إضافة خطط افتراضية إذا كان الجدول فارغاً
-            try:
-                count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
-                if count == 0:
-                    conn.execute(text("""
-                        INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
-                        ('basic', 'الأساسية', 0, 30, '{"max_models": 1, "voice_notes": false}'),
-                        ('pro', 'الاحترافية', 100, 30, '{"max_models": 3, "voice_notes": true}'),
-                        ('enterprise', 'الشركات', 500, 30, '{"max_models": 10, "voice_notes": true, "custom_support": true}')
-                    """))
-            except: pass
-
-            # 5. تحديث جدول طلبات الانضمام
-            try:
-                req_columns = [c['name'] for c in inspector.get_columns('new_client_requests')]
-                if 'email' not in req_columns:
-                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN email TEXT;"))
-                if 'password_hash' not in req_columns:
-                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN password_hash TEXT;"))
-                if 'store_link' not in req_columns:
-                    conn.execute(text("ALTER TABLE new_client_requests ADD COLUMN store_link TEXT;"))
-            except: pass
-            
-            # 6. إنشاء جدول الطلبات الشامل
+        # 4. جدول الطلبات
+        with engine.begin() as conn:
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -165,141 +150,28 @@ def _migrate_database():
                     internal_notes TEXT,
                     ai_summary TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    confirmed_at TIMESTAMPTZ,
-                    completed_at TIMESTAMPTZ
-                );
-            """))
-
-            # 7. إنشاء جداول الشحن
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS shipping_config (
-                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                    client_id UUID UNIQUE,
-                    free_shipping_city TEXT,
-                    free_shipping_min NUMERIC(12,2) DEFAULT 0,
-                    unavailable_area_msg TEXT DEFAULT '',
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            """))
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS shipping_zones (
-                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                    client_id UUID,
-                    zone_name TEXT NOT NULL,
-                    shipping_price NUMERIC(12,2) DEFAULT 0,
-                    free_shipping_enabled BOOLEAN DEFAULT FALSE,
-                    free_shipping_min NUMERIC(12,2) DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            """))
-
-            # 8. إنشاء جدول العملاء (CRM)
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS customer_profiles (
-                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                    client_id VARCHAR(255) NOT NULL,
-                    platform VARCHAR(50) NOT NULL DEFAULT 'whatsapp',
-                    platform_identifier VARCHAR(255) NOT NULL,
-                    phone_number VARCHAR(50),
-                    customer_name VARCHAR(255),
-                    customer_address TEXT,
-                    customer_city VARCHAR(255),
-                    total_orders INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT NOW(),
-                    updated_at TIMESTAMP DEFAULT NOW(),
-                    UNIQUE(client_id, platform_identifier)
-                );
-            """))
-
-            # تحديث جدول shipping_zones إذا كان موجوداً بدون الأعمدة الجديدة
-            try:
-                sz_cols = [c['name'] for c in inspector.get_columns('shipping_zones')]
-                if 'free_shipping_enabled' not in sz_cols:
-                    conn.execute(text("ALTER TABLE shipping_zones ADD COLUMN free_shipping_enabled BOOLEAN DEFAULT FALSE;"))
-                if 'free_shipping_min' not in sz_cols:
-                    conn.execute(text("ALTER TABLE shipping_zones ADD COLUMN free_shipping_min NUMERIC(12,2) DEFAULT 0;"))
-            except: pass
-
-            # 8. تحديث جدول قنوات التواصل (WhatsApp, Instagram, TikTok, Telegram)
-            try:
-                ch_columns = [c['name'] for c in inspector.get_columns('channels_config')]
-                if 'instagram_access_token' not in ch_columns:
-                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN instagram_access_token TEXT;"))
-                if 'instagram_page_id' not in ch_columns:
-                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN instagram_page_id TEXT;"))
-                if 'tiktok_access_token' not in ch_columns:
-                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN tiktok_access_token TEXT;"))
-                if 'tiktok_shop_id' not in ch_columns:
-                    conn.execute(text("ALTER TABLE channels_config ADD COLUMN tiktok_shop_id TEXT;"))
-            except Exception as e:
-                print(f"[DB] Error migrating channels_config: {e}")
-
-            # 9. إضافة أعمدة الإعداد الأولي (Onboarding)
-            try:
-                cl_cols = [c['name'] for c in inspector.get_columns('clients')]
-                if 'onboarding_completed' not in cl_cols:
-                    conn.execute(text("ALTER TABLE clients ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE;"))
-            except Exception as e:
-                print(f"[DB] Error adding onboarding column: {e}")
-
-            # 10. إضافة أعمدة نوع المبيعات ومسار الطلب
-            try:
-                pc_cols = [c['name'] for c in inspector.get_columns('planning_config')]
-                if 'sales_type' not in pc_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN sales_type TEXT;"))
-                if 'order_flow' not in pc_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN order_flow TEXT;"))
-            except Exception as e:
-                print(f"[DB] Error adding planning columns: {e}")
-
-            # 11. جدول الإعدادات العامة (Evolution API, etc.)
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS global_settings (
-                    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-                    key TEXT UNIQUE NOT NULL,
-                    value JSONB DEFAULT '{}',
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 );
             """))
 
-            # 12. تحديث قيود جدول المزامنة (للسماح بـ excel)
-            try:
-                conn.execute(text("ALTER TABLE sync_config DROP CONSTRAINT IF EXISTS sync_config_source_type_check;"))
-                conn.execute(text("ALTER TABLE sync_config ADD CONSTRAINT sync_config_source_type_check CHECK (source_type IN ('supabase', 'aiven', 'google_sheets', 'excel'));"))
-            except Exception as e:
-                print(f"[DB] Error fixing sync_config constraint: {e}")
+        # 5. جداول الشحن والخطط
+        with engine.begin() as conn:
+            conn.execute(text("CREATE TABLE IF NOT EXISTS shipping_config (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, client_id UUID UNIQUE, free_shipping_city TEXT, free_shipping_min NUMERIC(12,2) DEFAULT 0, updated_at TIMESTAMPTZ DEFAULT NOW());"))
+            conn.execute(text("CREATE TABLE IF NOT EXISTS shipping_zones (id UUID DEFAULT gen_random_uuid() PRIMARY KEY, client_id UUID, zone_name TEXT NOT NULL, shipping_price NUMERIC(12,2) DEFAULT 0, free_shipping_enabled BOOLEAN DEFAULT FALSE, free_shipping_min NUMERIC(12,2) DEFAULT 0, created_at TIMESTAMPTZ DEFAULT NOW());"))
+            
+            # خطط افتراضية
+            count = conn.execute(text("SELECT count(*) FROM subscription_plans")).scalar()
+            if count == 0:
+                conn.execute(text("""
+                    INSERT INTO subscription_plans (name, label_ar, price, duration_days, permissions) VALUES 
+                    ('basic', 'الأساسية', 0, 30, '{"max_models": 1}'),
+                    ('pro', 'الاحترافية', 100, 30, '{"max_models": 3}'),
+                    ('enterprise', 'الشركات', 500, 30, '{"max_models": 10}')
+                """))
 
-            # 13. إضافة عمود delivery_type لجدول planning_config (رقمي أو حقيقي)
-            try:
-                if 'delivery_type' not in pc_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN delivery_type TEXT DEFAULT 'physical';"))
-                    print("[DB] Added delivery_type column to planning_config")
-            except Exception as e:
-                print(f"[DB] Error adding delivery_type column: {e}")
-
-            # 14. إضافة أعمدة توجيه النموذج المتقدمة (تعليمات مخصصة + معاملات)
-            try:
-                pc_cols2 = [c['name'] for c in inspector.get_columns('planning_config')]
-                if 'custom_instructions' not in pc_cols2:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN custom_instructions TEXT DEFAULT '';"))
-                    print("[DB] Added custom_instructions column to planning_config")
-                if 'ai_temperature' not in pc_cols2:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_temperature NUMERIC(3,2) DEFAULT 0.10;"))
-                    print("[DB] Added ai_temperature column to planning_config")
-                if 'ai_max_tokens' not in pc_cols2:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
-                    print("[DB] Added ai_max_tokens column to planning_config")
-                if 'ai_core_strategy' not in pc_cols2:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_core_strategy TEXT DEFAULT '';"))
-                    print("[DB] Added ai_core_strategy column to planning_config")
-            except Exception as e:
-                print(f"[DB] Error adding AI tuning columns: {e}")
-
-            conn.commit()
-            print("[DB] Database schema verified successfully (PostgreSQL mode).")
+        print("[DB] Schema verification completed successfully.")
     except Exception as e:
-        print(f"[DB ERROR] Background migration failed: {e}")
+        print(f"[DB ERROR] Migration failed: {e}")
 
 @app.get("/", response_class=RedirectResponse)
 async def root_redirect():

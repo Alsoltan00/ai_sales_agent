@@ -26,10 +26,12 @@ templates = Jinja2Templates(directory="templates")
 async def verify_merchant(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "merchant":
+        print(f"[VERIFY] Access denied or session missing for {request.url.path}")
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
     
     # جلب الإعدادات (باستخدام التخزين المؤقت لضمان سرعة الاستجابة ومنع الحجب)
     try:
+        # print(f"[VERIFY] Fetching metadata for merchant: {user['id']}")
         planning_task = get_planning_config(user["id"])
         settings_task = get_store_settings(user["id"])
         
@@ -38,7 +40,7 @@ async def verify_merchant(request: Request):
         user["_planning"] = planning_res
         user["_settings"] = settings_res
     except Exception as e:
-        print(f"Error in verify_merchant metadata: {e}")
+        print(f"[VERIFY ERROR] Metadata fetch failed for {user['id']}: {e}")
         user["_planning"] = {}
         user["_settings"] = {}
         

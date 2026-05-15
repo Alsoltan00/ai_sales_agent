@@ -283,11 +283,14 @@
             alertBox.classList.add('d-none');
 
             try {
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ contact_info: contactInfo, password: password })
-                });
+                const res = await Promise.race([
+                    fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ contact_info: contactInfo, password: password })
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
+                ]);
                 const data = await res.json();
                 if (data.status === 'success') {
                     window.location.href = data.redirect_url;
@@ -296,7 +299,7 @@
                     alertBox.classList.remove('d-none');
                 }
             } catch (err) {
-                alertBox.innerText = 'خطأ في الاتصال بالخادم';
+                alertBox.innerText = err.message === 'timeout' ? 'انتهت مهلة الاتصال' : 'خطأ في الاتصال بالخادم';
                 alertBox.classList.remove('d-none');
             } finally {
                 btn.disabled = false;

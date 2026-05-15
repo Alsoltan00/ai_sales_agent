@@ -50,17 +50,25 @@ def register_success_page(request: Request):
 
 @router.post("/api/auth/login")
 async def api_login(request: Request, payload: LoginRequest):
-    user_data = await asyncio.to_thread(authenticate_user, payload.contact_info, payload.password)
-    
-    if user_data:
-        create_session(request, user_data)
-        redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/home"
-        return {"status": "success", "redirect_url": redirect_url}
+    print(f"[AUTH] Login attempt started for: {payload.contact_info}")
+    try:
+        user_data = await asyncio.to_thread(authenticate_user, payload.contact_info, payload.password)
         
-    return JSONResponse(
-        status_code=401, 
-        content={"status": "error", "message": "بيانات الدخول غير صحيحة"}
-    )
+        if user_data:
+            print(f"[AUTH] Authentication success for: {payload.contact_info}")
+            create_session(request, user_data)
+            redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/home"
+            print(f"[AUTH] Session created, redirecting to: {redirect_url}")
+            return {"status": "success", "redirect_url": redirect_url}
+            
+        print(f"[AUTH] Authentication failed for: {payload.contact_info}")
+        return JSONResponse(
+            status_code=401, 
+            content={"status": "error", "message": "بيانات الدخول غير صحيحة"}
+        )
+    except Exception as e:
+        print(f"[AUTH ERROR] Critical failure: {e}")
+        return JSONResponse(status_code=500, content={"status": "error", "message": f"خطأ في الخادم: {str(e)}"})
 
 @router.post("/api/auth/register")
 async def api_register(payload: RegisterRequest):
