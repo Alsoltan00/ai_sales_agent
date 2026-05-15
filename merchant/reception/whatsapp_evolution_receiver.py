@@ -313,38 +313,45 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         )
 
         # --- تفعيل الحفظ التلقائي للطلبات ---
-        from merchant.reception.order_extractor import extract_order_json, build_order_record
+        from merchant.reception.order_extractor import extract_order_json, build_order_record, validate_order_data, get_delivery_type_for_client
         
         order_data, ai_reply = extract_order_json(ai_reply)
         if order_data:
             try:
-                final_order = build_order_record(order_data, client_id, phone, "whatsapp", "AI")
-                res = supabase.table("orders").insert(final_order).execute()
-                if res.data:
-                    order_id = res.data[0]["id"]
-                    invoice_url = f"{scheme}://{host}/invoice/{order_id}"
-                    ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
-                print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                # ✅ التحقق الصارم من اكتمال البيانات قبل الاعتماد
+                delivery_type = get_delivery_type_for_client(client_id)
+                is_valid, error_msg = validate_order_data(order_data, delivery_type)
                 
-                # --- تحديث بيانات العميل في CRM ---
-                try:
-                    from merchant.customers.customer_manager import update_customer_data, increment_order_count
-                    clean_id = phone.split("@")[0].replace("+", "")
-                    updates = {}
-                    if order_data.get("customer_name"):
-                        updates["customer_name"] = order_data["customer_name"]
-                    if order_data.get("customer_address"):
-                        updates["customer_address"] = order_data["customer_address"]
-                    if order_data.get("customer_city"):
-                        updates["customer_city"] = order_data["customer_city"]
-                    if order_data.get("customer_phone"):
-                        updates["phone_number"] = order_data["customer_phone"]
-                    if updates:
-                        update_customer_data(client_id, clean_id, updates)
-                    increment_order_count(client_id, clean_id)
-                except Exception as crm_e:
-                    print(f"[CRM ERROR] Failed to update customer: {crm_e}")
-                # ----------------------------------
+                if not is_valid:
+                    print(f"[AUTO-ORDER] REJECTED incomplete order: {error_msg}")
+                    # لا نحفظ الطلب - الذكاء الاصطناعي سيتابع جمع البيانات
+                else:
+                    final_order = build_order_record(order_data, client_id, phone, "whatsapp", "AI")
+                    res = supabase.table("orders").insert(final_order).execute()
+                    if res.data:
+                        order_id = res.data[0]["id"]
+                        invoice_url = f"{scheme}://{host}/invoice/{order_id}"
+                        ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
+                    print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                    
+                    # --- تحديث بيانات العميل في CRM ---
+                    try:
+                        from merchant.customers.customer_manager import update_customer_data, increment_order_count
+                        clean_id = phone.split("@")[0].replace("+", "")
+                        updates = {}
+                        if order_data.get("customer_name"):
+                            updates["customer_name"] = order_data["customer_name"]
+                        if order_data.get("customer_address"):
+                            updates["customer_address"] = order_data["customer_address"]
+                        if order_data.get("customer_city"):
+                            updates["customer_city"] = order_data["customer_city"]
+                        if order_data.get("customer_phone"):
+                            updates["phone_number"] = order_data["customer_phone"]
+                        if updates:
+                            update_customer_data(client_id, clean_id, updates)
+                        increment_order_count(client_id, clean_id)
+                    except Exception as crm_e:
+                        print(f"[CRM ERROR] Failed to update customer: {crm_e}")
             except Exception as e:
                 print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
         # ----------------------------------

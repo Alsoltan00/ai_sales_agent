@@ -129,44 +129,49 @@ async def telegram_webhook(bot_token: str, request: Request):
             print(f"[TG LOG] Error updating AI response: {e}")
 
         # --- تفعيل الحفظ التلقائي للطلبات ---
-        from merchant.reception.order_extractor import extract_order_json, build_order_record
+        from merchant.reception.order_extractor import extract_order_json, build_order_record, validate_order_data, get_delivery_type_for_client
         supabase = get_supabase_client()
         
         order_data, ai_reply = extract_order_json(ai_reply)
         if order_data:
             try:
-                final_order = build_order_record(order_data, client_id, phone_str, "telegram", "TG")
-                res = supabase.table("orders").insert(final_order).execute()
-                if res.data:
-                    # --- تحديث بيانات العميل في CRM ---
-                    try:
-                        from merchant.customers.customer_manager import update_customer_data, increment_order_count
-                        updates = {}
-                        if order_data.get("customer_name"):
-                            updates["customer_name"] = order_data["customer_name"]
-                        if order_data.get("customer_address"):
-                            updates["customer_address"] = order_data["customer_address"]
-                        if order_data.get("customer_city"):
-                            updates["customer_city"] = order_data["customer_city"]
-                        
-                        if updates:
-                            update_customer_data(client_id, phone_str, updates)
-                        
-                        increment_order_count(client_id, phone_str)
-                    except Exception as crm_err:
-                        print(f"[CRM AUTO-UPDATE ERROR] Telegram: {crm_err}")
-                    # ----------------------------------
+                # ✅ التحقق الصارم من اكتمال البيانات قبل الاعتماد
+                delivery_type = get_delivery_type_for_client(client_id)
+                is_valid, error_msg = validate_order_data(order_data, delivery_type)
+                
+                if not is_valid:
+                    print(f"[AUTO-ORDER] REJECTED incomplete Telegram order: {error_msg}")
+                    # لا نحفظ الطلب - الذكاء الاصطناعي سيتابع جمع البيانات
+                else:
+                    final_order = build_order_record(order_data, client_id, phone_str, "telegram", "TG")
+                    res = supabase.table("orders").insert(final_order).execute()
+                    if res.data:
+                        # --- تحديث بيانات العميل في CRM ---
+                        try:
+                            from merchant.customers.customer_manager import update_customer_data, increment_order_count
+                            updates = {}
+                            if order_data.get("customer_name"):
+                                updates["customer_name"] = order_data["customer_name"]
+                            if order_data.get("customer_address"):
+                                updates["customer_address"] = order_data["customer_address"]
+                            if order_data.get("customer_city"):
+                                updates["customer_city"] = order_data["customer_city"]
+                            if updates:
+                                update_customer_data(client_id, phone_str, updates)
+                            increment_order_count(client_id, phone_str)
+                        except Exception as crm_err:
+                            print(f"[CRM AUTO-UPDATE ERROR] Telegram: {crm_err}")
 
-                    order_id = res.data[0]["id"]
-                    host = request.headers.get("host", request.url.hostname)
-                    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-                    if host and ":" not in host and host != "localhost":
-                        scheme = "https"
-                    invoice_url = f"{scheme}://{host}/invoice/{order_id}"
-                    ai_reply += f"\n\n🧾 *رابط الفاتورة:*\n{invoice_url}"
-                print(f"[AUTO-ORDER] Order {final_order['order_number']} saved successfully for client {client_id}")
+                        order_id = res.data[0]["id"]
+                        host = request.headers.get("host", request.url.hostname)
+                        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+                        if host and ":" not in host and host != "localhost":
+                            scheme = "https"
+                        invoice_url = f"{scheme}://{host}/invoice/{order_id}"
+                        ai_reply += f"\n\n🧾 رابط الفاتورة:\n{invoice_url}"
+                    print(f"[AUTO-ORDER] Telegram Order {final_order['order_number']} saved for client {client_id}")
             except Exception as e:
-                print(f"[AUTO-ORDER ERROR] Failed to save order: {e}")
+                print(f"[AUTO-ORDER ERROR] Telegram failed to save order: {e}")
         # ----------------------------------
 
         # اكتشاف الأزرار التفاعلية

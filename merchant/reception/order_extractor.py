@@ -1,13 +1,79 @@
 """
 merchant/reception/order_extractor.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-محرك استخراج الطلبات الذكي - يتعامل مع JSON المعقد والمتداخل
-بدلاً من الـ Regex البسيط الذي يفشل مع المصفوفات المتداخلة
+محرك استخراج الطلبات الذكي مع التحقق الصارم من اكتمال البيانات
+- لا يُعتمد أي طلب إلا إذا كانت بياناته مكتملة بحسب نوع المتجر
+- يدعم جميع المنصات (واتساب، تيليجرام، إنستجرام، تيك توك)
 """
 import json
 import re
 import random
 from datetime import datetime
+
+
+# ─── الحقول المطلوبة حسب نوع المتجر ────────────────────────────────────────
+
+# حقول مشتركة لجميع أنواع المتاجر (لا يقبل فراغاً)
+_REQUIRED_ALWAYS = ["customer_name", "items"]
+
+# حقول إضافية للمتاجر الفيزيائية فقط
+_REQUIRED_PHYSICAL = ["customer_phone", "customer_address", "customer_city"]
+
+# حقول إضافية لمتاجر الحجز/الخدمات
+_REQUIRED_BOOKING = ["customer_phone"]
+
+
+def validate_order_data(order_data: dict, delivery_type: str = "physical") -> tuple[bool, str]:
+    """
+    يتحقق من اكتمال بيانات الطلب قبل اعتماده.
+    
+    Args:
+        order_data: بيانات الطلب المستخرجة من الذكاء الاصطناعي
+        delivery_type: نوع التسليم ('physical', 'digital', 'booking')
+    
+    Returns:
+        (True, "") إذا كانت البيانات مكتملة
+        (False, "رسالة الخطأ") إذا كانت البيانات ناقصة
+    """
+    missing_fields = []
+
+    # 1. التحقق من الحقول المشتركة دائماً
+    for field in _REQUIRED_ALWAYS:
+        val = order_data.get(field)
+        if not val or (isinstance(val, str) and not val.strip()):
+            if field == "customer_name":
+                missing_fields.append("اسم العميل")
+            elif field == "items":
+                missing_fields.append("المنتجات المطلوبة")
+
+    # تحقق إضافي: items يجب ألا تكون قائمة فارغة
+    items = order_data.get("items", [])
+    if isinstance(items, list) and len(items) == 0:
+        missing_fields.append("المنتجات المطلوبة")
+
+    # 2. التحقق من الحقول الإضافية حسب نوع التسليم
+    if delivery_type == "physical":
+        for field in _REQUIRED_PHYSICAL:
+            val = order_data.get(field)
+            if not val or (isinstance(val, str) and not val.strip()):
+                if field == "customer_phone":
+                    missing_fields.append("رقم الهاتف")
+                elif field == "customer_address":
+                    missing_fields.append("عنوان التوصيل")
+                elif field == "customer_city":
+                    missing_fields.append("المدينة")
+
+    elif delivery_type in ("booking", "service"):
+        for field in _REQUIRED_BOOKING:
+            val = order_data.get(field)
+            if not val or (isinstance(val, str) and not val.strip()):
+                missing_fields.append("رقم الهاتف")
+
+    if missing_fields:
+        missing_str = "، ".join(missing_fields)
+        return False, f"لا يمكن اعتماد الطلب - البيانات الناقصة: {missing_str}"
+
+    return True, ""
 
 
 def extract_order_json(ai_reply: str) -> tuple[dict | None, str]:
@@ -141,7 +207,7 @@ def _safe_parse_json(json_str: str) -> dict | None:
     return None
 
 
-def build_order_record(order_data: dict, client_id: str, phone: str, 
+def build_order_record(order_data: dict, client_id: str, phone: str,
                        channel: str, prefix: str = "AI") -> dict:
     """
     يبني سجل الطلب الكامل بتنسيق موحد لجميع القنوات.
@@ -167,10 +233,10 @@ def build_order_record(order_data: dict, client_id: str, phone: str,
         "client_id": client_id,
         "order_number": order_num,
         "order_type": order_data.get("order_type", "purchase"),
-        "customer_name": order_data.get("customer_name", ""),
+        "customer_name": order_data.get("customer_name", "").strip(),
         "customer_phone": order_data.get("customer_phone") or clean_phone,
-        "customer_address": order_data.get("customer_address", ""),
-        "customer_city": order_data.get("customer_city", ""),
+        "customer_address": order_data.get("customer_address", "").strip(),
+        "customer_city": order_data.get("customer_city", "").strip(),
         "customer_notes": order_data.get("customer_notes", ""),
         "items": items,
         "total_amount": float(total),
@@ -179,3 +245,19 @@ def build_order_record(order_data: dict, client_id: str, phone: str,
         "conversation_phone": phone,
         "ai_summary": f"تم تسجيله تلقائياً بواسطة الذكاء الاصطناعي عبر {channel}"
     }
+
+
+def get_delivery_type_for_client(client_id: str) -> str:
+    """
+    يجلب نوع التسليم للتاجر من قاعدة البيانات.
+    مُخزَّن مؤقتاً في الذاكرة لتجنب الاستعلامات المتكررة.
+    """
+    try:
+        from database.db_client import get_db_client
+        db = get_db_client()
+        res = db.table("planning_config").select("delivery_type").eq("client_id", client_id).single().execute()
+        if res.data:
+            return res.data.get("delivery_type") or "physical"
+    except Exception as e:
+        print(f"[ORDER-EXTRACTOR] Error fetching delivery_type: {e}")
+    return "physical"  # افتراضي: فيزيائي (الأكثر صرامة)
