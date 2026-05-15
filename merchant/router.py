@@ -31,7 +31,9 @@ async def verify_merchant(request: Request):
     
     # جلب الإعدادات (باستخدام التخزين المؤقت لضمان سرعة الاستجابة ومنع الحجب)
     try:
-        # print(f"[VERIFY] Fetching metadata for merchant: {user['id']}")
+        import time
+        start_t = time.time()
+        print(f"[VERIFY] Start metadata fetch for merchant: {user['id']}")
         planning_task = get_planning_config(user["id"])
         settings_task = get_store_settings(user["id"])
         
@@ -39,6 +41,7 @@ async def verify_merchant(request: Request):
         
         user["_planning"] = planning_res
         user["_settings"] = settings_res
+        print(f"[VERIFY] Metadata fetched in {time.time() - start_t:.3f}s for {user['id']}")
     except Exception as e:
         print(f"[VERIFY ERROR] Metadata fetch failed for {user['id']}: {e}")
         user["_planning"] = {}

@@ -113,6 +113,7 @@ class QueryBuilder:
             print("WARNING: Database engine not initialized. Check DATABASE_URL")
             return MockResponse(None if self._single else [])
 
+        print(f"[DB] Executing {self._action} on {self.table_name}")
         with engine.begin() as conn:
             params = {}
             where_clauses = []

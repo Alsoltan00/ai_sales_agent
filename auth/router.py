@@ -57,10 +57,10 @@ async def api_login(request: Request, payload: LoginRequest):
         user_data = await asyncio.to_thread(authenticate_user, payload.contact_info, payload.password)
         
         if user_data:
-            print(f"[AUTH] Authentication success for: {payload.contact_info}")
+            print(f"[AUTH] Authentication success for: {payload.contact_info} (Type: {user_data['user_type']})")
             create_session(request, user_data)
             redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/home"
-            print(f"[AUTH] Session created, redirecting to: {redirect_url}")
+            print(f"[AUTH] Session created, sending response with redirect to: {redirect_url}")
             return {"status": "success", "redirect_url": redirect_url}
             
         print(f"[AUTH] Authentication failed for: {payload.contact_info}")

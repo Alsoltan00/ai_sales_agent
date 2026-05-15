@@ -55,6 +55,8 @@ async def startup_event():
 
 def _migrate_database():
     """تحديث قاعدة البيانات في الخلفية بطريقة آمنة لا تعيق تسجيل الدخول"""
+    import time
+    m_start = time.time()
     print("[DB] Checking schema updates...")
     try:
         from database.db_client import get_db_engine
@@ -167,7 +169,7 @@ def _migrate_database():
                     ('enterprise', 'الشركات', 500, 30, '{"max_models": 10}')
                 """))
 
-        print("[DB] Schema verification completed successfully.")
+        print(f"[DB] Schema verification completed successfully in {time.time() - m_start:.2f}s.")
     except Exception as e:
         print(f"[DB ERROR] Migration failed: {e}")
 
