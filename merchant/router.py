@@ -75,7 +75,7 @@ async def merchant_home(request: Request, user: dict = Depends(verify_merchant))
         return RedirectResponse(url="/merchant/onboarding", status_code=303)
 
     return templates.TemplateResponse(
-        "merchant_base.html",
+        "merchant_home.html",
         {
             "request": request,
             "user": user,
