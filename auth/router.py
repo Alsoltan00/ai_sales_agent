@@ -2,6 +2,7 @@ from fastapi import APIRouter, Request, HTTPException, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
+import asyncio
 
 from .login import authenticate_user
 from .register import register_new_client
@@ -48,16 +49,12 @@ def register_success_page(request: Request):
     return templates.TemplateResponse("register_success.html", {"request": request})
 
 @router.post("/api/auth/login")
-def api_login(request: Request, payload: LoginRequest):
-    user_data = authenticate_user(payload.contact_info, payload.password)
+async def api_login(request: Request, payload: LoginRequest):
+    user_data = await asyncio.to_thread(authenticate_user, payload.contact_info, payload.password)
     
     if user_data:
-        # Create session
         create_session(request, user_data)
-        
-        # Determine redirect url
         redirect_url = "/admin/dashboard" if user_data["user_type"] == "admin_user" else "/merchant/home"
-        
         return {"status": "success", "redirect_url": redirect_url}
         
     return JSONResponse(
@@ -66,8 +63,9 @@ def api_login(request: Request, payload: LoginRequest):
     )
 
 @router.post("/api/auth/register")
-def api_register(payload: RegisterRequest):
-    success, message = register_new_client(
+async def api_register(payload: RegisterRequest):
+    success, message = await asyncio.to_thread(
+        register_new_client,
         payload.company_name, 
         payload.contact_number, 
         payload.email, 

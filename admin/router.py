@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
@@ -28,22 +29,18 @@ def sanitize_data(data):
 @router.get("/dashboard", response_class=HTMLResponse)
 async def admin_dashboard(request: Request, user: dict = Depends(verify_admin)):
     """لوحة تحكم الإدارة الرئيسية"""
-    supabase = get_supabase_client()
-    
-    # جلب إحصائيات سريعة
-    stats = {}
-    try:
-        # عدد العملاء النشطين
-        res = supabase.table("clients").select("id", count="exact").eq("status", "active").execute()
-        stats["active_clients"] = res.count
-        
-        # عدد الطلبات الجديدة
-        res = supabase.table("new_client_requests").select("id", count="exact").eq("status", "pending").execute()
-        stats["pending_requests"] = res.count
-        
-    except Exception as e:
-        print(f"Error fetching stats: {e}")
-        
+    def _fetch_stats():
+        supabase = get_supabase_client()
+        stats = {}
+        try:
+            res = supabase.table("clients").select("id", count="exact").eq("status", "active").execute()
+            stats["active_clients"] = res.count
+            res = supabase.table("new_client_requests").select("id", count="exact").eq("status", "pending").execute()
+            stats["pending_requests"] = res.count
+        except Exception as e:
+            print(f"Error fetching stats: {e}")
+        return stats
+    stats = await asyncio.to_thread(_fetch_stats)
     return templates.TemplateResponse("admin.html", {"request": request, "user": user, "stats": stats})
 
 # مسارات طلبات العملاء الجدد
@@ -137,59 +134,46 @@ def reject_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": "حدث خطأ أثناء الرفض"}
 
 @router.get("/clients", response_class=HTMLResponse)
-def admin_clients(request: Request, user: dict = Depends(verify_admin)):
+async def admin_clients(request: Request, user: dict = Depends(verify_admin)):
     """قائمة جميع العملاء النشطين"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_clients") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة المتاجر والعملاء")
-        
-    supabase = get_supabase_client()
-    res = supabase.table("clients").select("*").execute()
-    safe_clients = sanitize_data(res.data or [])
+    def _fetch():
+        supabase = get_supabase_client()
+        res = supabase.table("clients").select("*").execute()
+        return sanitize_data(res.data or [])
+    safe_clients = await asyncio.to_thread(_fetch)
     return templates.TemplateResponse("admin_clients.html", {"request": request, "user": user, "clients": safe_clients})
 
 @router.get("/subscriptions", response_class=HTMLResponse)
-def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
+async def admin_subscriptions(request: Request, user: dict = Depends(verify_admin)):
     """إدارة اشتراكات العملاء والخطط مع تنظيف كامل للبيانات"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_subscriptions") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة الاشتراكات والباقات")
-        
-    supabase = get_supabase_client()
-    
-    safe_clients = []
-    safe_plans = []
-    global_models = []
-    
-    try:
-        # جلب العملاء
-        res_clients = supabase.table("clients").select("*").execute()
-        raw_clients = res_clients.data or []
-        
-        # جلب الخطط
-        res_plans = supabase.table("subscription_plans").select("*").execute()
-        raw_plans = res_plans.data or []
-        
-        # جلب نماذج الذكاء العالمية
-        res_models = supabase.table("global_ai_models").select("*").execute()
-        global_models = res_models.data or []
-        
-        # تنظيف البيانات بشكل كامل
-        safe_clients = sanitize_data(raw_clients)
-        global_models = sanitize_data(global_models)
-        
-        # معالجة الصلاحيات في الخطط بشكل خاص
-        for plan in raw_plans:
-            p = dict(plan)
-            import json
-            if p.get("permissions") and isinstance(p["permissions"], str):
-                try: p["permissions"] = json.loads(p["permissions"])
-                except: p["permissions"] = {}
-            safe_plans.append(sanitize_data(p))
-            
-    except Exception as e:
-        print(f"Error in admin_subscriptions: {e}")
-        
+    def _fetch_all():
+        import json
+        supabase = get_supabase_client()
+        safe_clients = []
+        safe_plans = []
+        global_models = []
+        try:
+            res_clients = supabase.table("clients").select("*").execute()
+            res_plans = supabase.table("subscription_plans").select("*").execute()
+            res_models = supabase.table("global_ai_models").select("*").execute()
+            safe_clients = sanitize_data(res_clients.data or [])
+            global_models = sanitize_data(res_models.data or [])
+            for plan in (res_plans.data or []):
+                p = dict(plan)
+                if p.get("permissions") and isinstance(p["permissions"], str):
+                    try: p["permissions"] = json.loads(p["permissions"])
+                    except: p["permissions"] = {}
+                safe_plans.append(sanitize_data(p))
+        except Exception as e:
+            print(f"Error in admin_subscriptions: {e}")
+        return safe_clients, safe_plans, global_models
+    safe_clients, safe_plans, global_models = await asyncio.to_thread(_fetch_all)
     return templates.TemplateResponse("admin_subscriptions.html", {
         "request": request, 
         "user": user, 
@@ -391,9 +375,9 @@ def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
 
 
 @router.get("/api/clients/{client_id}/onboarding-settings")
-def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
+async def get_client_onboarding_settings(client_id: str, user: dict = Depends(verify_admin)):
     """جلب إعدادات نوع النشاط ومسار الطلب للعميل"""
-    config = get_planning_config(client_id)
+    config = await get_planning_config(client_id)
     return {"status": "success", "data": {
         "sales_type": config.get("sales_type"),
         "order_flow": config.get("order_flow"),

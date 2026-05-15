@@ -1,25 +1,34 @@
-﻿from database.db_client import get_supabase_client
-import json
+import time
+from database.db_client import get_db_client
+
+_cache = {}
+CACHE_TTL = 30 # ثانية
 
 def get_sync_config(client_id: str) -> dict:
-    """ط¬ظ„ط¨ ط¥ط¹ط¯ط§ط¯ط§طھ ظ…ط²ط§ظ…ظ†ط© ط§ظ„ط¨ظٹط§ظ†ط§طھ (Supabase, Aiven, Sheets)"""
-    supabase = get_supabase_client()
+    """جلب إعدادات مزامنة البيانات مع التخزين المؤقت"""
+    now = time.time()
+    if client_id in _cache and now < _cache[client_id]["expiry"]:
+        return _cache[client_id]["data"]
+
+    db = get_db_client()
     try:
-        res = supabase.table("sync_config").select("*").eq("client_id", client_id).single().execute()
-        return res.data if res.data else {}
+        res = db.table("sync_config").select("*").eq("client_id", client_id).single().execute()
+        data = res.data if res.data else {}
+        _cache[client_id] = {"data": data, "expiry": now + CACHE_TTL}
+        return data
     except Exception as e:
         print(f"Error fetching sync config: {e}")
         return {}
 
 def update_sync_config(client_id: str, data: dict) -> bool:
-    """طھط­ط¯ظٹط« ط¥ط¹ط¯ط§ط¯ط§طھ ط§ظ„ظ…ط²ط§ظ…ظ†ط©"""
-    supabase = get_supabase_client()
+    """تحديث إعدادات المزامنة باستخدام upsert"""
+    global _cache
+    if client_id in _cache:
+        del _cache[client_id]
+
+    db = get_db_client()
     try:
-        existing = get_sync_config(client_id)
-        
-        # Ensure connection details are correctly mapped
         connection_details = data.get("connection_details", {})
-        
         update_data = {
             "client_id": client_id,
             "source_type": data.get("source_type"),
@@ -28,11 +37,8 @@ def update_sync_config(client_id: str, data: dict) -> bool:
             "sheet_name": data.get("sheet_name", ""),
         }
         
-        if existing:
-            supabase.table("sync_config").update(update_data).eq("client_id", client_id).execute()
-        else:
-            supabase.table("sync_config").insert(update_data).execute()
-            
+        # استخدام upsert بدلاً من check-then-insert
+        db.table("sync_config").upsert(update_data).execute()
         return True
     except Exception as e:
         print(f"Error updating sync config: {e}")

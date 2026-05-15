@@ -16,7 +16,15 @@ if DB_URL:
     elif DB_URL.startswith("postgresql://") and not DB_URL.startswith("postgresql+psycopg2://"):
         DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
-engine = create_engine(DB_URL, pool_pre_ping=True) if DB_URL else None
+engine = create_engine(
+    DB_URL,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=300,
+    pool_timeout=10,
+    echo=False
+) if DB_URL else None
 
 class MockResponse:
     def __init__(self, data, count=None):

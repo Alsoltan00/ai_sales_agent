@@ -6,6 +6,7 @@ from fastapi.templating import Jinja2Templates
 import pandas as pd
 import io
 import json
+import asyncio
 from datetime import datetime
 from pydantic import BaseModel
 from auth.session_manager import get_current_user
@@ -22,15 +23,20 @@ from merchant.authorized_numbers import get_authorized_numbers, add_authorized_n
 router = APIRouter(prefix="/merchant", tags=["Merchant Home"])
 templates = Jinja2Templates(directory="templates")
 
-def verify_merchant(request: Request):
+async def verify_merchant(request: Request):
     user = get_current_user(request)
     if not user or user.get("user_type") != "merchant":
         raise HTTPException(status_code=403, detail="غير مصرح لك بالدخول إلى لوحة التاجر")
     
     # جلب الإعدادات (باستخدام التخزين المؤقت لضمان سرعة الاستجابة ومنع الحجب)
     try:
-        user["_planning"] = get_planning_config(user["id"])
-        user["_settings"] = get_store_settings(user["id"])
+        planning_task = get_planning_config(user["id"])
+        settings_task = get_store_settings(user["id"])
+        
+        planning_res, settings_res = await asyncio.gather(planning_task, settings_task)
+        
+        user["_planning"] = planning_res
+        user["_settings"] = settings_res
     except Exception as e:
         print(f"Error in verify_merchant metadata: {e}")
         user["_planning"] = {}
@@ -41,8 +47,8 @@ def verify_merchant(request: Request):
 @router.get("/home", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     """لوحة التاجر الرئيسية (Home) - مع فحص الإعداد الأولي"""
-    settings = get_store_settings(user["id"])
-    planning = get_planning_config(user["id"])
+    settings = user["_settings"]
+    planning = user["_planning"]
     
     # فحص هل أكمل الإعداد الأولي؟
     if not settings.get("onboarding_completed"):
@@ -55,7 +61,7 @@ async def merchant_home(request: Request, user: dict = Depends(verify_merchant))
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الإعداد الأولي (Onboarding Wizard)"""
-    planning = get_planning_config(user["id"])
+    planning = user["_planning"]
     return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/onboarding")
@@ -90,10 +96,10 @@ class StoreSettingsRequest(BaseModel):
     email: str = None
     store_url: str = None
 
-@router.get("/store", response_class=HTMLResponse)
-def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
+@router.get("/settings", response_class=HTMLResponse)
+async def store_settings_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات المتجر"""
-    settings = get_store_settings(user["id"])
+    settings = user["_settings"]
     return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
 
 @router.post("/api/store")
@@ -168,7 +174,7 @@ class PlanningRequest(BaseModel):
 @router.get("/planning", response_class=HTMLResponse)
 async def planning_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة التخطيط"""
-    planning = get_planning_config(user["id"])
+    planning = user["_planning"]
     return templates.TemplateResponse("merchant/planning.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/planning")
@@ -191,7 +197,7 @@ async def api_generate_instructions(payload: GenerateInstructionsRequest, user: 
     from merchant.planning.planning_config import get_planning_config
     
     # جلب إعدادات المتجر الكاملة لمعرفة السياق (رقمي/فيزيائي/شات/رابط)
-    config = get_planning_config(user["id"])
+    config = await get_planning_config(user["id"])
     sales_type = config.get("sales_type", "products") # products, services, bookings
     order_flow = config.get("order_flow", "in_chat") # in_chat, store_link
     delivery_type = config.get("delivery_type", "physical") # physical, digital
@@ -631,23 +637,16 @@ def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify
     """حفظ إعدادات الأعمدة"""
     db = get_db_client()
     try:
+        # حذف الأعمدة القديمة ثم إعادة إدراجها (بدلاً من SELECT+UPDATE/INSERT لكل عمود)
+        db.table("column_training").delete().eq("client_id", user["id"]).execute()
         for col in payload.columns:
-            # جرب تحديث أولاً، ثم إدراج إذا لم يوجد
-            existing = db.table("column_training").select("id").eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
-            if existing.data:
-                db.table("column_training").update({
-                    "note": col.note,
-                    "is_disabled": col.is_disabled,
-                    "on_request": col.on_request
-                }).eq("client_id", user["id"]).eq("column_name", col.column_name).execute()
-            else:
-                db.table("column_training").insert({
-                    "client_id": user["id"],
-                    "column_name": col.column_name,
-                    "note": col.note,
-                    "is_disabled": col.is_disabled,
-                    "on_request": col.on_request
-                }).execute()
+            db.table("column_training").insert({
+                "client_id": user["id"],
+                "column_name": col.column_name,
+                "note": col.note,
+                "is_disabled": col.is_disabled,
+                "on_request": col.on_request
+            }).execute()
         return {"status": "success", "message": "تم حفظ إعدادات الأعمدة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -657,16 +656,18 @@ def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(verify
 # --- Business Rules ---
 
 @router.get("/business-rules", response_class=HTMLResponse)
-def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
+async def business_rules_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة قواعد العمل (Business Rules)"""
-    db = get_db_client()
-    rules = {}
-    try:
-        res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
-        if res.data:
-            rules = res.data.get("rules_data", {})
-    except:
-        pass
+    def _fetch_rules():
+        db = get_db_client()
+        try:
+            res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+            if res.data:
+                return res.data.get("rules_data", {})
+        except:
+            pass
+        return {}
+    rules = await asyncio.to_thread(_fetch_rules)
     return templates.TemplateResponse("merchant/business_rules.html", {"request": request, "user": user, "rules": rules})
 
 @router.post("/api/business-rules")
@@ -674,21 +675,11 @@ def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchan
     """تحديث قواعد العمل"""
     db = get_db_client()
     try:
-        # التحقق من وجود سجل سابق
-        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
-        
-        if existing.data:
-            db.table("business_rules").update({
-                "rules_data": payload,
-                "updated_at": datetime.now().isoformat()
-            }).eq("client_id", user["id"]).execute()
-        else:
-            db.table("business_rules").insert({
-                "client_id": user["id"],
-                "rules_data": payload,
-                "updated_at": datetime.now().isoformat()
-            }).execute()
-            
+        db.table("business_rules").upsert({
+            "client_id": user["id"],
+            "rules_data": payload,
+            "updated_at": datetime.now().isoformat()
+        }).execute()
         return {"status": "success", "message": "تم تحديث قواعد العمل بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -698,28 +689,17 @@ def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merch
     """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
     db = get_db_client()
     try:
-        # جلب القواعد الحالية
-        existing = db.table("business_rules").select("id, rules_data").eq("client_id", user["id"]).execute()
-        current_rules = {}
-        if existing.data:
-            current_rules = existing.data[0].get("rules_data", {})
-            
-        # دمج الإعدادات الجديدة
+        # جلب القواعد الحالية فقط (استعلام واحد)
+        res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        current_rules = res.data.get("rules_data", {}) if res.data else {}
         for k, v in payload.items():
             current_rules[k] = v
-            
-        if existing.data:
-            db.table("business_rules").update({
-                "rules_data": current_rules,
-                "updated_at": datetime.now().isoformat()
-            }).eq("client_id", user["id"]).execute()
-        else:
-            db.table("business_rules").insert({
-                "client_id": user["id"],
-                "rules_data": current_rules,
-                "updated_at": datetime.now().isoformat()
-            }).execute()
-            
+        # upsert بدلاً من check-then-update/insert
+        db.table("business_rules").upsert({
+            "client_id": user["id"],
+            "rules_data": current_rules,
+            "updated_at": datetime.now().isoformat()
+        }).execute()
         return {"status": "success", "message": "تم تحديث إعدادات الدفع والضريبة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -737,13 +717,13 @@ class SyncConfigRequest(BaseModel):
 @router.get("/data-sync", response_class=HTMLResponse)
 async def data_sync_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة مزامنة البيانات"""
-    sync_config = get_sync_config(user["id"])
+    sync_config = await asyncio.to_thread(get_sync_config, user["id"])
     return templates.TemplateResponse("merchant/data_sync.html", {"request": request, "user": user, "sync_config": sync_config})
 
 @router.post("/api/data-sync")
 async def api_update_data_sync(payload: SyncConfigRequest, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات المزامنة وتجربة المزامنة إذا كان جوجل شيت"""
-    success = update_sync_config(user["id"], payload.model_dump())
+    success = await asyncio.to_thread(update_sync_config, user["id"], payload.model_dump())
     if success:
         # إذا كان المختار هو جوجل شيت، نحاول المزامنة فوراً للتأكد من نجاح الربط
         if payload.source_type == "google_sheets":
@@ -824,10 +804,13 @@ class ChannelsConfigRequest(BaseModel):
 async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الاستقبال والإرسال"""
     from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
-    channels_config = get_channels_config(user["id"])
-    numbers = get_authorized_numbers(user["id"])
-    allow_all = get_allow_all_status(user["id"])
-    ignore_groups = get_ignore_groups_status(user["id"])
+    # تنفيذ جميع الاستعلامات بالتوازي بدلاً من التتابع (4x أسرع)
+    channels_config, numbers, allow_all, ignore_groups = await asyncio.gather(
+        asyncio.to_thread(get_channels_config, user["id"]),
+        asyncio.to_thread(get_authorized_numbers, user["id"]),
+        asyncio.to_thread(get_allow_all_status, user["id"]),
+        asyncio.to_thread(get_ignore_groups_status, user["id"]),
+    )
     
     return templates.TemplateResponse("merchant/channels.html", {
         "request": request, 
@@ -841,7 +824,7 @@ async def channels_page(request: Request, user: dict = Depends(verify_merchant))
 @router.post("/api/channels")
 async def api_update_channels(request: Request, payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات القنوات والتسجيل التلقائي للويب هوك"""
-    success = update_channels_config(user["id"], payload.model_dump())
+    success = await asyncio.to_thread(update_channels_config, user["id"], payload.model_dump())
     if success:
         if payload.telegram_bot_token:
             try:
@@ -1060,20 +1043,26 @@ def api_get_data_view(user: dict = Depends(verify_merchant)):
 @router.get("/orders", response_class=HTMLResponse)
 async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة الطلبات"""
-    db = get_db_client()
-    from merchant.store_management.store_settings import get_store_settings
-    settings = get_store_settings(user["id"])
-    try:
-        res = db.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
-        orders = res.data or []
-    except:
-        orders = []
-        
-    try:
-        res_rules = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
-        rules = res_rules.data.get("rules_data", {}) if res_rules.data else {}
-    except:
-        rules = {}
+    settings = user["_settings"]
+    def _fetch_orders():
+        db = get_db_client()
+        try:
+            res = db.table("orders").select("*").eq("client_id", user["id"]).order("created_at", desc=True).execute()
+            return res.data or []
+        except:
+            return []
+    def _fetch_rules():
+        db = get_db_client()
+        try:
+            res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+            return res.data.get("rules_data", {}) if res.data else {}
+        except:
+            return {}
+    # تنفيذ الاستعلامين بالتوازي
+    orders, rules = await asyncio.gather(
+        asyncio.to_thread(_fetch_orders),
+        asyncio.to_thread(_fetch_rules),
+    )
 
     # Safe stats calculation
     total_revenue = 0
@@ -1120,7 +1109,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
             completed_count += 1
 
     import json as _json
-    planning = get_planning_config(user["id"])
+    planning = user["_planning"]
     return templates.TemplateResponse("merchant/orders.html", {
         "request": request, "user": user,
         "orders": orders,
@@ -1202,45 +1191,43 @@ def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
 @router.get("/shipping", response_class=HTMLResponse)
 async def shipping_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إعدادات الشحن"""
-    db = get_db_client()
-    config = {}
-    zones = []
-    try:
-        cfg_res = db.table("shipping_config").select("*").eq("client_id", user["id"]).single().execute()
-        if cfg_res.data:
-            config = cfg_res.data
-    except:
-        pass
-    try:
-        z_res = db.table("shipping_zones").select("*").eq("client_id", user["id"]).order("created_at").execute()
-        zones = z_res.data or []
-    except:
-        pass
+    def _fetch_config():
+        db = get_db_client()
+        try:
+            res = db.table("shipping_config").select("*").eq("client_id", user["id"]).single().execute()
+            return res.data if res.data else {}
+        except:
+            return {}
+    def _fetch_zones():
+        db = get_db_client()
+        try:
+            res = db.table("shipping_zones").select("*").eq("client_id", user["id"]).order("created_at").execute()
+            return res.data or []
+        except:
+            return []
+    # تنفيذ الاستعلامين بالتوازي
+    config, zones = await asyncio.gather(
+        asyncio.to_thread(_fetch_config),
+        asyncio.to_thread(_fetch_zones),
+    )
     return templates.TemplateResponse("merchant/shipping.html", {
         "request": request, "user": user, "config": config, "zones": zones
     })
 
-@router.post("/api/shipping")
-def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
+@router.post("/api/planning")
+async def api_save_planning(payload: dict, user: dict = Depends(verify_merchant)):
     """حفظ إعدادات الشحن ومناطق الشحن"""
-    db = get_db_client()
-    try:
-        # 1. حفظ الإعدادات العامة (رسالة المناطق غير المتاحة)
+    def _save_shipping():
+        db = get_db_client()
+        # 1. upsert الإعدادات العامة (استعلام واحد بدلاً من check+update/insert)
         config_data = {
             "client_id": user["id"],
             "unavailable_area_msg": payload.get("unavailable_area_msg", ""),
             "updated_at": datetime.now().isoformat()
         }
-        
-        existing = db.table("shipping_config").select("id").eq("client_id", user["id"]).execute()
-        if existing.data:
-            db.table("shipping_config").update(config_data).eq("client_id", user["id"]).execute()
-        else:
-            db.table("shipping_config").insert(config_data).execute()
-        
+        db.table("shipping_config").upsert(config_data).execute()
         # 2. حذف المناطق القديمة وإضافة الجديدة
         db.table("shipping_zones").delete().eq("client_id", user["id"]).execute()
-        
         zones = payload.get("zones", [])
         for z in zones:
             zone_name = z.get("zone_name", "").strip()
@@ -1252,7 +1239,8 @@ def api_save_shipping(payload: dict, user: dict = Depends(verify_merchant)):
                     "free_shipping_enabled": bool(z.get("free_shipping_enabled", False)),
                     "free_shipping_min": float(z.get("free_shipping_min", 0))
                 }).execute()
-        
+    try:
+        await asyncio.to_thread(_save_shipping)
         return {"status": "success", "message": "تم حفظ إعدادات الشحن بنجاح"}
     except Exception as e:
         print(f"Error saving shipping config: {e}")
@@ -1318,8 +1306,8 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
 async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة العملاء (تتكيف ديناميكياً مع نوع المتجر)"""
     from merchant.customers.customer_manager import get_all_customers
-    customers = get_all_customers(user["id"])
-    planning = get_planning_config(user["id"])
+    customers = await asyncio.to_thread(get_all_customers, user["id"])
+    planning = user["_planning"]
     return templates.TemplateResponse("merchant/customers.html", {
         "request": request, "user": user, "customers": customers, "planning": planning
     })
