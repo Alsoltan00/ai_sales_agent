@@ -163,9 +163,12 @@ async def telegram_webhook(bot_token: str, request: Request):
                             print(f"[CRM AUTO-UPDATE ERROR] Telegram: {crm_err}")
 
                         order_id = res.data[0]["id"]
-                        host = request.headers.get("host", request.url.hostname)
-                        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-                        if host and ":" not in host and host != "localhost":
+                        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.hostname
+                        scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+                        
+                        if host and (".onrender.com" in host or ".onrender.com" in str(request.url)):
+                            scheme = "https"
+                        elif host and ":" not in host and host != "localhost":
                             scheme = "https"
                         invoice_url = f"{scheme}://{host}/invoice/{order_id}"
                         ai_reply += f"\n\n🧾 رابط الفاتورة:\n{invoice_url}"

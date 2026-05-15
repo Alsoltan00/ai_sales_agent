@@ -129,9 +129,14 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
             return Response(status_code=200)
 
         # إعداد متغيرات الروابط للفاتورة قبل إرسالها للمهمة الخلفية
-        host = request.headers.get("host", request.url.hostname)
-        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-        if host and ":" not in host and host != "localhost":
+        # الأولوية لـ x-forwarded-host لأنه يحمل النطاق العام في Render/Nginx
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.hostname
+        scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+        
+        # تصحيح البروتوكول في البيئات الإنتاجية
+        if host and (".onrender.com" in host or ".onrender.com" in str(request.url)):
+            scheme = "https"
+        elif host and ":" not in host and host != "localhost":
             scheme = "https"
 
         # إضافة المعالجة إلى المهام الخلفية لضمان إرجاع استجابة 200 فوراً وتجنب إعادة الإرسال (Retries) من الخادم

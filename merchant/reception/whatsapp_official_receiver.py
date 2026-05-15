@@ -102,9 +102,12 @@ async def official_webhook(request: Request, background_tasks: BackgroundTasks):
         if not entry:
             return Response(status_code=200)
 
-        host = request.headers.get("host", request.url.hostname)
-        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
-        if host and ":" not in host and host != "localhost":
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.hostname
+        scheme = request.headers.get("x-forwarded-proto") or request.url.scheme
+        
+        if host and (".onrender.com" in host or ".onrender.com" in str(request.url)):
+            scheme = "https"
+        elif host and ":" not in host and host != "localhost":
             scheme = "https"
 
         background_tasks.add_task(_process_official_webhook, body, host, scheme)
