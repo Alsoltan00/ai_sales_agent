@@ -8,8 +8,10 @@ from .login import authenticate_user
 from .register import register_new_client
 from .session_manager import create_session, destroy_session, get_current_user
 
+import os
 router = APIRouter(tags=["Authentication"])
-templates = Jinja2Templates(directory="templates")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
 class LoginRequest(BaseModel):
     contact_info: str # Could be email or contact_number

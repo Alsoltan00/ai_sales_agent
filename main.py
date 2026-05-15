@@ -16,9 +16,7 @@ app = FastAPI(title="AI Sales Agent", version="2.0", description="نظام وك�
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET", "super-secret-sales-agent-key-12345"),
-    max_age=86400 * 7,
-    same_site="lax",  # تحسين التوافق مع متصفحات الموبايل وSafari
-    https_only=False   # اجعلها True فقط إذا كنت تستخدم HTTPS في الإنتاج
+    max_age=86400 * 7
 )
 
 # استيراد المسارات (Routers)
