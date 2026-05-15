@@ -63,23 +63,50 @@ async def verify_merchant(request: Request):
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
-    """لوحة التاجر الرئيسية (Dashboard) - مع فحص الإعداد الأولي"""
+    """لوحة التاجر الرئيسية (Dashboard) - صفحة تشخيصية مؤقتة"""
     settings = user["_settings"]
     planning = user["_planning"]
     
-    # فحص هل أكمل الإعداد الأولي؟
-    if not settings.get("onboarding_completed"):
-        return RedirectResponse(url="/merchant/onboarding", status_code=302)
+    print(f"[DASHBOARD] Rendering for user: {user.get('name', 'unknown')}, settings: {bool(settings)}, onboarding: {settings.get('onboarding_completed')}")
     
-    try:
-        # رندرة يدوية بالكامل لضمان عدم وجود مشاكل في تسليم البيانات
-        content = templates.get_template("merchant_home.html").render({
-            "request": request, "user": user, "settings": settings, "planning": planning
-        })
-        return HTMLResponse(content=content, status_code=200)
-    except Exception as e:
-        print(f"[RENDER ERROR] Failed to render dashboard: {e}")
-        return HTMLResponse(content=f"<h1>حدث خطأ في عرض الصفحة</h1><p>{str(e)}</p>", status_code=500)
+    # صفحة تشخيصية مؤقتة - بدون أي ملفات خارجية
+    user_name = user.get("name", "التاجر")
+    onboarding = settings.get("onboarding_completed", False)
+    company = settings.get("company_name", "غير محدد")
+    
+    html = f"""<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم - تشخيص</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; background: #0f172a; color: #f8fafc; 
+               display: flex; align-items: center; justify-content: center; 
+               min-height: 100vh; margin: 0; text-align: center; }}
+        .card {{ background: rgba(30,41,59,0.9); padding: 40px; border-radius: 20px; 
+                 max-width: 500px; border: 1px solid rgba(255,255,255,0.1); }}
+        .success {{ color: #10b981; font-size: 3rem; }}
+        h1 {{ margin: 16px 0; }}
+        .info {{ color: #94a3b8; margin: 8px 0; font-size: 0.9rem; }}
+        .btn {{ display: inline-block; margin-top: 20px; padding: 12px 32px; 
+                background: linear-gradient(135deg, #f59e0b, #d97706); color: white; 
+                border-radius: 12px; text-decoration: none; font-weight: bold; }}
+        .btn:hover {{ opacity: 0.9; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="success">✅</div>
+        <h1>تم الدخول بنجاح!</h1>
+        <p class="info">الاسم: {user_name}</p>
+        <p class="info">الشركة: {company}</p>
+        <p class="info">الإعداد الأولي: {"مكتمل ✓" if onboarding else "غير مكتمل ✗"}</p>
+        <p class="info">هذه صفحة تشخيصية مؤقتة للتأكد من عمل تسجيل الدخول</p>
+        <a href="/auth/logout" class="btn">تسجيل الخروج</a>
+    </div>
+</body>
+</html>"""
+    return HTMLResponse(content=html, status_code=200)
 
 @router.get("/onboarding", response_class=HTMLResponse)
 async def onboarding_page(request: Request, user: dict = Depends(verify_merchant)):
