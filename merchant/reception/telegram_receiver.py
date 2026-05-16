@@ -11,11 +11,11 @@ from merchant.ai_engine import get_ai_response
 router = APIRouter(tags=["Telegram Webhook"])
 
 
-def _find_client_by_token(bot_token: str) -> dict | None:
+async def _find_client_by_token(bot_token: str) -> dict | None:
     """البحث عن التاجر بواسطة رمز البوت"""
     supabase = get_supabase_client()
     try:
-        res = supabase.table("channels_config").select("client_id").eq("telegram_bot_token", bot_token).single().execute()
+        res = await supabase.table("channels_config").select("client_id").eq("telegram_bot_token", bot_token).single().execute_async()
         return res.data
     except Exception:
         return None
@@ -86,7 +86,7 @@ async def telegram_webhook(bot_token: str, request: Request):
             return Response(status_code=200)
 
         # البحث عن التاجر
-        client_cfg = _find_client_by_token(bot_token)
+        client_cfg = await _find_client_by_token(bot_token)
         if not client_cfg:
             return Response(status_code=200)
 
@@ -101,14 +101,14 @@ async def telegram_webhook(bot_token: str, request: Request):
         
         # حفظ رسالة المستخدم لتمكين الذاكرة
         try:
-            supabase.table("message_logs").insert({
+            await supabase.table("message_logs").insert({
                 "client_id": client_id,
                 "message_id": str(msg_id),
                 "phone_number": phone_str,
                 "channel": "telegram",
                 "message_text": text,
                 "ai_response": ""
-            }).execute()
+            }).execute_async()
         except Exception as e:
             print(f"[TG LOG] Error saving user message: {e}")
 
@@ -124,9 +124,9 @@ async def telegram_webhook(bot_token: str, request: Request):
         
         # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة
         try:
-            supabase.table("message_logs").update({
+            await supabase.table("message_logs").update({
                 "ai_response": ai_reply
-            }).eq("message_id", str(msg_id)).execute()
+            }).eq("message_id", str(msg_id)).execute_async()
         except Exception as e:
             print(f"[TG LOG] Error updating AI response: {e}")
 
@@ -146,7 +146,7 @@ async def telegram_webhook(bot_token: str, request: Request):
                     # لا نحفظ الطلب - الذكاء الاصطناعي سيتابع جمع البيانات
                 else:
                     final_order = build_order_record(order_data, client_id, phone_str, "telegram", "TG")
-                    res = supabase.table("orders").insert(final_order).execute()
+                    res = await supabase.table("orders").insert(final_order).execute_async()
                     if res.data:
                         # --- تحديث بيانات العميل في CRM ---
                         try:

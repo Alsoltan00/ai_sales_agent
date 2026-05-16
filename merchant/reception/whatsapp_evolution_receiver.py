@@ -12,20 +12,20 @@ router = APIRouter(tags=["WhatsApp Evolution Webhook"])
 # In-memory lock to prevent duplicate processing of the same message
 _processing_ids: set = set()
 
-def _find_client_by_instance(instance_name: str) -> dict | None:
+async def _find_client_by_instance(instance_name: str) -> dict | None:
     supabase = get_supabase_client()
     try:
-        res = supabase.table("channels_config").select("*").eq("evolution_instance_name", instance_name).single().execute()
+        res = await supabase.table("channels_config").select("*").eq("evolution_instance_name", instance_name).single().execute_async()
         return res.data
     except Exception:
         return None
 
 
-def _is_authorized(client_id: str, phone: str) -> bool:
+async def _is_authorized(client_id: str, phone: str) -> bool:
     supabase = get_supabase_client()
     try:
         # Fetch client settings
-        client = supabase.table("clients").select("allow_all_numbers, ignore_groups").eq("id", client_id).single().execute()
+        client = await supabase.table("clients").select("allow_all_numbers, ignore_groups").eq("id", client_id).single().execute_async()
         allow_all = client.data.get("allow_all_numbers", False) if client.data else False
         ignore_groups = client.data.get("ignore_groups", True) if client.data else True
 
@@ -39,7 +39,7 @@ def _is_authorized(client_id: str, phone: str) -> bool:
 
         # Normalize phone: remove suffix
         clean_phone = phone.replace("@s.whatsapp.net", "").replace("@c.us", "").replace("@g.us", "")
-        res = supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", clean_phone).execute()
+        res = await supabase.table("authorized_numbers").select("id").eq("client_id", client_id).eq("phone_number", clean_phone).execute_async()
         is_in_list = bool(res.data)
 
         if allow_all:
@@ -117,7 +117,7 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
             # statusReason 401: Unauthorized (Logged out)
             if state == "close" and reason in (401, 403, 405):
                 print(f"[EVOLUTION] User logged out from instance {instance_name}. Triggering auto-delete.")
-                cfg = _find_client_by_instance(instance_name)
+                cfg = await _find_client_by_instance(instance_name)
                 if cfg and "client_id" in cfg:
                     from merchant.evolution_service import disconnect_instance
                     import asyncio
@@ -182,7 +182,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             
             # المستوى الثاني: فحص قاعدة البيانات (للتأكد بعد إعادة التشغيل)
             try:
-                check_dup = supabase.table("message_logs").select("id").eq("message_id", msg_id).execute()
+                check_dup = await supabase.table("message_logs").select("id").eq("message_id", msg_id).execute_async()
                 if check_dup.data and len(check_dup.data) > 0:
                     print(f"[DEDUP] DB block: {msg_id}")
                     _processing_ids.discard(msg_id)
@@ -226,7 +226,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         audio_base64 = None
         if msg_type in ("audio", "image"):
             print(f"[DEBUG] {msg_type.capitalize()} message detected from {phone}. Downloading...")
-            cfg = _find_client_by_instance(instance_name)
+            cfg = await _find_client_by_instance(instance_name)
             if cfg:
                 try:
                     fetch_url = f"{cfg['evolution_api_url'].rstrip('/')}/chat/getBase64FromMediaMessage/{instance_name}"
@@ -249,17 +249,17 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                                     audio_base64 = b64_data
                                     from utils.transcriber import transcribe_audio
                                     # محاولة جلب المفتاح للتحويل الصوتي
-                                    model_res = supabase.table("clients").select("subscription_plan").eq("id", cfg["client_id"]).single().execute()
+                                    model_res = await supabase.table("clients").select("subscription_plan").eq("id", cfg["client_id"]).single().execute_async()
                                     if model_res.data:
                                         plan = model_res.data.get("subscription_plan")
-                                        plan_res = supabase.table("subscription_plans").select("permissions").eq("name", plan).single().execute()
+                                        plan_res = await supabase.table("subscription_plans").select("permissions").eq("name", plan).single().execute_async()
                                         if plan_res.data:
                                             import json
                                             perms = plan_res.data.get("permissions", {})
                                             if isinstance(perms, str): perms = json.loads(perms)
                                             mid = perms.get("assigned_model_id")
                                             if mid:
-                                                ai_m = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
+                                                ai_m = await supabase.table("global_ai_models").select("*").eq("id", mid).single().execute_async()
                                                 if ai_m.data:
                                                     api_key = ai_m.data.get("api_key")
                                                     provider = ai_m.data.get("provider")
@@ -293,7 +293,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             return
 
         # البحث عن التاجر (إذا لم يتم البحث عنه سابقاً)
-        cfg = _find_client_by_instance(instance_name)
+        cfg = await _find_client_by_instance(instance_name)
         if not cfg:
             print(f"[ERROR] No client found for instance: {instance_name}")
             return
@@ -303,7 +303,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         api_key     = cfg["evolution_api_key"]
 
         # التحقق من الصلاحية
-        if not _is_authorized(client_id, phone):
+        if not await _is_authorized(client_id, phone):
             print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
             return
 
@@ -335,7 +335,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                     # لا نحفظ الطلب - الذكاء الاصطناعي سيتابع جمع البيانات
                 else:
                     final_order = build_order_record(order_data, client_id, phone, "whatsapp", "AI")
-                    res = supabase.table("orders").insert(final_order).execute()
+                    res = await supabase.table("orders").insert(final_order).execute_async()
                     if res.data:
                         order_id = res.data[0]["id"]
                         invoice_url = f"{scheme}://{host}/invoice/{order_id}"

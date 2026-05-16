@@ -274,6 +274,11 @@ class QueryBuilder:
                 conn.execute(text(query), params)
                 return MockResponse([])
 
+    async def execute_async(self):
+        """إصدار غير متزامن لتشغيل الاستعلام دون تجميد الـ Event Loop"""
+        from database.db_client import run_in_db_thread
+        return await run_in_db_thread(self.execute)
+
 class DBClient:
     def table(self, table_name: str):
         return QueryBuilder(table_name)

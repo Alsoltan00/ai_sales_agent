@@ -11,7 +11,7 @@ import httpx
 from database.db_client import get_db_client
 
 
-def _get_evolution_credentials() -> tuple:
+async def _get_evolution_credentials() -> tuple:
     """
     جلب بيانات خادم Evolution API.
     الأولوية: قاعدة البيانات (global_settings) > متغيرات البيئة
@@ -19,7 +19,7 @@ def _get_evolution_credentials() -> tuple:
     # 1. محاولة القراءة من قاعدة البيانات
     try:
         db = get_db_client()
-        res = db.table("global_settings").select("value").eq("key", "evolution_api").single().execute()
+        res = await db.table("global_settings").select("value").eq("key", "evolution_api").single().execute_async()
         if res.data:
             value = res.data.get("value", {})
             url = value.get("url", "").rstrip("/")
@@ -35,10 +35,10 @@ def _get_evolution_credentials() -> tuple:
     return url, key
 
 
-def _headers(api_key: str = None):
+async def _headers(api_key: str = None):
     """ترويسات الطلبات لخادم Evolution"""
     if not api_key:
-        _, api_key = _get_evolution_credentials()
+        _, api_key = await _get_evolution_credentials()
     return {
         "apikey": api_key,
         "Content-Type": "application/json"
@@ -76,23 +76,24 @@ async def create_instance(client_id: str, webhook_base_url: str) -> dict:
     }
 
     try:
-        server_url, api_key = _get_evolution_credentials()
+        server_url, api_key = await _get_evolution_credentials()
         if not server_url:
             return {"success": False, "message": "لم يتم إعداد خادم واتساب بعد. يرجى التواصل مع المسؤول."}
 
         async with httpx.AsyncClient(timeout=30) as client:
             # محاولة إنشاء الجلسة
+            req_headers = await _headers(api_key)
             res = await client.post(
                 f"{server_url}/instance/create",
                 json=create_payload,
-                headers=_headers(api_key)
+                headers=req_headers
             )
 
             data = res.json()
 
             if res.status_code in (200, 201):
                 # حفظ بيانات الجلسة في قاعدة البيانات
-                _save_instance_config(client_id, instance)
+                await _save_instance_config(client_id, instance)
 
                 qr_base64 = None
                 # استخراج QR code من الرد
@@ -129,14 +130,15 @@ async def get_qr_code(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
-        server_url, api_key = _get_evolution_credentials()
+        server_url, api_key = await _get_evolution_credentials()
         if not server_url:
             return {"success": False, "message": "خادم واتساب غير مُعد"}
 
         async with httpx.AsyncClient(timeout=20) as client:
+            req_headers = await _headers(api_key)
             res = await client.get(
                 f"{server_url}/instance/connect/{instance}",
-                headers=_headers(api_key)
+                headers=req_headers
             )
 
             if res.status_code == 200:
@@ -173,14 +175,15 @@ async def check_connection_status(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
-        server_url, api_key = _get_evolution_credentials()
+        server_url, api_key = await _get_evolution_credentials()
         if not server_url:
             return {"success": False, "connected": False, "state": "not_configured"}
 
         async with httpx.AsyncClient(timeout=15) as client:
+            req_headers = await _headers(api_key)
             res = await client.get(
                 f"{server_url}/instance/connectionState/{instance}",
-                headers=_headers(api_key)
+                headers=req_headers
             )
 
             if res.status_code == 200:
@@ -203,7 +206,7 @@ async def check_connection_status(client_id: str) -> dict:
                     try:
                         info_res = await client.get(
                             f"{server_url}/instance/fetchInstances",
-                            headers=_headers(api_key),
+                            headers=req_headers,
                             params={"instanceName": instance}
                         )
                         if info_res.status_code == 200:
@@ -231,17 +234,18 @@ async def disconnect_instance(client_id: str) -> dict:
     instance = _instance_name(client_id)
 
     try:
-        server_url, api_key = _get_evolution_credentials()
+        server_url, api_key = await _get_evolution_credentials()
         async with httpx.AsyncClient(timeout=15) as client:
             # نقوم بحذف الجلسة مباشرة (يحذفها من الخادم كلياً ويقطع الاتصال ضمناً)
+            req_headers = await _headers(api_key)
             res = await client.delete(
                 f"{server_url}/instance/delete/{instance}",
-                headers=_headers(api_key)
+                headers=req_headers
             )
             print(f"[EVOLUTION] Delete instance '{instance}' response: {res.status_code} - {res.text}")
 
         # مسح البيانات من قاعدة البيانات
-        _clear_instance_config(client_id)
+        await _clear_instance_config(client_id)
 
         return {"success": True, "message": "تم قطع الاتصال وحذف الجلسة بنجاح"}
 
@@ -276,13 +280,13 @@ async def set_webhook(client_id: str, webhook_base_url: str) -> dict:
         return {"success": False}
 
 
-def _save_instance_config(client_id: str, instance_name: str):
+async def _save_instance_config(client_id: str, instance_name: str):
     """حفظ بيانات الجلسة في channels_config"""
     db = get_db_client()
     try:
-        existing = db.table("channels_config").select("id").eq("client_id", client_id).execute()
+        existing = await db.table("channels_config").select("id").eq("client_id", client_id).execute_async()
 
-        server_url, api_key = _get_evolution_credentials()
+        server_url, api_key = await _get_evolution_credentials()
         update_data = {
             "client_id": client_id,
             "whatsapp_provider": "evolution",
@@ -292,26 +296,26 @@ def _save_instance_config(client_id: str, instance_name: str):
         }
 
         if existing.data:
-            db.table("channels_config").update(update_data).eq("client_id", client_id).execute()
+            await db.table("channels_config").update(update_data).eq("client_id", client_id).execute_async()
         else:
-            db.table("channels_config").insert(update_data).execute()
+            await db.table("channels_config").insert(update_data).execute_async()
             
         # بناءً على طلب التاجر: تلقائياً فور الربط (المسح الضوئي) لا يرد على المجموعات ويرد على الأرقام المصرحة فقط
-        db.table("clients").update({
+        await db.table("clients").update({
             "allow_all_numbers": False,
             "ignore_groups": True
-        }).eq("id", client_id).execute()
+        }).eq("id", client_id).execute_async()
 
     except Exception as e:
         print(f"[EVOLUTION] Save config error: {e}")
 
 
-def _clear_instance_config(client_id: str):
+async def _clear_instance_config(client_id: str):
     """مسح بيانات الجلسة"""
     db = get_db_client()
     try:
-        db.table("channels_config").update({
+        await db.table("channels_config").update({
             "evolution_instance_name": None,
-        }).eq("client_id", client_id).execute()
+        }).eq("client_id", client_id).execute_async()
     except Exception as e:
         print(f"[EVOLUTION] Clear config error: {e}")

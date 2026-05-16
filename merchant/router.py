@@ -245,20 +245,20 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         # ═══════════════════════════════════════════════════════════════
         
         # أ - جلب كامل المنتجات/الخدمات (100%)
-        data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).execute()
+        data_res = await db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).execute_async()
         products_raw = data_res.data[0].get("data", []) if data_res.data else []
         total_items = len(products_raw)
         
         # ب - جلب ملاحظات تدريب الأعمدة (مع حالة الإيقاف وعند الطلب)
-        col_res = db.table("column_training").select("column_name, note, is_disabled, on_request").eq("client_id", user["id"]).execute()
+        col_res = await db.table("column_training").select("column_name, note, is_disabled, on_request").eq("client_id", user["id"]).execute_async()
         col_notes = col_res.data or []
         
         # ج - جلب قواعد العمل
-        rules_res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).execute()
+        rules_res = await db.table("business_rules").select("rules_data").eq("client_id", user["id"]).execute_async()
         biz_rules = rules_res.data[0].get("rules_data", {}) if rules_res.data else {}
         
         # د - جلب إعدادات التخطيط العامة
-        plan_res = db.table("planning_config").select("*").eq("client_id", user["id"]).single().execute()
+        plan_res = await db.table("planning_config").select("*").eq("client_id", user["id"]).single().execute_async()
         plan_data = plan_res.data or {}
         
         if total_items == 0:
@@ -1147,16 +1147,16 @@ async def api_upload_data_sync(file: UploadFile = File(...), user: dict = Depend
         
         # 2. حفظ البيانات في الجدول الجديد
         try:
-            db.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute()
+            await db.table("merchant_manual_data").delete().eq("client_id", user["id"]).execute_async()
         except:
             pass
             
-        db.table("merchant_manual_data").insert({
+        await db.table("merchant_manual_data").insert({
             "client_id": user["id"],
             "data": json.loads(data_json),
             "filename": filename,
             "updated_at": datetime.now().isoformat()
-        }).execute()
+        }).execute_async()
         
         return {"status": "success", "message": f"تم رفع ومعالجة الملف '{filename}' بنجاح. تم استيراد {len(df)} سجل."}
         
@@ -1655,28 +1655,31 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
     from database.db_client import get_db_engine
     from sqlalchemy import text
     
-    # محاولة إنشاء الجدول بشكل استباقي قبل البدء
-    engine = get_db_engine()
-    if engine:
-        try:
-            with engine.begin() as conn:
-                pc_cols = [r[0] for r in conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='planning_config'")).fetchall()]
-                if 'ai_max_tokens' not in pc_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
-                if 'ai_core_strategy' not in pc_cols:
-                    conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_core_strategy TEXT DEFAULT '';"))
-                conn.execute(text("""
-                    CREATE TABLE IF NOT EXISTS merchant_ai_insights (
-                        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                        client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
-                        insights_data JSONB DEFAULT '{}',
-                        period TEXT DEFAULT 'last_7_days',
-                        created_at TIMESTAMP DEFAULT NOW()
-                    );
-                """))
-        except Exception as e:
-            print(f"Pre-emptive table creation warning: {e}")
+    def _create_tables():
+        engine = get_db_engine()
+        if engine:
+            try:
+                with engine.begin() as conn:
+                    pc_cols = [r[0] for r in conn.execute(text("SELECT column_name FROM information_schema.columns WHERE table_name='planning_config'")).fetchall()]
+                    if 'ai_max_tokens' not in pc_cols:
+                        conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_max_tokens INTEGER DEFAULT 600;"))
+                    if 'ai_core_strategy' not in pc_cols:
+                        conn.execute(text("ALTER TABLE planning_config ADD COLUMN ai_core_strategy TEXT DEFAULT '';"))
+                    conn.execute(text("""
+                        CREATE TABLE IF NOT EXISTS merchant_ai_insights (
+                            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                            client_id UUID REFERENCES clients(id) ON DELETE CASCADE,
+                            insights_data JSONB DEFAULT '{}',
+                            period TEXT DEFAULT 'last_7_days',
+                            created_at TIMESTAMP DEFAULT NOW()
+                        );
+                    """))
+            except Exception as e:
+                print(f"Pre-emptive table creation warning: {e}")
 
+    from database.db_client import run_in_db_thread
+    await run_in_db_thread(_create_tables)
+    
     try:
         res = await generate_and_save_insights(user["id"])
         return res
@@ -1768,7 +1771,7 @@ async def api_playground_chat(payload: PlaygroundChatRequest, user: dict = Depen
     # إذا طلب المستخدم تصفير الذاكرة قبل الإرسال
     if payload.reset_memory:
         try:
-            db.table("message_logs").delete().eq("client_id", user["id"]).eq("phone_number", test_phone).execute()
+            await db.table("message_logs").delete().eq("client_id", user["id"]).eq("phone_number", test_phone).execute_async()
         except:
             pass
 
