@@ -37,20 +37,26 @@ async def verify_merchant(request: Request):
         
         # إضافة مهلة زمنية قصيرة لجلب الإعدادات لضمان عدم تعليق الصفحة إذا كانت قاعدة البيانات بطيئة
         try:
-            planning_task = get_planning_config(user["id"])
-            settings_task = get_store_settings(user["id"])
+            planning_task = asyncio.create_task(get_planning_config(user["id"]))
+            settings_task = asyncio.create_task(get_store_settings(user["id"]))
             
-            # انتظار لمدة أقصاها 4 ثوانٍ فقط لجلب البيانات
-            planning_res, settings_res = await asyncio.wait_for(
-                asyncio.gather(planning_task, settings_task),
+            # استخدام asyncio.wait بدلاً من wait_for لضمان عدم التعليق إذا فشل إلغاء الثريد
+            done, pending = await asyncio.wait(
+                [planning_task, settings_task],
                 timeout=4.0
             )
             
-            user["_planning"] = planning_res
-            user["_settings"] = settings_res
+            if pending:
+                print(f"[VERIFY TIMEOUT] Database was slow, using defaults for {user['id']}")
+                user["_planning"] = {}
+                user["_settings"] = {}
+            else:
+                user["_planning"] = planning_task.result()
+                user["_settings"] = settings_task.result()
             print(f"[VERIFY] Metadata fetched in {time.time() - start_t:.3f}s for {user['id']}")
-        except asyncio.TimeoutError:
-            print(f"[VERIFY TIMEOUT] Database was slow, using defaults for {user['id']}")
+            
+        except Exception as e:
+            print(f"[VERIFY ERROR] {e}")
             user["_planning"] = {}
             user["_settings"] = {}
             
