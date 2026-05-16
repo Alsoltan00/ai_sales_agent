@@ -175,7 +175,7 @@ async def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(ver
         
         # تحديث قاعدة البيانات
         from merchant.store_management.store_settings import update_store_settings
-        update_store_settings(user["id"], {"logo_url": logo_url})
+        await asyncio.to_thread(update_store_settings, user["id"], {"logo_url": logo_url})
         
         return {"status": "success", "message": "تم رفع الشعار بنجاح", "logo_url": logo_url}
     except Exception as e:
@@ -916,7 +916,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         # 6. حفظ الاستراتيجية في قاعدة البيانات
         # ═══════════════════════════════════════════════════════════════
         try:
-            db.table("planning_config").update({"ai_core_strategy": final_strategy}).eq("client_id", user["id"]).execute()
+            await db.table("planning_config").update({"ai_core_strategy": final_strategy}).eq("client_id", user["id"]).execute_async()
         except Exception as db_err:
             if "column" in str(db_err) and "does not exist" in str(db_err):
                  return {"status": "error", "message": "قاعدة البيانات لم يتم تحديثها بالعمود الجديد. يرجى إعادة تشغيل السيرفر أو التواصل مع الدعم."}
@@ -1729,7 +1729,7 @@ async def api_update_customer(customer_id: str, payload: dict, user: dict = Depe
             updates["phone_number"] = payload["phone_number"]
         
         if updates:
-            update_customer_data(user["id"], identifier, updates)
+            await asyncio.to_thread(update_customer_data, user["id"], identifier, updates)
             return {"status": "success", "message": "تم تحديث بيانات العميل بنجاح"}
         return {"status": "error", "message": "لا توجد بيانات للتحديث"}
     except Exception as e:

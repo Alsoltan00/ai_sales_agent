@@ -58,7 +58,7 @@ async def get_pending_requests(user: dict = Depends(verify_admin)):
     return {"status": "success", "data": res.data}
 
 @router.post("/api/requests/{request_id}/accept")
-async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
+def accept_request(request_id: str, user: dict = Depends(verify_admin)):
     """الموافقة على طلب عميل وإنشاء حساب له"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
@@ -117,12 +117,12 @@ async def accept_request(request_id: str, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/requests", response_class=HTMLResponse)
-async def admin_requests(request: Request, user: dict = Depends(verify_admin)):
+def admin_requests(request: Request, user: dict = Depends(verify_admin)):
     """صفحة طلبات العملاء الجدد (بانتظار الموافقة)"""
     return templates.TemplateResponse("admin_new_clients.html", {"request": request, "user": user})
 
 @router.post("/api/requests/{request_id}/reject")
-async def reject_request(request_id: str, user: dict = Depends(verify_admin)):
+def reject_request(request_id: str, user: dict = Depends(verify_admin)):
     """رفض طلب العميل"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_new_clients") and not perms.get("is_admin"):
@@ -268,16 +268,14 @@ def renew_subscription(client_id: str, payload: dict, user: dict = Depends(verif
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/users", response_class=HTMLResponse)
-async def admin_users(request: Request, user: dict = Depends(verify_admin)):
+def admin_users(request: Request, user: dict = Depends(verify_admin)):
     """إدارة موظفي النظام (الأدمن)"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
         raise HTTPException(status_code=403, detail="ليس لديك صلاحية لإدارة المستخدمين")
-    def _fetch():
-        supabase = get_supabase_client()
-        res = supabase.table("sales_admin_users").select("*").execute()
-        return sanitize_data(res.data or [])
-    safe_users = await asyncio.to_thread(_fetch)
+    supabase = get_supabase_client()
+    res = supabase.table("sales_admin_users").select("*").execute()
+    safe_users = sanitize_data(res.data or [])
     
     # تحديث بيانات المستخدم الحالي في الجلسة لضمان مزامنة الاسم والصلاحيات فوراً
     current_db_user = next((u for u in safe_users if str(u.get('id')) == str(user.get('id'))), None)
@@ -289,7 +287,7 @@ async def admin_users(request: Request, user: dict = Depends(verify_admin)):
     return templates.TemplateResponse("admin_users.html", {"request": request, "user": user, "admin_users": safe_users})
 
 @router.post("/api/users")
-async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
+def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
     """إنشاء مستخدم إداري جديد"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -324,7 +322,7 @@ async def api_create_user(payload: dict, user: dict = Depends(verify_admin)):
         return {"status": "error", "message": f"فشل الإضافة: {str(e)}"}
 
 @router.put("/api/users/{user_id}")
-async def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
+def api_update_user(user_id: str, payload: dict, request: Request, current_user: dict = Depends(verify_admin)):
     """تحديث بيانات/صلاحيات مستخدم إداري"""
     perms = current_user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -360,7 +358,7 @@ async def api_update_user(user_id: str, payload: dict, request: Request, current
         return {"status": "error", "message": f"فشل التحديث: {str(e)}"}
 
 @router.delete("/api/users/{user_id}")
-async def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
+def api_delete_user(user_id: str, current_user: dict = Depends(verify_admin)):
     """حذف مستخدم إداري"""
     perms = current_user.get("permissions") or {}
     if not perms.get("can_manage_users") and not perms.get("is_admin"):
@@ -436,7 +434,7 @@ def reset_client_password(client_id: str, payload: dict, user: dict = Depends(ve
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.get("/models-pool", response_class=HTMLResponse)
-async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
+def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
     """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -450,7 +448,7 @@ async def admin_models_pool(request: Request, user: dict = Depends(verify_admin)
     return templates.TemplateResponse("admin/models_pool.html", {"request": request, "user": user, "models": safe_models})
 
 @router.post("/api/models-pool")
-async def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
+def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)):
     """إضافة نموذج جديد للمكتبة العالمية"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -589,7 +587,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
         return {"status": "error", "message": f"خطأ تقني أثناء التجربة: {str(e)}"}
 
 @router.delete("/api/models-pool/{model_id}")
-async def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
+def admin_api_delete_global_model(model_id: str, user: dict = Depends(verify_admin)):
     """حذف نموذج من المكتبة"""
     perms = user.get("permissions") or {}
     if not perms.get("can_manage_models") and not perms.get("is_admin"):
@@ -605,7 +603,7 @@ async def admin_api_delete_global_model(model_id: str, user: dict = Depends(veri
 # --- إعدادات خادم واتساب (Evolution API) ---
 
 @router.get("/settings", response_class=HTMLResponse)
-async def admin_settings(request: Request, user: dict = Depends(verify_admin)):
+def admin_settings(request: Request, user: dict = Depends(verify_admin)):
     """صفحة الإعدادات العامة"""
     supabase = get_supabase_client()
     evolution_settings = {}
@@ -620,7 +618,7 @@ async def admin_settings(request: Request, user: dict = Depends(verify_admin)):
     })
 
 @router.get("/api/settings/evolution")
-async def get_evolution_settings(user: dict = Depends(verify_admin)):
+def get_evolution_settings(user: dict = Depends(verify_admin)):
     """جلب إعدادات Evolution API"""
     supabase = get_supabase_client()
     try:
@@ -632,7 +630,7 @@ async def get_evolution_settings(user: dict = Depends(verify_admin)):
     return {"status": "success", "data": {}}
 
 @router.post("/api/settings/evolution")
-async def save_evolution_settings(payload: dict, user: dict = Depends(verify_admin)):
+def save_evolution_settings(payload: dict, user: dict = Depends(verify_admin)):
     """حفظ إعدادات Evolution API"""
     supabase = get_supabase_client()
     value = {
