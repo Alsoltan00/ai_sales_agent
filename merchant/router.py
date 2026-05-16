@@ -265,8 +265,12 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             return {"status": "error", "message": "لا توجد بيانات مزامنة في المتجر حالياً. يرجى إضافة بيانات أولاً من صفحة (مزامنة البيانات)."}
 
         # ═══════════════════════════════════════════════════════════════
-        # 2. التحليل الآلي المحلي — استخراج الفئات والأنماط (خوارزميات فائقة السرعة)
+        # 2. التحليل الآلي المحلي — محرك اكتشاف الفئات والماركات v2.0
+        #    Smart Column Classification + Statistical Scoring
         # ═══════════════════════════════════════════════════════════════
+        
+        from collections import Counter
+        import re as regex_module
         
         # استخراج أسماء الأعمدة المفعلة
         disabled_cols = {c["column_name"] for c in col_notes if c.get("is_disabled")}
@@ -274,104 +278,340 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         if products_raw:
             active_cols = [k for k in products_raw[0].keys() if k not in disabled_cols]
         
-        # ── أخذ عينة للتحليل السريع (لتفادي البطء في قواعد البيانات الضخمة 250k+) ──
-        sample_size = min(total_items, 3000)
+        # ── أخذ عينة ذكية للتحليل (للتصنيف فقط، العدّ يتم على كل البيانات) ──
+        sample_size = min(total_items, 5000)
         analysis_sample = products_raw[:sample_size]
         
-        # ── تحديد عمود التصنيف المحتمل (الفئة/القسم) ──
-        category_keywords = ["فئة", "قسم", "تصنيف", "نوع", "مجموعة", "ماركة", "براند", "category", "type", "group", "section", "department", "brand", "model"]
-        category_column = None
-        categories_found = {}
+        # ═══════════════════════════════════════════════════════════════
+        # 2.1 — تصنيف كل عمود حسب نوع بياناته الفعلية
+        # ═══════════════════════════════════════════════════════════════
         
+        def classify_column(col_name, rows, max_check=500):
+            """
+            يحلل عينة من قيم العمود ويصنفه إلى:
+            - 'numeric': أرقام بحتة (IDs, أسعار, كميات)
+            - 'url': روابط
+            - 'timestamp': طوابع زمنية
+            - 'long_text': نصوص طويلة (أوصاف, ملاحظات)
+            - 'boolean': قيم منطقية
+            - 'categorical': قيم تصنيفية (فئات، ماركات، أقسام)
+            - 'identifier': معرفات فريدة (UUID, SKU)
+            - 'empty': عمود فارغ غالباً
+            """
+            values = []
+            empty_count = 0
+            for row in rows[:max_check]:
+                val = str(row.get(col_name, "")).strip()
+                if not val or val.lower() in ('none', 'null', 'nan', ''):
+                    empty_count += 1
+                else:
+                    values.append(val)
+            
+            total_checked = min(len(rows), max_check)
+            if total_checked == 0:
+                return 'empty', {}
+            
+            fill_rate = len(values) / total_checked
+            if fill_rate < 0.1:
+                return 'empty', {'fill_rate': fill_rate}
+            
+            # تحليل خصائص القيم
+            numeric_count = 0
+            url_count = 0
+            long_count = 0
+            bool_count = 0
+            timestamp_count = 0
+            
+            lengths = []
+            for v in values:
+                lengths.append(len(v))
+                # أرقام بحتة (بما في ذلك الأسعار والأرقام العشرية)
+                clean_v = v.replace(',', '').replace(' ', '')
+                if regex_module.match(r'^-?[\d.]+$', clean_v):
+                    numeric_count += 1
+                    # طابع زمني Unix (13 رقم)
+                    if clean_v.isdigit() and len(clean_v) >= 10:
+                        timestamp_count += 1
+                # روابط
+                if v.startswith(('http://', 'https://', 'www.', 'ftp://')):
+                    url_count += 1
+                # نصوص طويلة
+                if len(v) > 80:
+                    long_count += 1
+                # منطقي
+                if v.lower() in ('true', 'false', 'yes', 'no', 'نعم', 'لا', '0', '1'):
+                    bool_count += 1
+            
+            n = len(values)
+            avg_len = sum(lengths) / n if n else 0
+            unique_vals = set(values)
+            uniqueness_ratio = len(unique_vals) / n if n else 0
+            
+            stats = {
+                'fill_rate': fill_rate,
+                'unique_count': len(unique_vals),
+                'total_non_empty': n,
+                'avg_length': avg_len,
+                'uniqueness_ratio': uniqueness_ratio,
+            }
+            
+            # قواعد التصنيف (بالترتيب من الأعلى أولوية)
+            if timestamp_count / n > 0.7:
+                return 'timestamp', stats
+            if numeric_count / n > 0.8:
+                return 'numeric', stats
+            if url_count / n > 0.5:
+                return 'url', stats
+            if bool_count / n > 0.7:
+                return 'boolean', stats
+            if avg_len > 80 or long_count / n > 0.4:
+                return 'long_text', stats
+            # معرفات فريدة (UUID, أكواد SKU) — نسبة فريدة عالية جداً
+            if uniqueness_ratio > 0.9 and n > 5:
+                return 'identifier', stats
+            
+            return 'categorical', stats
+        
+        # تصنيف جميع الأعمدة
+        column_classifications = {}
         for col_name in active_cols:
+            col_type, col_stats = classify_column(col_name, analysis_sample)
+            column_classifications[col_name] = {
+                'type': col_type,
+                **col_stats
+            }
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 2.2 — اكتشاف عمود الفئة الرئيسية (Category Column)
+        # ═══════════════════════════════════════════════════════════════
+        
+        # كلمات مفتاحية مرتبة حسب الأولوية للفئات
+        category_priority_keywords = [
+            "فئة", "قسم", "تصنيف", "category", "section", "department", "group", "مجموعة",
+            "type", "نوع", "class"
+        ]
+        # كلمات مفتاحية للماركات
+        brand_keywords = [
+            "ماركة", "براند", "brand", "العلامة", "الشركة المصنعة", "manufacturer", "maker"
+        ]
+        
+        category_column = None
+        brand_column = None
+        categories_found = {}
+        brands_found = {}
+        
+        # الخطوة 1: البحث في الأعمدة التصنيفية فقط
+        categorical_cols = {
+            name: info for name, info in column_classifications.items()
+            if info['type'] == 'categorical'
+        }
+        
+        def score_category_candidate(col_name, stats):
+            """
+            تسجيل نقاط لعمود مرشح كفئة. أعلى نقاط = أفضل مرشح.
+            المعايير:
+            - عدد القيم الفريدة معقول (2-200)
+            - نسبة التعبئة عالية
+            - متوسط طول القيمة قصير-متوسط (2-50 حرف)
+            - نسبة التكرار جيدة (كل قيمة تتكرر عدة مرات)
+            """
+            score = 0
+            unique = stats.get('unique_count', 0)
+            fill = stats.get('fill_rate', 0)
+            avg_len = stats.get('avg_length', 0)
+            total = stats.get('total_non_empty', 0)
+            uniqueness = stats.get('uniqueness_ratio', 1)
+            
+            # عدد القيم الفريدة مثالي (2-200)
+            if unique < 2:
+                return -100  # غير صالح
+            if 2 <= unique <= 15:
+                score += 30  # مثالي جداً
+            elif 16 <= unique <= 50:
+                score += 25
+            elif 51 <= unique <= 200:
+                score += 15
+            else:
+                score -= 20  # كثير جداً
+            
+            # نسبة التعبئة
+            score += fill * 20
+            
+            # متوسط الطول (الفئات عادة 3-40 حرف)
+            if 2 <= avg_len <= 40:
+                score += 20
+            elif 40 < avg_len <= 60:
+                score += 10
+            else:
+                score -= 10
+            
+            # نسبة التكرار (الفئات تتكرر — ليست فريدة)
+            if uniqueness < 0.3:
+                score += 25  # تكرار عالي = فئة ممتازة
+            elif uniqueness < 0.5:
+                score += 15
+            elif uniqueness < 0.7:
+                score += 5
+            else:
+                score -= 15  # كل قيمة فريدة = ليست فئة
+            
+            return score
+        
+        # مرحلة 1: البحث بالكلمات المفتاحية أولاً (أعلى دقة)
+        keyword_category_candidates = []
+        keyword_brand_candidates = []
+        
+        for col_name, info in categorical_cols.items():
             col_lower = col_name.lower().strip()
-            if any(kw in col_lower for kw in category_keywords):
-                unique_vals = set()
-                for row in analysis_sample:
-                    val = str(row.get(col_name, "")).strip()
-                    if val: unique_vals.add(val)
-                
-                # إذا كان عدد القيم الفريدة معقول (يدعم حتى 200 فئة للمتاجر الضخمة)
-                if 1 < len(unique_vals) <= 200:
-                    category_column = col_name
+            
+            # فحص الفئة
+            for kw in category_priority_keywords:
+                if kw in col_lower:
+                    s = score_category_candidate(col_name, info)
+                    if s > 0:
+                        keyword_category_candidates.append((col_name, s + 50))  # مكافأة الكلمة المفتاحية
+                    break
+            
+            # فحص الماركة
+            for kw in brand_keywords:
+                if kw in col_lower:
+                    s = score_category_candidate(col_name, info)
+                    if s > 0:
+                        keyword_brand_candidates.append((col_name, s + 50))
                     break
         
-        # الاكتشاف بالتكرار إذا لم نجد الكلمات المفتاحية (يعتمد على العينة فقط للسرعة)
-        if not category_column and total_items > 5:
-            best_col = None
-            best_ratio = 0
-            for col_name in active_cols:
-                unique_vals = set()
-                total_non_empty = 0
-                for row in analysis_sample:
-                    val = str(row.get(col_name, "")).strip()
-                    if val:
-                        total_non_empty += 1
-                        if len(val) < 80: # استبعاد النصوص الطويلة
-                            unique_vals.add(val)
-                
-                if len(unique_vals) < 2:
-                    continue
-                
-                ratio = total_non_empty / len(unique_vals)
-                
-                if 2 <= len(unique_vals) <= min(200, total_non_empty // 2) and ratio >= 1.5:
-                    if ratio > best_ratio:
-                        best_ratio = ratio
-                        best_col = col_name
-            
-            if best_col:
-                category_column = best_col
+        # مرحلة 2: التحليل الإحصائي لباقي الأعمدة التصنيفية (بدون كلمات مفتاحية)
+        statistical_candidates = []
+        already_matched = set(c[0] for c in keyword_category_candidates + keyword_brand_candidates)
         
-        # ── استخراج الفئات وعدد العناصر الحقيقي (سريع جداً باستخدام Counter) ──
+        for col_name, info in categorical_cols.items():
+            if col_name in already_matched:
+                continue
+            s = score_category_candidate(col_name, info)
+            if s > 10:
+                statistical_candidates.append((col_name, s))
+        
+        # ترتيب حسب النقاط
+        keyword_category_candidates.sort(key=lambda x: x[1], reverse=True)
+        keyword_brand_candidates.sort(key=lambda x: x[1], reverse=True)
+        statistical_candidates.sort(key=lambda x: x[1], reverse=True)
+        
+        # اختيار عمود الفئة الأفضل
+        if keyword_category_candidates:
+            category_column = keyword_category_candidates[0][0]
+        elif statistical_candidates:
+            category_column = statistical_candidates[0][0]
+        
+        # اختيار عمود الماركة (مختلف عن الفئة)
+        if keyword_brand_candidates:
+            brand_column = keyword_brand_candidates[0][0]
+            if brand_column == category_column and len(keyword_brand_candidates) > 1:
+                brand_column = keyword_brand_candidates[1][0]
+            elif brand_column == category_column:
+                brand_column = None
+        elif statistical_candidates:
+            # البحث عن ثاني أفضل عمود تصنيفي كعمود ماركة محتمل
+            for cand_name, cand_score in statistical_candidates:
+                if cand_name != category_column:
+                    col_lower = cand_name.lower()
+                    # تفضيل الأعمدة التي تشبه أسماء الماركات
+                    if any(bkw in col_lower for bkw in ["brand", "ماركة", "براند", "model", "موديل"]):
+                        brand_column = cand_name
+                        break
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 2.3 — استخراج الفئات والماركات الحقيقية (باستخدام Counter - O(n))
+        # ═══════════════════════════════════════════════════════════════
+        
         if category_column:
-            from collections import Counter
-            cat_counter = Counter(str(row.get(category_column, "")).strip() for row in products_raw)
-            cat_counter.pop("", None)
+            cat_counter = Counter()
+            for row in products_raw:
+                val = str(row.get(category_column, "")).strip()
+                if val and val.lower() not in ('none', 'null', 'nan', ''):
+                    cat_counter[val] += 1
             
-            if len(cat_counter) > 40:
-                # أخذ أهم 40 فئة فقط لتجنب إغراق الذكاء الاصطناعي وتجاوز حدود الـ Tokens
-                categories_found = dict(cat_counter.most_common(40))
-                other_count = sum(count for _, count in cat_counter.most_common()[40:])
+            if len(cat_counter) > 50:
+                # أخذ أهم 50 فئة + تجميع الباقي
+                categories_found = dict(cat_counter.most_common(50))
+                other_count = sum(count for _, count in cat_counter.most_common()[50:])
                 if other_count > 0:
                     categories_found["فئات أخرى..."] = other_count
-            else:
+            elif len(cat_counter) > 0:
                 categories_found = dict(cat_counter)
         
-        # 🆕 FALLBACK: إذا لم يتم العثور على فئات وعندي منتجات كثيرة، نطلب من الـ AI استنتاج الفئات من الأسماء
+        if brand_column:
+            brand_counter = Counter()
+            for row in products_raw:
+                val = str(row.get(brand_column, "")).strip()
+                if val and val.lower() not in ('none', 'null', 'nan', ''):
+                    brand_counter[val] += 1
+            
+            if len(brand_counter) > 30:
+                brands_found = dict(brand_counter.most_common(30))
+                other_brand_count = sum(count for _, count in brand_counter.most_common()[30:])
+                if other_brand_count > 0:
+                    brands_found["ماركات أخرى..."] = other_brand_count
+            elif len(brand_counter) > 0:
+                brands_found = dict(brand_counter)
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 2.4 — FALLBACK: اكتشاف ذكي بالـ AI إذا لم نجد أي فئات
+        # ═══════════════════════════════════════════════════════════════
+        
         if not categories_found and total_items > 10:
             # البحث عن عمود الاسم
             name_col = None
             for col_name in active_cols:
-                if any(kw in col_name.lower() for kw in ["اسم", "name", "منتج", "service", "عنوان"]):
+                if any(kw in col_name.lower() for kw in ["اسم", "name", "منتج", "service", "عنوان", "title"]):
                     name_col = col_name
                     break
-            if not name_col and active_cols: name_col = active_cols[0]
+            if not name_col and active_cols:
+                name_col = active_cols[0]
             
             if name_col:
-                # تقليل العينة لـ 30 فقط لتسريع التوليد (يكفي لاكتشاف النمط العام)
-                names_sample = [str(r.get(name_col, "")).strip() for r in analysis_sample if r.get(name_col)][:30]
-                clustering_prompt = f"""أنا لدي متجر يحتوي على المنتجات التالية: {", ".join(names_sample)}.
-أريدك أن تستخرج لي 5 إلى 8 "فئات كبرى" (Keywords Categories) منطقية تجمع هذه المنتجات.
-لكل فئة، استخرج أيضاً 3-4 "كلمات بحث مفتاحية" (Search Keywords) مرتبطة بها تساعد في البحث في قاعدة البيانات (مثال: فئة "إزالة المكياج" كلماتها هي: ["مزيل", "مكياج", "منظف"]).
-رد علي بتنسيق JSON حصراً ككائن (Object) مفتاحه اسم الفئة وقيمته قائمة الكلمات المفتاحية: {{"فئة1": ["كلمة1", "كلمة2"], ...}}"""
+                # أخذ عينة متنوعة (أول 15 + وسط 15 + آخر 15) لتغطية أفضل
+                sample_indices = []
+                if total_items <= 50:
+                    sample_indices = list(range(total_items))
+                else:
+                    third = total_items // 3
+                    sample_indices = list(range(15)) + list(range(third, third + 15)) + list(range(total_items - 15, total_items))
                 
-                try:
-                    cluster_res = await get_ai_response(
-                        client_id=user["id"],
-                        user_message=clustering_prompt,
-                        phone_number="CLUSTERING",
-                        channel="system"
-                    )
-                    # تنظيف الرد وجلبه كـ dict
-                    import re
-                    json_match = re.search(r'\{.*\}', cluster_res.replace("\n", ""), re.DOTALL)
-                    if json_match:
-                        suggested_map = json.loads(json_match.group(0))
-                        for cat, keywords in suggested_map.items():
-                            categories_found[cat] = keywords # حفظ الكلمات المفتاحية بدلاً من نص ثابت
-                except:
-                    pass
+                names_sample = []
+                for idx in sample_indices:
+                    if idx < len(products_raw):
+                        name_val = str(products_raw[idx].get(name_col, "")).strip()
+                        if name_val and name_val.lower() not in ('none', 'null', 'nan'):
+                            names_sample.append(name_val)
+                
+                names_sample = names_sample[:50]  # حد أقصى 50 اسم
+                
+                if names_sample:
+                    clustering_prompt = f"""أنا لدي متجر يحتوي على {total_items} منتج/خدمة. هذه عينة تمثيلية من الأسماء:
+{chr(10).join(f"- {n}" for n in names_sample)}
+
+المطلوب:
+1. استخرج الفئات الكبرى الحقيقية التي تجمع هذه المنتجات (5-15 فئة حسب التنوع الفعلي).
+2. لكل فئة، استخرج 3-5 كلمات بحث مفتاحية مرتبطة بها تساعد في البحث في قاعدة البيانات.
+
+رد بتنسيق JSON حصراً: {{"فئة1": ["كلمة1", "كلمة2"], "فئة2": ["كلمة1", "كلمة2"]}}
+بدون أي نص إضافي."""
+                    
+                    try:
+                        cluster_res = await get_ai_response(
+                            client_id=user["id"],
+                            user_message=clustering_prompt,
+                            phone_number="CLUSTERING",
+                            channel="system"
+                        )
+                        json_match = regex_module.search(r'\{.*\}', cluster_res.replace("\n", ""), regex_module.DOTALL)
+                        if json_match:
+                            suggested_map = json.loads(json_match.group(0))
+                            for cat, keywords in suggested_map.items():
+                                categories_found[cat] = keywords
+                    except:
+                        pass
+
 
         # ── تحديد مستوى حجم المخزون ──
         if total_items <= 6:
@@ -420,9 +660,9 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         
         categories_text = ""
         if categories_found:
-            cat_lines = [f"    • {cat}: {count} عنصر" for cat, count in sorted(categories_found.items(), key=lambda x: x[1], reverse=True)]
+            cat_lines = [f"    • {cat}: {count} عنصر" if isinstance(count, int) else f"    • {cat}: (كلمات بحث: {', '.join(count)})" for cat, count in sorted(categories_found.items(), key=lambda x: x[1] if isinstance(x[1], int) else 0, reverse=True)]
             categories_text = f"""
-## الفئات المُستخرجة من البيانات (عمود التصنيف: "{category_column}"):
+## الفئات المُستخرجة من البيانات (عمود التصنيف: "{category_column or 'تحليل ذكي'}"):
 {chr(10).join(cat_lines)}
 """
         else:
@@ -430,6 +670,15 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
 ## لم يتم العثور على عمود تصنيف واضح.
 - البيانات لا تحتوي على فئات/أقسام.
 """
+        
+        brands_text = ""
+        if brands_found:
+            brand_lines = [f"    • {brand}: {count} عنصر" for brand, count in sorted(brands_found.items(), key=lambda x: x[1], reverse=True)]
+            brands_text = f"""
+## الماركات المُستخرجة من البيانات (عمود الماركة: "{brand_column}"):
+{chr(10).join(brand_lines)}
+"""
+
 
         analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي".
 مهمتك هي بناء "الجوهر الاستراتيجي الثابت" (Operational DNA) لموظف مبيعات ذكي.
@@ -442,8 +691,11 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
 • مستوى حجم المخزون: {inventory_level}
 • استراتيجية العرض المُقترحة: {inventory_strategy}
 • عمود التصنيف المُكتشف: {category_column or "لا يوجد"}
+• عمود الماركة المُكتشف: {brand_column or "لا يوجد"}
 • عدد الفئات المكتشفة: {len(categories_found) if categories_found else 0}
+• عدد الماركات المكتشفة: {len(brands_found) if brands_found else 0}
 {categories_text}
+{brands_text}
 
 ## إعدادات المتجر:
 - النشاط: {plan_data.get('store_activity', 'غير محدد')}
@@ -521,10 +773,15 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
             auto_header += "- الفئات المتاحة (استخدمها حرفياً كأزرار، واستخدم كلمات البحث الملحقة بها للعثور على المنتجات في القاعدة):\n"
             for cat, val in sorted(categories_found.items(), key=lambda x: x[0]):
                 if isinstance(val, list):
-                    # عرض الفئة مع كلمات البحث الخاصة بها
                     auto_header += f"  • {cat} (كلمات البحث: {', '.join(val)})\n"
                 else:
                     auto_header += f"  • {cat} ({val} عنصر)\n"
+        
+        if brands_found:
+            auto_header += f"\n- عمود الماركة: {brand_column}\n"
+            auto_header += "- الماركات المتاحة:\n"
+            for brand, count in sorted(brands_found.items(), key=lambda x: x[1] if isinstance(x[1], int) else 0, reverse=True):
+                auto_header += f"  • {brand} ({count} عنصر)\n"
         
         if inventory_strategy == "عرض_مباشر" and total_items <= 6:
             # في حالة المنتجات القليلة: نضيف أسماء كل العناصر
@@ -544,6 +801,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                     auto_header += f"  {i}. {item_name}\n"
         
         auto_header += "\n## ═══ الاستراتيجية المولّدة ═══\n"
+
         
         final_strategy = auto_header + core_strategy
         
@@ -566,7 +824,11 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                 "strategy_type": inventory_strategy,
                 "categories_count": len(categories_found),
                 "category_column": category_column,
-                "categories": categories_found
+                "categories": {k: v for k, v in categories_found.items() if isinstance(v, int)},
+                "brands_count": len(brands_found),
+                "brand_column": brand_column,
+                "brands": brands_found,
+                "column_types": {name: info['type'] for name, info in column_classifications.items()}
             }
         }
     except Exception as e:

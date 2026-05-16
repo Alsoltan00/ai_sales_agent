@@ -811,23 +811,38 @@ async function generateCoreStrategy() {
                 
                 // عرض شرائح الفئات المكتشفة
                 const chipsContainer = document.getElementById('categoriesChips');
+                let chipsHTML = '';
+                let hasChips = false;
+                
                 if (a.categories && Object.keys(a.categories).length > 0) {
-                    let chipsHTML = '<small class="text-secondary me-2 fw-bold">الفئات:</small>';
+                    chipsHTML += '<small class="text-secondary me-2 fw-bold w-100 mb-1">الفئات:</small>';
                     for (const [cat, count] of Object.entries(a.categories)) {
                         chipsHTML += `<span class="badge rounded-pill text-bg-primary px-3 py-2" style="font-size: 0.8rem;">${cat} <span class="badge bg-white text-primary ms-1">${count}</span></span>`;
                     }
+                    hasChips = true;
+                }
+                
+                if (a.brands && Object.keys(a.brands).length > 0) {
+                    chipsHTML += '<small class="text-secondary me-2 fw-bold w-100 mb-1 mt-2">الماركات:</small>';
+                    for (const [brand, count] of Object.entries(a.brands)) {
+                        chipsHTML += `<span class="badge rounded-pill text-bg-warning px-3 py-2" style="font-size: 0.8rem;">${brand} <span class="badge bg-white text-warning ms-1">${count}</span></span>`;
+                    }
+                    hasChips = true;
+                }
+                
+                if (hasChips) {
                     chipsContainer.innerHTML = chipsHTML;
-                    chipsContainer.style.display = 'flex';
-                    chipsContainer.style.cssText = 'display: flex !important;';
+                    chipsContainer.style.cssText = 'display: flex !important; flex-wrap: wrap; gap: 0.5rem;';
                 } else {
-                    chipsContainer.style.display = 'none';
                     chipsContainer.style.cssText = 'display: none !important;';
                 }
                 
                 document.getElementById('analysisPanel').style.display = 'block';
             }
             
-            showGlobalFeedback('coreAlertBox', 'تم بنجاح', `تم تحليل ${data.analysis?.total_items || ''} عنصر واكتشاف ${data.analysis?.categories_count || 0} فئة. الموظف الآن يعمل بذكاء 100%.`, 'success');
+            const brandsMsg = data.analysis?.brands_count ? ` و ${data.analysis.brands_count} ماركة` : '';
+            showGlobalFeedback('coreAlertBox', 'تم بنجاح', `تم تحليل ${data.analysis?.total_items || ''} عنصر واكتشاف ${data.analysis?.categories_count || 0} فئة${brandsMsg}. الموظف الآن يعمل بذكاء 100%.`, 'success');
+
             btn.innerHTML = '<i class="ti ti-check me-1"></i> تم التوليد!';
             setTimeout(() => {
                 btn.disabled = false;
