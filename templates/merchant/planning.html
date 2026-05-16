@@ -817,7 +817,8 @@ async function generateCoreStrategy() {
                 if (a.categories && Object.keys(a.categories).length > 0) {
                     chipsHTML += '<small class="text-secondary me-2 fw-bold w-100 mb-1">الفئات:</small>';
                     for (const [cat, count] of Object.entries(a.categories)) {
-                        chipsHTML += `<span class="badge rounded-pill text-bg-primary px-3 py-2" style="font-size: 0.8rem;">${cat} <span class="badge bg-white text-primary ms-1">${count}</span></span>`;
+                        const countBadge = count > 0 ? `<span class="badge bg-white text-primary ms-1">${count}</span>` : '';
+                        chipsHTML += `<span class="badge rounded-pill text-bg-primary px-3 py-2" style="font-size: 0.8rem;">${cat} ${countBadge}</span>`;
                     }
                     hasChips = true;
                 }
@@ -825,10 +826,12 @@ async function generateCoreStrategy() {
                 if (a.brands && Object.keys(a.brands).length > 0) {
                     chipsHTML += '<small class="text-secondary me-2 fw-bold w-100 mb-1 mt-2">الماركات:</small>';
                     for (const [brand, count] of Object.entries(a.brands)) {
-                        chipsHTML += `<span class="badge rounded-pill text-bg-warning px-3 py-2" style="font-size: 0.8rem;">${brand} <span class="badge bg-white text-warning ms-1">${count}</span></span>`;
+                        const countBadge = count > 0 ? `<span class="badge bg-white text-warning ms-1">${count}</span>` : '';
+                        chipsHTML += `<span class="badge rounded-pill text-bg-warning px-3 py-2" style="font-size: 0.8rem;">${brand} ${countBadge}</span>`;
                     }
                     hasChips = true;
                 }
+
                 
                 if (hasChips) {
                     chipsContainer.innerHTML = chipsHTML;

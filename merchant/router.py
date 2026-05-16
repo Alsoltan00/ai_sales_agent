@@ -555,47 +555,103 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                 brands_found = dict(brand_counter)
         
         # ═══════════════════════════════════════════════════════════════
-        # 2.4 — FALLBACK: اكتشاف ذكي بالـ AI إذا لم نجد أي فئات
+        # 2.4 — التحليل الذكي بالـ AI (يعمل دائماً عند غياب الفئات)
+        #    يستخرج الفئات + الماركات من أسماء المنتجات مباشرة
+        #    يتعامل مع الحالة الشائعة: عمود واحد يحتوي الاسم+الماركة+الفئة
         # ═══════════════════════════════════════════════════════════════
         
-        if not categories_found and total_items > 10:
-            # البحث عن عمود الاسم
+        # نحتاج تحليل AI إذا:
+        # 1. لا توجد فئات مكتشفة أصلاً
+        # 2. أو الفئات المكتشفة هي أرقام/قيم غير مفيدة
+        needs_ai_analysis = not categories_found and total_items > 5
+        
+        # فحص جودة الفئات المكتشفة (هل هي أرقام؟ هل هي قيم فارغة؟)
+        if categories_found and not needs_ai_analysis:
+            numeric_cats = sum(1 for cat in categories_found.keys() if str(cat).replace('.', '').replace('-', '').isdigit())
+            if numeric_cats > len(categories_found) * 0.5:
+                # أكثر من 50% من الفئات أرقام = خطأ في الاكتشاف
+                categories_found = {}
+                category_column = None
+                needs_ai_analysis = True
+        
+        if needs_ai_analysis:
+            # البحث عن عمود الاسم الأفضل
             name_col = None
             for col_name in active_cols:
-                if any(kw in col_name.lower() for kw in ["اسم", "name", "منتج", "service", "عنوان", "title"]):
+                if any(kw in col_name.lower() for kw in ["اسم", "name", "منتج", "service", "عنوان", "title", "product", "item"]):
                     name_col = col_name
                     break
             if not name_col and active_cols:
-                name_col = active_cols[0]
+                # أخذ أول عمود تصنيفي غير رقمي
+                for col_name in active_cols:
+                    info = column_classifications.get(col_name, {})
+                    if info.get('type') in ('categorical', 'long_text'):
+                        name_col = col_name
+                        break
+                if not name_col:
+                    name_col = active_cols[0]
             
             if name_col:
-                # أخذ عينة متنوعة (أول 15 + وسط 15 + آخر 15) لتغطية أفضل
+                # ── أخذ عينة متنوعة وذكية من كل أنحاء قاعدة البيانات ──
+                # نأخذ عينات من 5 شرائح: البداية، الربع الأول، الوسط، الربع الثالث، النهاية
                 sample_indices = []
-                if total_items <= 50:
+                if total_items <= 80:
                     sample_indices = list(range(total_items))
                 else:
-                    third = total_items // 3
-                    sample_indices = list(range(15)) + list(range(third, third + 15)) + list(range(total_items - 15, total_items))
+                    chunk_size = 16
+                    positions = [0, total_items // 4, total_items // 2, 3 * total_items // 4, total_items - chunk_size]
+                    for pos in positions:
+                        sample_indices.extend(range(pos, min(pos + chunk_size, total_items)))
+                    sample_indices = sorted(set(sample_indices))
                 
+                # استخراج الأسماء (مع معلومات إضافية من أعمدة أخرى إن وجدت)
                 names_sample = []
                 for idx in sample_indices:
                     if idx < len(products_raw):
-                        name_val = str(products_raw[idx].get(name_col, "")).strip()
-                        if name_val and name_val.lower() not in ('none', 'null', 'nan'):
-                            names_sample.append(name_val)
+                        row = products_raw[idx]
+                        name_val = str(row.get(name_col, "")).strip()
+                        if name_val and name_val.lower() not in ('none', 'null', 'nan', ''):
+                            # إضافة معلومات من أعمدة أخرى قصيرة (مثل حجم، لون، إلخ) لتحسين التصنيف
+                            extra_info = []
+                            for other_col in active_cols:
+                                if other_col == name_col:
+                                    continue
+                                col_info = column_classifications.get(other_col, {})
+                                if col_info.get('type') == 'categorical' and col_info.get('avg_length', 100) < 30:
+                                    other_val = str(row.get(other_col, "")).strip()
+                                    if other_val and other_val.lower() not in ('none', 'null', 'nan', '') and len(other_val) < 30:
+                                        extra_info.append(f"{other_col}:{other_val}")
+                            
+                            full_entry = name_val
+                            if extra_info:
+                                full_entry += f" [{', '.join(extra_info[:3])}]"
+                            names_sample.append(full_entry)
                 
-                names_sample = names_sample[:50]  # حد أقصى 50 اسم
+                names_sample = names_sample[:80]  # حد أقصى 80 عنصر
                 
                 if names_sample:
-                    clustering_prompt = f"""أنا لدي متجر يحتوي على {total_items} منتج/خدمة. هذه عينة تمثيلية من الأسماء:
-{chr(10).join(f"- {n}" for n in names_sample)}
+                    clustering_prompt = f"""أنت خبير تصنيف منتجات ومحلل بيانات تجارية.
 
-المطلوب:
-1. استخرج الفئات الكبرى الحقيقية التي تجمع هذه المنتجات (5-15 فئة حسب التنوع الفعلي).
-2. لكل فئة، استخرج 3-5 كلمات بحث مفتاحية مرتبطة بها تساعد في البحث في قاعدة البيانات.
+لدي متجر يحتوي على {total_items} منتج/خدمة. المعلومات قد تكون مدمجة في حقل واحد (الاسم يحتوي على الفئة والماركة معاً).
 
-رد بتنسيق JSON حصراً: {{"فئة1": ["كلمة1", "كلمة2"], "فئة2": ["كلمة1", "كلمة2"]}}
-بدون أي نص إضافي."""
+هذه عينة تمثيلية متنوعة من البيانات ({len(names_sample)} عنصر من أصل {total_items}):
+{chr(10).join(f"{i+1}. {n}" for i, n in enumerate(names_sample))}
+
+═══ المطلوب ═══
+
+1. **الفئات**: صنّف هذه المنتجات في فئات منطقية (3-20 فئة حسب التنوع الحقيقي).
+   - لا تختلق فئات لا أساس لها في البيانات.
+   - لكل فئة، حدد كلمات بحث مفتاحية (3-5 كلمات) تساعد في البحث بقاعدة البيانات.
+
+2. **الماركات/العلامات التجارية**: استخرج أي ماركات أو علامات تجارية مذكورة في الأسماء.
+   - إذا لم تجد ماركات واضحة، اترك القائمة فارغة.
+
+رد بتنسيق JSON حصراً بالشكل التالي:
+{{
+  "categories": {{"فئة1": ["كلمة_بحث1", "كلمة_بحث2"], "فئة2": ["كلمة_بحث1"]}},
+  "brands": ["ماركة1", "ماركة2"]
+}}
+بدون أي نص إضافي خارج JSON."""
                     
                     try:
                         cluster_res = await get_ai_response(
@@ -604,14 +660,44 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                             phone_number="CLUSTERING",
                             channel="system"
                         )
-                        json_match = regex_module.search(r'\{.*\}', cluster_res.replace("\n", ""), regex_module.DOTALL)
+                        json_match = regex_module.search(r'\{.*\}', cluster_res.replace("\n", " "), regex_module.DOTALL)
                         if json_match:
-                            suggested_map = json.loads(json_match.group(0))
-                            for cat, keywords in suggested_map.items():
-                                categories_found[cat] = keywords
-                    except:
-                        pass
+                            ai_result = json.loads(json_match.group(0))
+                            
+                            # استخراج الفئات
+                            ai_categories = ai_result.get("categories", ai_result)
+                            if isinstance(ai_categories, dict):
+                                for cat, keywords in ai_categories.items():
+                                    if isinstance(keywords, list):
+                                        categories_found[cat] = keywords
+                                    else:
+                                        categories_found[cat] = [str(keywords)]
+                            
+                            # استخراج الماركات
+                            ai_brands = ai_result.get("brands", [])
+                            if isinstance(ai_brands, list) and ai_brands and not brands_found:
+                                brands_found = {brand: "—" for brand in ai_brands if brand}
+                                brand_column = "تحليل ذكي (من الأسماء)"
+                            
+                            if categories_found:
+                                category_column = "تحليل ذكي (AI Clustering)"
+                    except Exception as cluster_err:
+                        print(f"[STRATEGY] AI clustering error: {cluster_err}")
 
+        # ── سجل التحليل (للتشخيص) ──
+        print(f"[STRATEGY] ═══ Column Analysis Summary ═══")
+        for col_name, info in column_classifications.items():
+            print(f"[STRATEGY]   {col_name}: type={info['type']}, unique={info.get('unique_count', '?')}, fill={info.get('fill_rate', '?'):.1%}")
+        print(f"[STRATEGY] Category column: {category_column or 'NONE'} | Brand column: {brand_column or 'NONE'}")
+        print(f"[STRATEGY] Categories found: {len(categories_found)} | Brands found: {len(brands_found)}")
+        if categories_found:
+            for cat in list(categories_found.keys())[:5]:
+                val = categories_found[cat]
+                if isinstance(val, int):
+                    print(f"[STRATEGY]   Cat: {cat} = {val} items")
+                else:
+                    print(f"[STRATEGY]   Cat: {cat} = keywords: {val[:3]}")
+        print(f"[STRATEGY] ═══════════════════════════════")
 
         # ── تحديد مستوى حجم المخزون ──
         if total_items <= 6:
@@ -623,6 +709,7 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         else:
             inventory_level = "كبير"
             inventory_strategy = "فئات_إلزامية"
+
         
         # ── بناء خريطة ملخص البيانات ──
         sample_products = []
@@ -673,11 +760,17 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         
         brands_text = ""
         if brands_found:
-            brand_lines = [f"    • {brand}: {count} عنصر" for brand, count in sorted(brands_found.items(), key=lambda x: x[1], reverse=True)]
+            brand_lines = []
+            for brand, count in sorted(brands_found.items(), key=lambda x: x[1] if isinstance(x[1], int) else 0, reverse=True):
+                if isinstance(count, int):
+                    brand_lines.append(f"    • {brand}: {count} عنصر")
+                else:
+                    brand_lines.append(f"    • {brand}")
             brands_text = f"""
-## الماركات المُستخرجة من البيانات (عمود الماركة: "{brand_column}"):
+## الماركات المُستخرجة من البيانات (المصدر: "{brand_column or 'تحليل ذكي'}"):
 {chr(10).join(brand_lines)}
 """
+
 
 
         analysis_prompt = f"""أنت "كبير استراتيجيي المبيعات والذكاء الاصطناعي".
@@ -720,28 +813,32 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
 بناءً على التحليل أعلاه، اكتب "الجوهر الاستراتيجي" بالشكل التالي بالضبط:
 
 ### 1. هوية العرض (كيف أعرض البيانات للعميل):
-{"- **إذا كان المخزون صغيراً (6 عناصر أو أقل)**: اكتب قانوناً صريحاً يأمر الموظف بعرض جميع العناصر مباشرة كأزرار دون فئات ودون أسئلة استكشافية، لأن تصنيفها سيضيع وقت العميل." if total_items <= 6 else ""}
-{"- **إذا كان المخزون متوسطاً أو كبيراً وتوجد فئات**: اكتب قانوناً يأمر الموظف بعرض الفئات أولاً كأزرار، ثم بعد اختيار الفئة يعرض العناصر." if categories_found and total_items > 6 else ""}
-{"- **إذا كان المخزون كبيراً ولا توجد فئات واضحة**: اكتب قانوناً يأمر الموظف بطرح سؤال استكشافي واحد لفهم حاجة العميل قبل العرض." if not categories_found and total_items > 6 else ""}
-- **اذكر أسماء الفئات الفعلية** المُستخرجة أعلاه (إن وجدت) ليستخدمها الموظف حرفياً.
-- **اذكر عدد العناصر في كل فئة** ليعرف الموظف ماذا يتوقع.
+{"- **المخزون صغير (6 عناصر أو أقل)**: اكتب قانوناً يأمر الموظف بعرض جميع العناصر مباشرة كأزرار بدون فئات أو أسئلة." if total_items <= 6 else ""}
+{"- **توجد فئات مكتشفة**: اكتب قانوناً يأمر الموظف بعرض الفئات أولاً كأزرار واضحة، ثم بعد اختيار الفئة يعرض المنتجات. اذكر أسماء الفئات حرفياً." if categories_found and total_items > 6 else ""}
+{"- **لا توجد فئات واضحة والمخزون كبير**: اكتب قانوناً يأمر الموظف بطرح سؤال استكشافي واحد لفهم حاجة العميل." if not categories_found and total_items > 6 else ""}
+{"- **توجد ماركات مكتشفة**: اكتب تعليمات لكيف يتعامل الموظف مع سؤال العميل عن ماركة معينة (مثلاً: إذا سأل عن نايكي، ابحث بكلمات البحث الخاصة بهذه الماركة)." if brands_found else ""}
+- **اذكر أسماء الفئات الفعلية** (إن وجدت) ليستخدمها الموظف حرفياً.
+- **اذكر أسماء الماركات** (إن وجدت) ليتمكن الموظف من الرد على "وش عندكم من ماركة X؟".
+- **ملاحظة مهمة**: البيانات قد تكون مدمجة في عمود واحد (الاسم يحتوي الفئة والماركة). كلمات البحث المفتاحية المرفقة مع كل فئة هي المفتاح للعثور على المنتجات في القاعدة.
 
 ### 2. بروتوكول الأعمدة (ما يُعرض وما يُخفى):
-- لكل عمود نشط، اكتب تعليمة واحدة واضحة (هل يُعرض تلقائياً؟ هل يُذكر فقط عند الطلب؟).
+- لكل عمود نشط، اكتب تعليمة واحدة (يُعرض تلقائياً أم عند الطلب فقط).
 - الأعمدة الموقوفة يجب أن تُذكر بقانون "يُمنع ذكرها نهائياً".
 
 ### 3. خريطة البيانات الحية (Data Map):
-- اكتب ملخصاً مضغوطاً لما يحتويه المتجر فعلياً (الأنواع، نطاق الأسعار، أي أنماط ملحوظة).
+- اكتب ملخصاً مضغوطاً لما يحتويه المتجر (الأنواع، نطاق الأسعار، الماركات، أنماط ملحوظة).
 - هذا يمنع الموظف من الهلوسة لأنه سيعرف بالضبط ما لديه.
 
 ### 4. قوانين الجوهر الصارمة:
 - قوانين خاصة بهذا المتجر تحديداً بناءً على طبيعة بياناته.
+- قانون التعامل مع البحث: كيف يبحث الموظف في القاعدة (بكلمات البحث المفتاحية للفئات أو باسم الماركة أو باسم المنتج مباشرة).
 
 ⚠️ تعليمات الكتابة:
 - اكتب بأسلوب "دستوري صارم" (أوامر مباشرة، لا اقتراحات).
 - استخدم "يجب"، "يُمنع"، "إلزامي" بدلاً من "يُفضل" أو "يمكن".
 - الاستراتيجية يجب أن تكون عملية 100% وقابلة للتطبيق الفوري.
 - اكتب باللغة العربية."""
+
 
         # ═══════════════════════════════════════════════════════════════
         # 4. إرسال للذكاء الاصطناعي لتوليد الاستراتيجية
@@ -778,10 +875,13 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                     auto_header += f"  • {cat} ({val} عنصر)\n"
         
         if brands_found:
-            auto_header += f"\n- عمود الماركة: {brand_column}\n"
-            auto_header += "- الماركات المتاحة:\n"
+            auto_header += f"\n- الماركات المتاحة (المصدر: {brand_column or 'تحليل ذكي'}):\n"
             for brand, count in sorted(brands_found.items(), key=lambda x: x[1] if isinstance(x[1], int) else 0, reverse=True):
-                auto_header += f"  • {brand} ({count} عنصر)\n"
+                if isinstance(count, int):
+                    auto_header += f"  • {brand} ({count} عنصر)\n"
+                else:
+                    auto_header += f"  • {brand}\n"
+
         
         if inventory_strategy == "عرض_مباشر" and total_items <= 6:
             # في حالة المنتجات القليلة: نضيف أسماء كل العناصر
@@ -824,11 +924,12 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
                 "strategy_type": inventory_strategy,
                 "categories_count": len(categories_found),
                 "category_column": category_column,
-                "categories": {k: v for k, v in categories_found.items() if isinstance(v, int)},
+                "categories": {k: (v if isinstance(v, int) else len(v)) for k, v in categories_found.items()},
                 "brands_count": len(brands_found),
                 "brand_column": brand_column,
-                "brands": brands_found,
+                "brands": {k: (v if isinstance(v, int) else 0) for k, v in brands_found.items()},
                 "column_types": {name: info['type'] for name, info in column_classifications.items()}
+
             }
         }
     except Exception as e:
