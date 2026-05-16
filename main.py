@@ -188,22 +188,22 @@ async def root_redirect():
     return RedirectResponse(url="/login")
 
 @app.get("/health")
-def health_check():
+async def health_check():
     """مسار للتحقق من صحة الخادم وقاعدة البيانات (Keep-Alive)"""
-    db_status = "unknown"
-    try:
-        from database.db_client import get_db_engine
-        from sqlalchemy import text
-        engine = get_db_engine()
-        if engine:
-            with engine.connect() as conn:
-                conn.execute(text("SELECT 1"))
-            db_status = "ok"
-        else:
-            db_status = "no_engine"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-        
+    def _check_db():
+        try:
+            from database.db_client import get_db_engine
+            from sqlalchemy import text
+            engine = get_db_engine()
+            if engine:
+                with engine.connect() as conn:
+                    conn.execute(text("SELECT 1"))
+                return "ok"
+            return "no_engine"
+        except Exception as e:
+            return f"error: {str(e)}"
+    
+    db_status = await asyncio.to_thread(_check_db)
     return {"status": "ok", "db": db_status}
 
 if __name__ == "__main__":

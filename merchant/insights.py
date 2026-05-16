@@ -31,7 +31,7 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
     db = get_db_client()
     
     # 1. جلب الرسائل الأخيرة (اخر 100 رسالة كحد أقصى لتجنب قطع النص)
-    res = db.table("message_logs").select("message_text, ai_response").eq("client_id", client_id).order("timestamp", desc=True).limit(100).execute()
+    res = await db.table("message_logs").select("message_text, ai_response").eq("client_id", client_id).order("timestamp", desc=True).limit(100).execute_async()
     messages = res.data or []
     
     if len(messages) < 5:
@@ -48,21 +48,21 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
     # 2. تحديد النموذج المستخدم للتاجر
     api_key, model_id, provider = None, None, None
     try:
-        c_res = db.table("clients").select("subscription_plan").eq("id", client_id).single().execute()
+        c_res = await db.table("clients").select("subscription_plan").eq("id", client_id).single().execute_async()
         if c_res.data:
             plan = c_res.data.get("subscription_plan")
-            p_det = db.table("subscription_plans").select("permissions").eq("name", plan).single().execute()
+            p_det = await db.table("subscription_plans").select("permissions").eq("name", plan).single().execute_async()
             if p_det.data:
                 perms = p_det.data.get("permissions", {})
                 if isinstance(perms, str): perms = json.loads(perms)
                 mid = perms.get("assigned_model_id")
                 if mid:
-                    gm = db.table("global_ai_models").select("*").eq("id", mid).single().execute()
+                    gm = await db.table("global_ai_models").select("*").eq("id", mid).single().execute_async()
                     if gm.data:
                         api_key, model_id, provider = gm.data["api_key"], gm.data["model_id"], gm.data["provider"].lower()
 
         if not api_key:
-            m_cfg = db.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
+            m_cfg = await db.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute_async()
             if m_cfg.data:
                 api_key, model_id, provider = m_cfg.data[0]["api_key"], m_cfg.data[0]["model_id"], m_cfg.data[0]["provider"].lower()
     except Exception as e:
@@ -115,12 +115,12 @@ async def generate_and_save_insights(client_id: str, period: str = "last_7_days"
         
         # 5. الحفظ في قاعدة البيانات
         # نحذف القديم لنفس الـ period إن وجد، أو نضيف سجل جديد
-        db.table("merchant_ai_insights").delete().eq("client_id", client_id).eq("period", period).execute()
-        db.table("merchant_ai_insights").insert({
+        await db.table("merchant_ai_insights").delete().eq("client_id", client_id).eq("period", period).execute_async()
+        await db.table("merchant_ai_insights").insert({
             "client_id": client_id,
             "period": period,
             "insights_data": insights_data
-        }).execute()
+        }).execute_async()
         
         return {"status": "success", "message": "تم إنشاء الرؤى بنجاح", "data": insights_data}
 

@@ -99,7 +99,7 @@ async def onboarding_page(request: Request, user: dict = Depends(verify_merchant
     return templates.TemplateResponse("merchant/onboarding.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/onboarding")
-def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
+async def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
     """حفظ الإعداد الأولي (نوع المبيعات + مسار الطلب + طبيعة المنتج)"""
     sales_type = payload.get("sales_type")
     order_flow = payload.get("order_flow")
@@ -110,13 +110,13 @@ def api_save_onboarding(payload: dict, user: dict = Depends(verify_merchant)):
     
     try:
         # حفظ في planning_config
-        update_planning_config(user["id"], {
+        await asyncio.to_thread(update_planning_config, user["id"], {
             "sales_type": sales_type,
             "order_flow": order_flow,
             "delivery_type": delivery_type
         })
         # تحديث حالة الإعداد الأولي
-        update_store_settings(user["id"], {"onboarding_completed": True})
+        await asyncio.to_thread(update_store_settings, user["id"], {"onboarding_completed": True})
         return {"status": "success", "message": "تم حفظ الإعداد بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -143,9 +143,9 @@ async def store_settings_page(request: Request, user: dict = Depends(verify_merc
     return templates.TemplateResponse("merchant/store_settings.html", {"request": request, "user": user, "settings": settings})
 
 @router.post("/api/store")
-def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
+async def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict = Depends(verify_merchant)):
     """تحديث بيانات المتجر"""
-    success = update_store_settings(user["id"], payload.model_dump())
+    success = await asyncio.to_thread(update_store_settings, user["id"], payload.model_dump())
     if success:
         # تحديث الاسم في الجلسة ليظهر التغيير فوراً في الواجهات
         if "user" in request.session:
@@ -154,7 +154,7 @@ def api_update_store(request: Request, payload: StoreSettingsRequest, user: dict
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
 @router.post("/api/store/logo")
-def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
+async def api_upload_logo(file: UploadFile = File(...), user: dict = Depends(verify_merchant)):
     """رفع شعار المتجر وحفظه محلياً"""
     try:
         # إنشاء المجلد إذا لم يكن موجوداً
@@ -186,7 +186,7 @@ class PasswordChangeRequest(BaseModel):
     new_password: str
 
 @router.post("/api/store/password")
-def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(verify_merchant)):
+async def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(verify_merchant)):
     """تغيير كلمة مرور التاجر"""
     import hashlib
     if len(payload.new_password) < 6:
@@ -194,7 +194,7 @@ def api_change_password(payload: PasswordChangeRequest, user: dict = Depends(ver
     hashed = hashlib.sha256(payload.new_password.encode()).hexdigest()
     db = get_db_client()
     try:
-        db.table("clients").update({"password_hash": hashed}).eq("id", user["id"]).execute()
+        await db.table("clients").update({"password_hash": hashed}).eq("id", user["id"]).execute_async()
         return {"status": "success", "message": "تم تحديث كلمة المرور بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -218,9 +218,9 @@ async def planning_page(request: Request, user: dict = Depends(verify_merchant))
     return templates.TemplateResponse("merchant/planning.html", {"request": request, "user": user, "planning": planning})
 
 @router.post("/api/planning")
-def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_merchant)):
+async def api_update_planning(payload: PlanningRequest, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات التخطيط"""
-    success = update_planning_config(user["id"], payload.model_dump())
+    success = await asyncio.to_thread(update_planning_config, user["id"], payload.model_dump())
     if success:
         return {"status": "success", "message": "تم تحديث بيانات التخطيط بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
@@ -945,13 +945,13 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         return {"status": "error", "message": f"فشل توليد الجوهر الاستراتيجي: {str(e)}"}
 
 @router.get("/api/planning/columns")
-def api_get_columns(user: dict = Depends(verify_merchant)):
+async def api_get_columns(user: dict = Depends(verify_merchant)):
     """جلب أعمدة البيانات المزامنة مع إعدادات التدريب"""
     db = get_db_client()
     try:
         # الحل لتفادي نفاذ الذاكرة (OOM) في قواعد البيانات الضخمة (250k+):
         # نعتمد بشكل أساسي على ما تم حفظه في إعدادات التدريب سابقاً
-        saved_res = db.table("column_training").select("*").eq("client_id", user["id"]).execute()
+        saved_res = await db.table("column_training").select("*").eq("client_id", user["id"]).execute_async()
         saved_map = {r["column_name"]: r for r in (saved_res.data or [])}
         
         col_names = []
@@ -963,7 +963,7 @@ def api_get_columns(user: dict = Depends(verify_merchant)):
             try:
                 # محاولة جلب الصف بالكامل، ولكن نرجو ألا تنهار الذاكرة!
                 # يفضل في تحديث قادم فصل هيكل الأعمدة في جدول منفصل أثناء المزامنة
-                data_res = db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute()
+                data_res = await db.table("merchant_manual_data").select("data").eq("client_id", user["id"]).single().execute_async()
                 if data_res.data and data_res.data.get("data"):
                     rows = data_res.data["data"]
                     if isinstance(rows, str):
@@ -1039,47 +1039,47 @@ async def business_rules_page(request: Request, user: dict = Depends(verify_merc
     return templates.TemplateResponse("merchant/business_rules.html", {"request": request, "user": user, "rules": rules})
 
 @router.post("/api/business-rules")
-def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
+async def api_update_business_rules(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث قواعد العمل"""
     db = get_db_client()
     try:
-        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        existing = await db.table("business_rules").select("id").eq("client_id", user["id"]).execute_async()
         if existing.data:
-            db.table("business_rules").update({
+            await db.table("business_rules").update({
                 "rules_data": payload,
                 "updated_at": datetime.now().isoformat()
-            }).eq("client_id", user["id"]).execute()
+            }).eq("client_id", user["id"]).execute_async()
         else:
-            db.table("business_rules").insert({
+            await db.table("business_rules").insert({
                 "client_id": user["id"],
                 "rules_data": payload,
                 "updated_at": datetime.now().isoformat()
-            }).execute()
+            }).execute_async()
         return {"status": "success", "message": "تم تحديث قواعد العمل بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
 
 @router.post("/api/business-rules/payment")
-def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
+async def api_update_payment_settings(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات الدفع والضريبة فقط (دمج مع القواعد الموجودة)"""
     db = get_db_client()
     try:
-        res = db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute()
+        res = await db.table("business_rules").select("rules_data").eq("client_id", user["id"]).single().execute_async()
         current_rules = res.data.get("rules_data", {}) if res.data else {}
         for k, v in payload.items():
             current_rules[k] = v
-        existing = db.table("business_rules").select("id").eq("client_id", user["id"]).execute()
+        existing = await db.table("business_rules").select("id").eq("client_id", user["id"]).execute_async()
         if existing.data:
-            db.table("business_rules").update({
+            await db.table("business_rules").update({
                 "rules_data": current_rules,
                 "updated_at": datetime.now().isoformat()
-            }).eq("client_id", user["id"]).execute()
+            }).eq("client_id", user["id"]).execute_async()
         else:
-            db.table("business_rules").insert({
+            await db.table("business_rules").insert({
                 "client_id": user["id"],
                 "rules_data": current_rules,
                 "updated_at": datetime.now().isoformat()
-            }).execute()
+            }).execute_async()
         return {"status": "success", "message": "تم تحديث إعدادات الدفع والضريبة بنجاح"}
     except Exception as e:
         return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
@@ -1322,31 +1322,31 @@ class AllowAllRequest(BaseModel):
     allow_all: bool
 
 @router.post("/api/authorized-numbers")
-def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):
+async def api_add_authorized_number(payload: AuthorizedNumberRequest, user: dict = Depends(verify_merchant)):
     """إضافة رقم جديد"""
-    success = add_authorized_number(user["id"], payload.phone_number, payload.label)
+    success = await asyncio.to_thread(add_authorized_number, user["id"], payload.phone_number, payload.label)
     if success:
         return {"status": "success", "message": "تم إضافة الرقم بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الإضافة"}
 
 @router.delete("/api/authorized-numbers/{record_id}")
-def api_delete_authorized_number(record_id: str, user: dict = Depends(verify_merchant)):
+async def api_delete_authorized_number(record_id: str, user: dict = Depends(verify_merchant)):
     """حذف رقم"""
-    success = delete_authorized_number(user["id"], record_id)
+    success = await asyncio.to_thread(delete_authorized_number, user["id"], record_id)
     if success:
         return {"status": "success", "message": "تم حذف الرقم بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
 
 @router.post("/api/authorized-numbers/settings")
-def api_update_authorized_settings(payload: dict, user: dict = Depends(verify_merchant)):
+async def api_update_authorized_settings(payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات الأرقام والمجموعات"""
     from merchant.authorized_numbers import set_allow_all, set_ignore_groups
     
     if "allow_all" in payload:
-        set_allow_all(user["id"], payload["allow_all"])
+        await asyncio.to_thread(set_allow_all, user["id"], payload["allow_all"])
     
     if "ignore_groups" in payload:
-        set_ignore_groups(user["id"], payload["ignore_groups"])
+        await asyncio.to_thread(set_ignore_groups, user["id"], payload["ignore_groups"])
         
     return {"status": "success", "message": "تم تحديث الإعدادات بنجاح"}
 
@@ -1354,7 +1354,7 @@ class ClearMemoryRequest(BaseModel):
     phone_number: str
 
 @router.post("/api/clear-memory")
-def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
+async def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(verify_merchant)):
     """مسح سجل المحادثات لعميل محدد (تصفير الذاكرة)"""
     db = get_db_client()
     try:
@@ -1377,7 +1377,7 @@ def api_clear_customer_memory(payload: ClearMemoryRequest, user: dict = Depends(
         or_filter = ",".join([f"phone_number.eq.{v}" for v in set(variations)])
         
         # تنفيذ الحذف
-        res = db.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute()
+        res = await db.table("message_logs").delete().eq("client_id", user["id"]).or_(or_filter).execute_async()
         
         deleted_count = len(res.data) if res.data else 0
         
@@ -1398,12 +1398,12 @@ async def data_view_page(request: Request, user: dict = Depends(verify_merchant)
     return templates.TemplateResponse("merchant/data_display.html", {"request": request, "user": user})
 
 @router.get("/api/data-view")
-def api_get_data_view(user: dict = Depends(verify_merchant)):
+async def api_get_data_view(user: dict = Depends(verify_merchant)):
     """جلب البيانات المزامنة للعرض"""
     db = get_db_client()
     try:
         # جلب البيانات اليدوية (Excel/CSV)
-        data_res = db.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute()
+        data_res = await db.table("merchant_manual_data").select("data, filename").eq("client_id", user["id"]).single().execute_async()
         if data_res.data and data_res.data.get("data"):
             rows = data_res.data["data"]
             if isinstance(rows, str):
@@ -1414,7 +1414,7 @@ def api_get_data_view(user: dict = Depends(verify_merchant)):
             return {"status": "ok", "data": rows, "source_type": "excel"}
 
         # جلب إعدادات المزامنة لمعرفة المصدر
-        sync_res = db.table("sync_config").select("source_type").eq("client_id", user["id"]).single().execute()
+        sync_res = await db.table("sync_config").select("source_type").eq("client_id", user["id"]).single().execute_async()
         source = sync_res.data.get("source_type", "") if sync_res.data else ""
         return {"status": "no_data", "data": [], "source_type": source}
     except Exception as e:
@@ -1507,7 +1507,7 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
     })
 
 @router.post("/api/orders")
-def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
+async def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
     """إنشاء طلب يدوي جديد"""
     db = get_db_client()
     try:
@@ -1533,14 +1533,14 @@ def api_create_order(payload: dict, user: dict = Depends(verify_merchant)):
             "internal_notes": payload.get("internal_notes", ""),
             "currency": payload.get("currency", "SAR")
         }
-        db.table("orders").insert(order_data).execute()
+        await db.table("orders").insert(order_data).execute_async()
         return {"status": "success", "message": "تم إنشاء الطلب بنجاح", "order_number": order_num}
     except Exception as e:
         print(f"Error creating order: {e}")
         return {"status": "error", "message": str(e)}
 
 @router.put("/api/orders/{order_id}/status")
-def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+async def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث حالة الطلب والدفع"""
     db = get_db_client()
     try:
@@ -1554,17 +1554,17 @@ def api_update_order_status(order_id: str, payload: dict, user: dict = Depends(v
         if "payment_status" in payload:
             update["payment_status"] = payload["payment_status"]
         
-        db.table("orders").update(update).eq("id", order_id).eq("client_id", user["id"]).execute()
+        await db.table("orders").update(update).eq("id", order_id).eq("client_id", user["id"]).execute_async()
         return {"status": "success", "message": "تم تحديث الحالة"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 @router.delete("/api/orders/{order_id}")
-def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
+async def api_delete_order(order_id: str, user: dict = Depends(verify_merchant)):
     """حذف طلب"""
     db = get_db_client()
     try:
-        db.table("orders").delete().eq("id", order_id).eq("client_id", user["id"]).execute()
+        await db.table("orders").delete().eq("id", order_id).eq("client_id", user["id"]).execute_async()
         return {"status": "success", "message": "تم حذف الطلب"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -1637,11 +1637,11 @@ async def insights_page(request: Request, user: dict = Depends(verify_merchant))
     return templates.TemplateResponse("merchant/insights.html", {"request": request, "user": user})
 
 @router.get("/api/insights")
-def api_get_insights(user: dict = Depends(verify_merchant)):
+async def api_get_insights(user: dict = Depends(verify_merchant)):
     """جلب آخر رؤى تم توليدها"""
     from merchant.insights import get_latest_insights
     try:
-        data = get_latest_insights(user["id"])
+        data = await asyncio.to_thread(get_latest_insights, user["id"])
         return {"status": "success", "data": data}
     except Exception as e:
         if "merchant_ai_insights" in str(e) and "does not exist" in str(e):
@@ -1700,20 +1700,20 @@ async def customers_page(request: Request, user: dict = Depends(verify_merchant)
     })
 
 @router.get("/api/customers")
-def api_get_customers(user: dict = Depends(verify_merchant)):
+async def api_get_customers(user: dict = Depends(verify_merchant)):
     """جلب جميع العملاء كـ JSON"""
     from merchant.customers.customer_manager import get_all_customers
-    customers = get_all_customers(user["id"])
+    customers = await asyncio.to_thread(get_all_customers, user["id"])
     return {"status": "success", "customers": customers}
 
 @router.put("/api/customers/{customer_id}")
-def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(verify_merchant)):
+async def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(verify_merchant)):
     """تحديث بيانات عميل"""
     from merchant.customers.customer_manager import update_customer_data
     db = get_db_client()
     try:
         # جلب المعرف الرئيسي للعميل
-        res = db.table("customer_profiles").select("platform_identifier").eq("id", customer_id).eq("client_id", user["id"]).single().execute()
+        res = await db.table("customer_profiles").select("platform_identifier").eq("id", customer_id).eq("client_id", user["id"]).single().execute_async()
         if not res.data:
             return {"status": "error", "message": "العميل غير موجود"}
         
@@ -1736,10 +1736,10 @@ def api_update_customer(customer_id: str, payload: dict, user: dict = Depends(ve
         return {"status": "error", "message": str(e)}
 
 @router.delete("/api/customers/{customer_id}")
-def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant)):
+async def api_delete_customer(customer_id: str, user: dict = Depends(verify_merchant)):
     """حذف عميل"""
     from merchant.customers.customer_manager import delete_customer
-    success = delete_customer(user["id"], customer_id)
+    success = await asyncio.to_thread(delete_customer, user["id"], customer_id)
     if success:
         return {"status": "success", "message": "تم حذف العميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء الحذف"}
