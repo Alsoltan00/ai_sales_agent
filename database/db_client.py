@@ -23,7 +23,8 @@ engine = create_engine(
     max_overflow=20,
     pool_recycle=300,
     pool_timeout=10,
-    echo=False
+    echo=False,
+    connect_args={"connect_timeout": 5} if "postgres" in DB_URL else {}
 ) if DB_URL else None
 
 class MockResponse:
@@ -167,37 +168,43 @@ class QueryBuilder:
                 return MockResponse(rows, count=count_val)
 
             elif self._action == "INSERT":
-                if isinstance(self._data, list):
-                    if len(self._data) > 0:
-                        data = self._data[0]
-                    else:
-                        return MockResponse([])
-                else:
-                    data = self._data
-                    
-                cols = ", ".join(data.keys())
-                vals = ", ".join([f":p_ins_{k}" for k in data.keys()])
-                for k, v in data.items():
-                    if isinstance(v, (dict, list)):
-                        params[f"p_ins_{k}"] = json.dumps(v, ensure_ascii=False)
-                    else:
-                        params[f"p_ins_{k}"] = v
-                    
                 is_postgres = "postgres" in str(engine.url) or "postgresql" in str(engine.url)
                 
-                if is_postgres:
-                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
-                    result = conn.execute(text(query), params)
-                    inserted_rows = self._process_rows(result.mappings())
-                    return MockResponse(inserted_rows)
-                else:
-                    query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
-                    result = conn.execute(text(query), params)
-                    try:
-                        last_id = result.lastrowid
-                        if last_id: data["id"] = last_id
-                    except: pass
-                    return MockResponse([data])
+                # التعامل مع البيانات كمصفوفة دائماً
+                items_to_insert = self._data if isinstance(self._data, list) else [self._data]
+                if not items_to_insert:
+                    return MockResponse([])
+
+                inserted_rows = []
+                # تنفيذ الإدخال لكل صف (دعم الـ Batch Insert الأساسي)
+                # ملاحظة: في SQLAlchemy 2.0 يمكن تمرير مصفوفة من الـ dicts مباشرة، 
+                # لكن لتجنب مشاكل التوافق، سنستخدم حلقة مع نفس الـ transaction
+                for data_row in items_to_insert:
+                    cols = ", ".join(data_row.keys())
+                    vals = ", ".join([f":p_ins_{k}" for k in data_row.keys()])
+                    
+                    row_params = params.copy()
+                    for k, v in data_row.items():
+                        if isinstance(v, (dict, list)):
+                            row_params[f"p_ins_{k}"] = json.dumps(v, ensure_ascii=False)
+                        else:
+                            row_params[f"p_ins_{k}"] = v
+                            
+                    if is_postgres:
+                        query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals}) RETURNING *"
+                        result = conn.execute(text(query), row_params)
+                        row_res = self._process_rows(result.mappings())
+                        if row_res: inserted_rows.append(row_res[0])
+                    else:
+                        query = f"INSERT INTO {self.table_name} ({cols}) VALUES ({vals})"
+                        result = conn.execute(text(query), row_params)
+                        try:
+                            last_id = result.lastrowid
+                            if last_id: data_row["id"] = last_id
+                        except: pass
+                        inserted_rows.append(data_row)
+                        
+                return MockResponse(inserted_rows)
 
             elif self._action == "UPSERT":
                 if isinstance(self._data, list):
