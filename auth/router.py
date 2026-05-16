@@ -86,10 +86,10 @@ async def do_login_form(request: Request, contact_info: str = Form(...), passwor
             print(f"[AUTH-FORM] Redirecting to: {redirect_url} via JS")
             html = f"""<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>Redirecting...</title>
-<script>window.location.href = '/merchant/dashboard-test';</script>
+<script>window.location.href = '{redirect_url}';</script>
 </head><body style="background:#0f172a;color:white;text-align:center;padding:50px;">
 <h2>جاري تحويلك للوحة التحكم...</h2>
-<p>إذا لم يتم التحويل تلقائياً، <a href="/merchant/dashboard-test" style="color:#f59e0b;">اضغط هنا</a></p>
+<p>إذا لم يتم التحويل تلقائياً، <a href="{redirect_url}" style="color:#f59e0b;">اضغط هنا</a></p>
 </body></html>"""
             return HTMLResponse(content=html, status_code=200)
         

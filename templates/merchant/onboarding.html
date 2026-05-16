@@ -498,7 +498,7 @@ async function finishOnboarding() {
         });
         const data = await res.json();
         if (data.status === 'success') {
-            window.location.href = '/merchant/home';
+            window.location.href = '/merchant/dashboard';
         } else {
             alert(data.message || 'حدث خطأ');
             btn.disabled = false;
