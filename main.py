@@ -209,3 +209,4 @@ async def health_check():
 if __name__ == "__main__":
     print(f"Server is starting on {HOST}:{PORT}...")
     uvicorn.run("main:app", host=HOST, port=PORT, reload=DEBUG)
+
