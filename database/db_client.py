@@ -16,6 +16,16 @@ if DB_URL:
     elif DB_URL.startswith("postgresql://") and not DB_URL.startswith("postgresql+psycopg2://"):
         DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+connect_args = {}
+if "postgresql" in DB_URL:
+    connect_args = {
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 5,
+        "options": "-c statement_timeout=5000"
+    }
+
 engine = create_engine(
     DB_URL,
     pool_pre_ping=True,
@@ -23,7 +33,8 @@ engine = create_engine(
     max_overflow=20,
     pool_recycle=300,
     pool_timeout=10,
-    echo=False
+    echo=False,
+    connect_args=connect_args
 ) if DB_URL else None
 
 class MockResponse:
