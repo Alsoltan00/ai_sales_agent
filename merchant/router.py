@@ -278,9 +278,16 @@ async def api_generate_core_strategy(user: dict = Depends(verify_merchant)):
         if products_raw:
             active_cols = [k for k in products_raw[0].keys() if k not in disabled_cols]
         
-        # ── أخذ عينة ذكية للتحليل (للتصنيف فقط، العدّ يتم على كل البيانات) ──
-        sample_size = min(total_items, 5000)
-        analysis_sample = products_raw[:sample_size]
+        # ── أخذ عينة موزعة بانتظام للتحليل (Distributed Sampling) ──
+        # بدلاً من أخذ أول 5000 (مما يفشل إذا كانت البيانات مرتبة)، نأخذ عينة تغطي كامل القاعدة
+        sample_size = 5000
+        if total_items <= sample_size:
+            analysis_sample = products_raw
+        else:
+            # حساب الخطوة القفزية لضمان توزيع العينة من البداية للنهاية
+            step = total_items // sample_size
+            analysis_sample = products_raw[::step][:sample_size]
+
         
         # ═══════════════════════════════════════════════════════════════
         # 2.1 — تصنيف كل عمود حسب نوع بياناته الفعلية
