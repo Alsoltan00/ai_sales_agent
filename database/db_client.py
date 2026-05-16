@@ -16,6 +16,19 @@ if DB_URL:
     elif DB_URL.startswith("postgresql://") and not DB_URL.startswith("postgresql+psycopg2://"):
         DB_URL = DB_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
+from concurrent.futures import ThreadPoolExecutor
+
+# مجمع خيوط معالجة مخصص لقاعدة البيانات لمنع تعليق الموقع بالكامل
+DB_EXECUTOR = ThreadPoolExecutor(max_workers=30, thread_name_prefix="db_pool")
+
+def run_in_db_thread(func, *args, **kwargs):
+    """تشغيل دالة في مجمع خيوط معالجة قاعدة البيانات"""
+    loop = asyncio.get_event_loop()
+    if kwargs:
+        import functools
+        func = functools.partial(func, **kwargs)
+    return loop.run_in_executor(DB_EXECUTOR, func, *args)
+
 engine = create_engine(
     DB_URL,
     pool_pre_ping=True,
@@ -24,7 +37,10 @@ engine = create_engine(
     pool_recycle=300,
     pool_timeout=10,
     echo=False,
-    connect_args={"connect_timeout": 5} if "postgres" in DB_URL else {}
+    connect_args={
+        "connect_timeout": 5,
+        "options": "-c statement_timeout=5000" # مهلة 5 ثواني لأي استعلام لمنع التعليق
+    } if "postgres" in DB_URL else {}
 ) if DB_URL else None
 
 class MockResponse:

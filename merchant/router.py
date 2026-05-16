@@ -1184,12 +1184,13 @@ class ChannelsConfigRequest(BaseModel):
 async def channels_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة الاستقبال والإرسال"""
     from merchant.authorized_numbers import get_authorized_numbers, get_allow_all_status, get_ignore_groups_status
-    # تنفيذ جميع الاستعلامات بالتوازي بدلاً من التتابع (4x أسرع)
+    from database.db_client import run_in_db_thread
+    # تنفيذ جميع الاستعلامات بالتوازي في مجمع الخيوط المخصص (4x أسرع)
     channels_config, numbers, allow_all, ignore_groups = await asyncio.gather(
-        asyncio.to_thread(get_channels_config, user["id"]),
-        asyncio.to_thread(get_authorized_numbers, user["id"]),
-        asyncio.to_thread(get_allow_all_status, user["id"]),
-        asyncio.to_thread(get_ignore_groups_status, user["id"]),
+        run_in_db_thread(get_channels_config, user["id"]),
+        run_in_db_thread(get_authorized_numbers, user["id"]),
+        run_in_db_thread(get_allow_all_status, user["id"]),
+        run_in_db_thread(get_ignore_groups_status, user["id"]),
     )
     
     return templates.TemplateResponse("merchant/channels.html", {
@@ -1204,7 +1205,8 @@ async def channels_page(request: Request, user: dict = Depends(verify_merchant))
 @router.post("/api/channels")
 async def api_update_channels(request: Request, payload: ChannelsConfigRequest, user: dict = Depends(verify_merchant)):
     """تحديث إعدادات القنوات والتسجيل التلقائي للويب هوك"""
-    success = await asyncio.to_thread(update_channels_config, user["id"], payload.model_dump())
+    from database.db_client import run_in_db_thread
+    success = await run_in_db_thread(update_channels_config, user["id"], payload.model_dump())
     if success:
         if payload.telegram_bot_token:
             try:
@@ -1438,10 +1440,11 @@ async def orders_page(request: Request, user: dict = Depends(verify_merchant)):
             return res.data.get("rules_data", {}) if res.data else {}
         except:
             return {}
-    # تنفيذ الاستعلامين بالتوازي
+    from database.db_client import run_in_db_thread
+    # تنفيذ الاستعلامين بالتوازي في مجمع الخيوط المخصص
     orders, rules = await asyncio.gather(
-        asyncio.to_thread(_fetch_orders),
-        asyncio.to_thread(_fetch_rules),
+        run_in_db_thread(_fetch_orders),
+        run_in_db_thread(_fetch_rules),
     )
 
     # Safe stats calculation
@@ -1686,7 +1689,8 @@ async def api_generate_insights(user: dict = Depends(verify_merchant)):
 async def customers_page(request: Request, user: dict = Depends(verify_merchant)):
     """صفحة إدارة العملاء (تتكيف ديناميكياً مع نوع المتجر)"""
     from merchant.customers.customer_manager import get_all_customers
-    customers = await asyncio.to_thread(get_all_customers, user["id"])
+    from database.db_client import run_in_db_thread
+    customers = await run_in_db_thread(get_all_customers, user["id"])
     planning = user["_planning"]
     return templates.TemplateResponse("merchant/customers.html", {
         "request": request, "user": user, "customers": customers, "planning": planning

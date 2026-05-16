@@ -33,7 +33,9 @@ async def get_planning_config(client_id: str):
         return _cache[client_id]['data']
         
     try:
-        data = await asyncio.to_thread(_fetch_planning_sync, client_id)
+        from database.db_client import DB_EXECUTOR
+        loop = asyncio.get_running_loop()
+        data = await loop.run_in_executor(DB_EXECUTOR, _fetch_planning_sync, client_id)
         _cache[client_id] = {'timestamp': now, 'data': data}
         return data
     except Exception as e:

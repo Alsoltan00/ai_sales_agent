@@ -19,7 +19,9 @@ async def get_store_settings(client_id: str):
             return _cache[client_id]["data"]
 
     try:
-        data = await asyncio.to_thread(_fetch_settings_sync, client_id)
+        from database.db_client import DB_EXECUTOR
+        loop = asyncio.get_running_loop()
+        data = await loop.run_in_executor(DB_EXECUTOR, _fetch_settings_sync, client_id)
         _cache[client_id] = {"data": data, "expiry": now + CACHE_TTL}
         return data
     except Exception as e:

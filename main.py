@@ -9,8 +9,16 @@ import asyncio
 # استيراد الإعدادات
 from config.settings import PORT, HOST, DEBUG
 
+import concurrent.futures
+
 # إنشاء تطبيق FastAPI
 app = FastAPI(title="AI Sales Agent", version="2.0", description="نظام وكيل المبيعات الذكي")
+
+# زيادة سعة مجمع خيوط المعالجة الافتراضي لمنع تجميد النظام
+@app.on_event("startup")
+async def setup_executor():
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=60))
 
 # إعداد الجلسات
 # app.add_middleware(GZipMiddleware, minimum_size=1000)
