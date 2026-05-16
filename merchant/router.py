@@ -1000,14 +1000,19 @@ async def api_save_columns(payload: ColumnTrainingRequest, user: dict = Depends(
     def _save():
         db = get_db_client()
         db.table("column_training").delete().eq("client_id", user["id"]).execute()
+        
+        insert_data = []
         for col in payload.columns:
-            db.table("column_training").insert({
+            insert_data.append({
                 "client_id": user["id"],
                 "column_name": col.column_name,
                 "note": col.note,
                 "is_disabled": col.is_disabled,
                 "on_request": col.on_request
-            }).execute()
+            })
+            
+        if insert_data:
+            db.table("column_training").insert(insert_data).execute()
     try:
         await asyncio.to_thread(_save)
         return {"status": "success", "message": "تم حفظ إعدادات الأعمدة بنجاح"}
