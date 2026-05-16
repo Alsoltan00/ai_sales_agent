@@ -42,8 +42,11 @@
                         {{ client.created_at.strftime('%Y-%m-%d') if client.created_at and client.created_at.strftime else (client.created_at[:10] if client.created_at else '---') }}
                     </td>
                     <td class="text-end">
-                        <button class="btn btn-outline-info btn-icon btn-sm" title="إعدادات النشاط" onclick="openOnboardingModal('{{ client.id }}', '{{ client.company_name }}')">
+                        <button class="btn btn-outline-info btn-icon btn-sm me-1" title="إعدادات النشاط" onclick="openOnboardingModal('{{ client.id }}', '{{ client.company_name }}')">
                             <i class="ti ti-settings"></i>
+                        </button>
+                        <button class="btn btn-outline-warning btn-icon btn-sm" title="إعادة تعيين كلمة المرور" onclick="openResetPasswordModal('{{ client.id }}', '{{ client.company_name }}')">
+                            <i class="ti ti-key"></i>
                         </button>
                     </td>
                 </tr>
@@ -103,6 +106,33 @@
                         <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">إلغاء</button>
                         <button type="submit" class="btn btn-primary" id="saveOnboardingBtn">
                             <i class="ti ti-device-floppy me-1"></i>حفظ التعديلات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title text-warning"><i class="ti ti-key me-2"></i>تغيير كلمة المرور</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <form id="resetPasswordForm">
+                    <input type="hidden" id="resetClientId">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">كلمة المرور الجديدة</label>
+                        <input type="password" class="form-control" id="newPassword" required minlength="8" placeholder="8 أحرف على الأقل">
+                    </div>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-light btn-sm me-2" data-bs-dismiss="modal">إلغاء</button>
+                        <button type="submit" class="btn btn-warning btn-sm" id="confirmResetBtn">
+                            تحديث كلمة المرور
                         </button>
                     </div>
                 </form>
@@ -179,5 +209,47 @@
 
 
 
+    const resetPasswordModal = new bootstrap.Modal(document.getElementById('resetPasswordModal'));
+
+    function openResetPasswordModal(clientId, clientName) {
+        document.getElementById('resetClientId').value = clientId;
+        document.getElementById('newPassword').value = '';
+        resetPasswordModal.show();
+    }
+
+    document.getElementById('resetPasswordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const clientId = document.getElementById('resetClientId').value;
+        const newPassword = document.getElementById('newPassword').value;
+        const btn = document.getElementById('confirmResetBtn');
+
+        if(newPassword.length < 8) {
+            alert('كلمة المرور قصيرة جداً');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="ti ti-loader ti-spin me-1"></i>جاري التحديث...';
+
+        try {
+            const res = await fetch(`/admin/api/clients/${clientId}/reset-password`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ new_password: newPassword })
+            });
+            const json = await res.json();
+            if (json.status === 'success') {
+                alert('تم تغيير كلمة المرور بنجاح!');
+                resetPasswordModal.hide();
+            } else {
+                alert('خطأ: ' + json.message);
+            }
+        } catch(err) {
+            alert('حدث خطأ أثناء الاتصال');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = 'تحديث كلمة المرور';
+        }
+    });
 </script>
 {% endblock %}

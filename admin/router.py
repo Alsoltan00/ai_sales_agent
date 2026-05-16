@@ -411,6 +411,27 @@ def update_client_onboarding_settings(client_id: str, payload: dict, user: dict 
         return {"status": "success", "message": "تم تحديث إعدادات العميل بنجاح"}
     return {"status": "error", "message": "حدث خطأ أثناء التحديث"}
 
+@router.post("/api/clients/{client_id}/reset-password")
+def reset_client_password(client_id: str, payload: dict, user: dict = Depends(verify_admin)):
+    """إعادة تعيين كلمة مرور العميل"""
+    new_password = payload.get("new_password")
+    if not new_password or len(new_password) < 8:
+        return {"status": "error", "message": "كلمة المرور يجب أن تكون 8 أحرف على الأقل"}
+        
+    supabase = get_supabase_client()
+    try:
+        from passlib.context import CryptContext
+        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        
+        # Bcrypt has a limit of 72 bytes
+        safe_password = new_password.encode('utf-8')[:72].decode('utf-8', 'ignore')
+        hashed = pwd_context.hash(safe_password)
+        
+        supabase.table("clients").update({"password_hash": hashed}).eq("id", client_id).execute()
+        return {"status": "success", "message": "تم إعادة تعيين كلمة المرور بنجاح"}
+    except Exception as e:
+        return {"status": "error", "message": f"حدث خطأ: {str(e)}"}
+
 @router.get("/models-pool", response_class=HTMLResponse)
 def admin_models_pool(request: Request, user: dict = Depends(verify_admin)):
     """واجهة إدارة مكتبة النماذج العالمية مع تنظيف البيانات"""
