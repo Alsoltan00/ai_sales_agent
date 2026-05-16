@@ -61,6 +61,14 @@ async def verify_merchant(request: Request):
         
     return user
 
+@router.get("/dashboard-test", response_class=HTMLResponse)
+async def test_dashboard(request: Request):
+    """لوحة اختبار بدون قاعدة بيانات"""
+    user = {"name": "Test User", "id": "test", "user_type": "merchant"}
+    return templates.TemplateResponse("merchant_home.html", {
+        "request": request, "user": user, "settings": {}, "planning": {}, "active_tab": "dashboard"
+    })
+
 @router.get("/dashboard", response_class=HTMLResponse)
 async def merchant_home(request: Request, user: dict = Depends(verify_merchant)):
     """لوحة التاجر الرئيسية (Dashboard)"""
