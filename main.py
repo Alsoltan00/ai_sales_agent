@@ -27,6 +27,16 @@ app.add_middleware(
     max_age=86400 * 7
 )
 
+@app.middleware("http")
+async def disable_quic_and_h3(request, call_next):
+    """
+    إجبار المتصفحات على عدم استخدام بروتوكول QUIC (HTTP/3) عبر الـ UDP
+    لأن بعض مزودي الخدمة يحظرون حزم الـ UDP مما يسبب تعليق المتصفح للأبد.
+    """
+    response = await call_next(request)
+    response.headers["Alt-Svc"] = "clear"
+    return response
+
 
 
 
