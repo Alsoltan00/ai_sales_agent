@@ -26,12 +26,7 @@ app.add_middleware(
     max_age=86400 * 7
 )
 
-# إضافة Middleware لإغلاق الاتصال ومنع تعليق خادم الـ Proxy (Render/Cloudflare)
-@app.middleware("http")
-async def add_connection_close_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Connection"] = "close"
-    return response
+
 
 
 # استيراد المسارات (Routers)
