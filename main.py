@@ -15,10 +15,11 @@ import concurrent.futures
 app = FastAPI(title="AI Sales Agent", version="2.0", description="نظام وكيل المبيعات الذكي")
 
 # زيادة سعة مجمع خيوط المعالجة الافتراضي لمنع تجميد النظام
-@app.on_event("startup")
-async def setup_executor():
-    loop = asyncio.get_running_loop()
-    loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=60))
+# تم إيقاف هذا الكود لأنه يسبب تعليق (Deadlock) في متصفحات الويندوز عند تحميل ملفات Static بكثرة
+# @app.on_event("startup")
+# async def setup_executor():
+#     loop = asyncio.get_running_loop()
+#     loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=60))
 
 app.add_middleware(
     SessionMiddleware, 
