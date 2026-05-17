@@ -20,13 +20,19 @@ async def setup_executor():
     loop = asyncio.get_running_loop()
     loop.set_default_executor(concurrent.futures.ThreadPoolExecutor(max_workers=60))
 
-# إعداد الجلسات
-# app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SESSION_SECRET", "super-secret-sales-agent-key-12345"),
     max_age=86400 * 7
 )
+
+# إضافة Middleware لإغلاق الاتصال ومنع تعليق خادم الـ Proxy (Render/Cloudflare)
+@app.middleware("http")
+async def add_connection_close_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Connection"] = "close"
+    return response
+
 
 # استيراد المسارات (Routers)
 from auth.router import router as auth_router
