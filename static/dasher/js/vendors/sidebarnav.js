@@ -123,5 +123,10 @@ window.addEventListener('resize', setSidebarHeight);
 
 // Optional: Adjust the sidebar height when content changes dynamically
 // (e.g., if using AJAX or other dynamic content loading)
-const observer = new MutationObserver(setSidebarHeight);
-observer.observe(document.getElementById('content'), { childList: true, subtree: true });
+// Commented out to prevent infinite layout/rendering loops on desktop Chrome/Edge
+// const observer = new MutationObserver(setSidebarHeight);
+// const contentEl = document.getElementById('content');
+// if (contentEl) {
+//   observer.observe(contentEl, { childList: true, subtree: true });
+// }
+
