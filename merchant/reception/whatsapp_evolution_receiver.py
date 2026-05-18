@@ -98,29 +98,31 @@ async def _send_evolution_audio(api_url: str, api_key: str, instance_name: str, 
 
 
 async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str, phone: str):
-    """إرسال إشعار 'جاري الكتابة' فوراً لتحسين تجربة العميل"""
+    """إرسال إشعار 'جاري الكتابة' و'متصل' فوراً لتحسين تجربة العميل"""
     clean_number = phone.split("@")[0]
     base = api_url.rstrip('/')
     headers = {"apikey": api_key, "Content-Type": "application/json"}
     
-    # Evolution API يتطلب delay داخل options في بعض الإصدارات، وخارجها في إصدارات أخرى
-    payload = {
-        "number": clean_number,
-        "options": {
-            "delay": 5000,
-            "presence": "composing"
-        },
-        "delay": 5000,
-        "presence": "composing"
-    }
-    
     try:
         async with httpx.AsyncClient() as client:
-            # Endpoint الصحيح لـ Evolution API
-            await client.post(f"{base}/chat/sendPresence/{instance_name}", json=payload, headers=headers, timeout=5)
-            print(f"[TYPING] Sent composing indicator to {clean_number}")
+            # 1. إجبار البوت على الظهور كـ "متصل" (Online)
+            await client.post(
+                f"{base}/chat/sendPresence/{instance_name}",
+                json={"number": clean_number, "presence": "available", "delay": 8000},
+                headers=headers,
+                timeout=5
+            )
+            
+            # 2. إظهار حالة "جاري الكتابة..." (Typing)
+            await client.post(
+                f"{base}/chat/sendPresence/{instance_name}",
+                json={"number": clean_number, "presence": "composing", "delay": 8000},
+                headers=headers,
+                timeout=5
+            )
+            print(f"[TYPING] Sent available+composing presence to {clean_number}")
     except Exception as e:
-        print(f"[TYPING] Failed (non-blocking): {e}")
+        print(f"[TYPING ERROR] {e}")
 
 
 @router.post("/whatsapp/evolution/{instance_name}")
