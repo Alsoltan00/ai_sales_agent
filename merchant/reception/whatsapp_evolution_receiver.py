@@ -274,32 +274,29 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                                 if msg_type == "audio":
                                     audio_base64 = b64_data
                                     from utils.transcriber import transcribe_audio
-                                    # محاولة جلب المفتاح للتحويل الصوتي
-                                    model_res = await supabase.table("clients").select("subscription_plan").eq("id", cfg["client_id"]).single().execute_async()
-                                    if model_res.data:
-                                        plan = model_res.data.get("subscription_plan")
-                                        plan_res = await supabase.table("subscription_plans").select("permissions").eq("name", plan).single().execute_async()
-                                        if plan_res.data:
-                                            import json
-                                            perms = plan_res.data.get("permissions", {})
-                                            if isinstance(perms, str): perms = json.loads(perms)
-                                            mid = perms.get("assigned_model_id")
-                                            if mid:
-                                                ai_m = await supabase.table("global_ai_models").select("*").eq("id", mid).single().execute_async()
-                                                if ai_m.data:
-                                                    api_key = ai_m.data.get("api_key")
-                                                    provider = ai_m.data.get("provider")
-                                                    
-                                                    # لا نحتاج لتحويل الصوت لنص إذا كان المحرك هو Gemini (Google) لأنه يدعم الصوت مباشرة
-                                                    if provider != "google":
-                                                        import base64
-                                                        audio_bytes = base64.b64decode(b64_data)
-                                                        # محاولة التحويل الصوتي (فقط لـ Groq/OpenAI)
-                                                        text = await transcribe_audio(audio_bytes, api_key)
-                                                        if text:
-                                                            print(f"[VOICE] Transcribed Text: {text}")
-                                                    else:
-                                                        print("[DEBUG] Skipping transcription for Google provider, using native audio support.")
+                                    
+                                    # 🎯 البحث عن مفتاح API يدعم Whisper (نفضل Groq لسرعته ومجانيته)
+                                    # بغض النظر عن نموذج الباقة، نستخدم Groq لتحويل الصوت لنص مجاناً
+                                    groq_model = await supabase.table("global_ai_models").select("api_key").eq("provider", "groq").limit(1).execute_async()
+                                    transcribe_key = None
+                                    
+                                    if groq_model.data:
+                                        transcribe_key = groq_model.data[0].get("api_key")
+                                    else:
+                                        # بديل: استخدام مفتاح OpenAI إذا لم يوجد Groq
+                                        openai_model = await supabase.table("global_ai_models").select("api_key").eq("provider", "openai").limit(1).execute_async()
+                                        if openai_model.data:
+                                            transcribe_key = openai_model.data[0].get("api_key")
+                                    
+                                    if transcribe_key:
+                                        import base64
+                                        audio_bytes = base64.b64decode(b64_data)
+                                        # محاولة التحويل الصوتي
+                                        text = await transcribe_audio(audio_bytes, transcribe_key)
+                                        if text:
+                                            print(f"[VOICE] Transcribed Text via Whisper: {text}")
+                                    else:
+                                        print("[VOICE ERROR] No Groq or OpenAI key found in global_ai_models for STT transcription.")
                                 
                                 elif msg_type == "image":
                                     image_base64 = b64_data
