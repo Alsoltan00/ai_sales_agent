@@ -222,6 +222,23 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             except Exception as dup_err:
                 print(f"[DEDUP] DB check error: {dup_err}")
 
+        # جلب إعدادات العميل مبكراً لإرسال إشعار الكتابة فوراً
+        cfg = await _find_client_by_instance(instance_name)
+        if not cfg or "client_id" not in cfg:
+            print(f"[ERROR] No client found for instance: {instance_name}")
+            return
+            
+        client_id = cfg["client_id"]
+        api_url = cfg["evolution_api_url"]
+        api_key = cfg["evolution_api_key"]
+
+        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً جداً ليغطي وقت تحميل وتحويل الصوت والتفكير
+        try:
+            import asyncio
+            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
+        except:
+            pass
+
         # التحقق من نوع الرسالة
         msg_type = "text"
         if "audioMessage" in msg_content:
@@ -298,19 +315,44 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                                         import base64
                                         audio_bytes = base64.b64decode(b64_data)
                                         # محاولة التحويل الصوتي
-                                        text = await transcribe_audio(audio_bytes, transcribe_key)
-                                        if text:
-                                            print(f"[VOICE] Transcribed Text via Whisper: {text}")
-                                    else:
-                                        print("[VOICE ERROR] No Groq or OpenAI key found in global_ai_models for STT transcription.")
+                        if b64_data:
+                            if "," in str(b64_data):
+                                b64_data = str(b64_data).split(",")[1]
+                            
+                            if msg_type == "audio":
+                                audio_base64 = b64_data
+                                from utils.transcriber import transcribe_audio
                                 
-                                elif msg_type == "image":
-                                    image_base64 = b64_data
-                                    if not text: text = "تحليل الصورة"
-                        else:
-                            print(f"[DEBUG] Media fetch failed: {media_res.status_code}")
-                except Exception as ve:
-                    print(f"[MEDIA ERROR] Exception: {ve}")
+                                # 🎯 البحث عن مفتاح API يدعم Whisper (نفضل Groq لسرعته ومجانيته)
+                                # بغض النظر عن نموذج الباقة، نستخدم Groq لتحويل الصوت لنص مجاناً
+                                groq_model = await supabase.table("global_ai_models").select("api_key").eq("provider", "groq").limit(1).execute_async()
+                                transcribe_key = None
+                                
+                                if groq_model.data:
+                                    transcribe_key = groq_model.data[0].get("api_key")
+                                else:
+                                    # بديل: استخدام مفتاح OpenAI إذا لم يوجد Groq
+                                    openai_model = await supabase.table("global_ai_models").select("api_key").eq("provider", "openai").limit(1).execute_async()
+                                    if openai_model.data:
+                                        transcribe_key = openai_model.data[0].get("api_key")
+                                
+                                if transcribe_key:
+                                    import base64
+                                    audio_bytes = base64.b64decode(b64_data)
+                                    # محاولة التحويل الصوتي
+                                    text = await transcribe_audio(audio_bytes, transcribe_key)
+                                    if text:
+                                        print(f"[VOICE] Transcribed Text via Whisper: {text}")
+                                else:
+                                    print("[VOICE ERROR] No Groq or OpenAI key found in global_ai_models for STT transcription.")
+                            
+                            elif msg_type == "image":
+                                image_base64 = b64_data
+                                if not text: text = "تحليل الصورة"
+                    else:
+                        print(f"[DEBUG] Media fetch failed: {media_res.status_code}")
+            except Exception as ve:
+                print(f"[MEDIA ERROR] Exception: {ve}")
         
         print(f"[DEBUG] Final Message text from {phone}: {text}")
 
@@ -321,7 +363,6 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         if not phone:
             return
 
-        # البحث عن التاجر (إذا لم يتم البحث عنه سابقاً)
         cfg = await _find_client_by_instance(instance_name)
         if not cfg:
             print(f"[ERROR] No client found for instance: {instance_name}")
