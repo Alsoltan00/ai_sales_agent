@@ -400,14 +400,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         clean_reply, buttons = extract_buttons_from_reply(ai_reply)
 
         # إرسال الرد
-        if msg_type == "audio":
-            from utils.tts import text_to_speech_b64
-            audio_b64 = await text_to_speech_b64(clean_reply)
-            if audio_b64:
-                status = await _send_evolution_audio(api_url, api_key, instance_name, phone, audio_b64)
-            else:
-                status = await _send_evolution_message(api_url, api_key, instance_name, phone, clean_reply)
-        elif buttons:
+        if buttons:
             # محاولة إرسال أزرار تفاعلية
             status = await send_evolution_buttons(api_url, api_key, instance_name, phone, clean_reply, buttons)
             if not status:
