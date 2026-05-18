@@ -103,21 +103,21 @@ async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str,
     base = api_url.rstrip('/')
     headers = {"apikey": api_key, "Content-Type": "application/json"}
     
-    # Evolution API يتطلب delay لتحديد مدة ظهور "جاري الكتابة"
+    # Evolution API يتطلب delay داخل options في بعض الإصدارات، وخارجها في إصدارات أخرى
     payload = {
         "number": clean_number,
-        "remoteJid": f"{clean_number}@s.whatsapp.net",
-        "presence": "composing",
-        "delay": 8000  # 8 ثوانٍ — كافية لتوليد رد الـ AI
+        "options": {
+            "delay": 5000,
+            "presence": "composing"
+        },
+        "delay": 5000,
+        "presence": "composing"
     }
     
     try:
         async with httpx.AsyncClient() as client:
-            # محاولة الـ endpoint الأساسي
-            r = await client.post(f"{base}/chat/updatePresence/{instance_name}", json=payload, headers=headers, timeout=5)
-            if r.status_code >= 400:
-                # محاولة endpoint بديل لبعض إصدارات Evolution
-                await client.post(f"{base}/message/sendPresence/{instance_name}", json=payload, headers=headers, timeout=5)
+            # Endpoint الصحيح لـ Evolution API
+            await client.post(f"{base}/chat/sendPresence/{instance_name}", json=payload, headers=headers, timeout=5)
             print(f"[TYPING] Sent composing indicator to {clean_number}")
     except Exception as e:
         print(f"[TYPING] Failed (non-blocking): {e}")
