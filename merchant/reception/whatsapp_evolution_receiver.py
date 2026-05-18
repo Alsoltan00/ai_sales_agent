@@ -12,10 +12,17 @@ router = APIRouter(tags=["WhatsApp Evolution Webhook"])
 # In-memory lock to prevent duplicate processing of the same message
 _processing_ids: set = set()
 
+_client_cache = {}
+
 async def _find_client_by_instance(instance_name: str) -> dict | None:
+    if instance_name in _client_cache:
+        return _client_cache[instance_name]
+        
     supabase = get_supabase_client()
     try:
         res = await supabase.table("channels_config").select("*").eq("evolution_instance_name", instance_name).single().execute_async()
+        if res.data:
+            _client_cache[instance_name] = res.data
         return res.data
     except Exception:
         return None
@@ -203,6 +210,23 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         msg_id      = key.get("id")
         msg_content = data.get("message", {})
 
+        # جلب إعدادات العميل مبكراً جداً (من الذاكرة المؤقتة) لإرسال إشعار الكتابة فوراً
+        cfg = await _find_client_by_instance(instance_name)
+        if not cfg or "client_id" not in cfg:
+            print(f"[ERROR] No client found for instance: {instance_name}")
+            return
+            
+        client_id = cfg["client_id"]
+        api_url = cfg["evolution_api_url"]
+        api_key = cfg["evolution_api_key"]
+
+        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً جداً قبل أي عمليات قفل أو تحقق من قاعدة البيانات
+        try:
+            import asyncio
+            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
+        except:
+            pass
+
         phone_lock = _get_phone_lock(phone)
         await phone_lock.acquire()
         # 1. منع التكرار - المستوى الأول: ذاكرة داخلية (سريعة جداً)
@@ -221,23 +245,6 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
                     return
             except Exception as dup_err:
                 print(f"[DEDUP] DB check error: {dup_err}")
-
-        # جلب إعدادات العميل مبكراً لإرسال إشعار الكتابة فوراً
-        cfg = await _find_client_by_instance(instance_name)
-        if not cfg or "client_id" not in cfg:
-            print(f"[ERROR] No client found for instance: {instance_name}")
-            return
-            
-        client_id = cfg["client_id"]
-        api_url = cfg["evolution_api_url"]
-        api_key = cfg["evolution_api_key"]
-
-        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً جداً ليغطي وقت تحميل وتحويل الصوت والتفكير
-        try:
-            import asyncio
-            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
-        except:
-            pass
 
         # التحقق من نوع الرسالة
         msg_type = "text"
