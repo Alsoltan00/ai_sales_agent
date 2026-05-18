@@ -115,23 +115,21 @@ async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str,
     headers = {"apikey": api_key, "Content-Type": "application/json"}
     
     try:
-        async with httpx.AsyncClient() as client:
-            # 1. إجبار البوت على الظهور كـ "متصل" (Online)
-            await client.post(
-                f"{base}/chat/sendPresence/{instance_name}",
-                json={"number": clean_number, "presence": "available"},
-                headers=headers,
-                timeout=5
-            )
-            
-            # 2. إظهار حالة "جاري الكتابة..." لمدة تصل إلى 10 ثوانٍ (أثناء توليد الرد)
-            await client.post(
-                f"{base}/chat/sendPresence/{instance_name}",
-                json={"number": clean_number, "presence": "composing", "delay": 10000},
-                headers=headers,
-                timeout=5
-            )
-            print(f"[TYPING] Triggered composing for {clean_number}")
+        async def send_req(payload):
+            try:
+                async with httpx.AsyncClient() as client:
+                    await client.post(f"{base}/chat/sendPresence/{instance_name}", json=payload, headers=headers, timeout=3)
+            except: pass
+
+        # 1. إجبار البوت على الظهور كـ "متصل" (Online)
+        p1 = {"number": clean_number, "presence": "available"}
+        # 2. إظهار حالة "جاري الكتابة..." لمدة تصل إلى 10 ثوانٍ
+        p2 = {"number": clean_number, "presence": "composing", "delay": 10000}
+        
+        # تنفيذ الطلبين بالتوازي لأقصى سرعة
+        import asyncio
+        asyncio.create_task(send_req(p1))
+        asyncio.create_task(send_req(p2))
     except Exception as e:
         print(f"[TYPING ERROR] {e}")
 
@@ -166,6 +164,18 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
             
         if event not in ("messages.upsert", "MESSAGES_UPSERT"):
             return Response(status_code=200)
+
+        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً في نفس الملي-ثانية من استلام الـ Webhook
+        try:
+            msg_data = body.get("data", {})
+            phone = msg_data.get("key", {}).get("remoteJid", "")
+            if phone and not msg_data.get("key", {}).get("fromMe", False):
+                cfg = await _find_client_by_instance(instance_name)
+                if cfg and "evolution_api_url" in cfg:
+                    import asyncio
+                    asyncio.create_task(_send_typing_indicator(cfg["evolution_api_url"], cfg["evolution_api_key"], instance_name, phone))
+        except:
+            pass
 
         # إعداد متغيرات الروابط للفاتورة قبل إرسالها للمهمة الخلفية
         # الأولوية لـ x-forwarded-host لأنه يحمل النطاق العام في Render/Nginx
@@ -210,22 +220,7 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         msg_id      = key.get("id")
         msg_content = data.get("message", {})
 
-        # جلب إعدادات العميل مبكراً جداً (من الذاكرة المؤقتة) لإرسال إشعار الكتابة فوراً
-        cfg = await _find_client_by_instance(instance_name)
-        if not cfg or "client_id" not in cfg:
-            print(f"[ERROR] No client found for instance: {instance_name}")
-            return
-            
-        client_id = cfg["client_id"]
-        api_url = cfg["evolution_api_url"]
-        api_key = cfg["evolution_api_key"]
-
-        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً جداً قبل أي عمليات قفل أو تحقق من قاعدة البيانات
-        try:
-            import asyncio
-            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
-        except:
-            pass
+        # (تم تشغيل إشعار الكتابة مبكراً جداً في دالة evolution_webhook)
 
         phone_lock = _get_phone_lock(phone)
         await phone_lock.acquire()
