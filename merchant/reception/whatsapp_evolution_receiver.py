@@ -64,10 +64,17 @@ async def _send_evolution_message(api_url: str, api_key: str, instance_name: str
     clean_number = phone.split("@")[0]
     url = f"{api_url.rstrip('/')}/message/sendText/{instance_name}"
     headers = {"apikey": api_key, "Content-Type": "application/json"}
+    
+    # الاعتماد على options داخل رسالة النص لضمان ظهور "متصل" ثم "جاري الكتابة" بشكل موثوق
+    # نستخدم تأخير 1500ms (ثانية ونصف) لتوفير وقت كافٍ لظهور الإشعار قبل وصول الرسالة
     payload = {
         "number": clean_number,
         "text": text,
-        "options": {"delay": 300, "presence": "composing", "linkPreview": False}
+        "options": {
+            "delay": 1500, 
+            "presence": "composing", 
+            "linkPreview": False
+        }
     }
     try:
         async with httpx.AsyncClient() as client:
@@ -331,12 +338,6 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         if not await _is_authorized(client_id, phone):
             print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
             return
-
-        # ⚡ إرسال إشعار "جاري الكتابة" فوراً لتحسين تجربة العميل
-        try:
-            import asyncio
-            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
-        except: pass
 
         # توليد الرد — ترتيب الوسائط: (client_id, phone_number, user_message, ...)
         print(f"[AI] Calling AI for client {client_id}, phone={phone}, text={text[:40]}...")
