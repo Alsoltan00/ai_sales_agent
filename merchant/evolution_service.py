@@ -92,6 +92,17 @@ async def create_instance(client_id: str, webhook_base_url: str) -> dict:
             data = res.json()
 
             if res.status_code in (200, 201):
+                # تفعيل "متصل دائماً" لتبدو خدمة العملاء نشطة 24/7 ولتسريع ظهور الإشعارات
+                try:
+                    await client.post(
+                        f"{server_url}/settings/set/{instance}",
+                        json={"alwaysOnline": True},
+                        headers=req_headers,
+                        timeout=5
+                    )
+                except Exception as e:
+                    print(f"[EVOLUTION] Failed to set alwaysOnline: {e}")
+
                 # حفظ بيانات الجلسة في قاعدة البيانات
                 await _save_instance_config(client_id, instance)
 

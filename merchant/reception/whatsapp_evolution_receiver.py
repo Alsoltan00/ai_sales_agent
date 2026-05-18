@@ -121,15 +121,12 @@ async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str,
                     await client.post(f"{base}/chat/sendPresence/{instance_name}", json=payload, headers=headers, timeout=3)
             except: pass
 
-        # 1. إجبار البوت على الظهور كـ "متصل" (Online)
-        p1 = {"number": clean_number, "presence": "available"}
-        # 2. إظهار حالة "جاري الكتابة..." لمدة تصل إلى 10 ثوانٍ
-        p2 = {"number": clean_number, "presence": "composing", "delay": 10000}
+        # البوت متصل دائماً (Always Online) فلن نحتاج لإرسال "متصل"
+        # نكتفي بإرسال "جاري الكتابة..." لمدة تصل إلى 10 ثوانٍ
+        p_composing = {"number": clean_number, "presence": "composing", "delay": 10000}
         
-        # تنفيذ الطلبين بالتوازي لأقصى سرعة
         import asyncio
-        asyncio.create_task(send_req(p1))
-        asyncio.create_task(send_req(p2))
+        asyncio.create_task(send_req(p_composing))
     except Exception as e:
         print(f"[TYPING ERROR] {e}")
 

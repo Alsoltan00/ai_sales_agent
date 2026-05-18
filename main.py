@@ -73,6 +73,44 @@ async def startup_event():
     print("[STARTUP] AI Sales Agent starting...")
     # إصلاح تلقائي لقاعدة البيانات في مهمة خلفية في Thread منفصل لعدم تجميد الخادم
     asyncio.create_task(asyncio.to_thread(_migrate_database))
+    # ترقية كل الجلسات لتصبح متصلة دائماً لتسريع الاستجابة
+    asyncio.create_task(_set_all_instances_online())
+
+async def _set_all_instances_online():
+    """مهمة خلفية لمرة واحدة عند تشغيل الخادم لتحويل جميع الجلسات القديمة إلى وضع متصل دائماً"""
+    try:
+        from database.db_client import get_supabase_client
+        import httpx
+        supabase = get_supabase_client()
+        
+        # جلب المفاتيح العالمية
+        res = await supabase.table("global_settings").select("value").eq("key", "evolution_api").single().execute_async()
+        if not res.data: return
+        
+        val = res.data.get("value", {})
+        server_url = val.get("url", "").rstrip("/")
+        api_key = val.get("api_key", "")
+        if not server_url or not api_key: return
+
+        # جلب جميع الجلسات النشطة
+        configs = await supabase.table("channels_config").select("evolution_instance_name").execute_async()
+        if not configs.data: return
+
+        headers = {"apikey": api_key, "Content-Type": "application/json"}
+        async with httpx.AsyncClient(timeout=10) as client:
+            for c in configs.data:
+                inst = c.get("evolution_instance_name")
+                if inst:
+                    try:
+                        await client.post(
+                            f"{server_url}/settings/set/{inst}",
+                            json={"alwaysOnline": True},
+                            headers=headers
+                        )
+                        print(f"[EVOLUTION] Upgraded {inst} to alwaysOnline")
+                    except Exception: pass
+    except Exception as e:
+        print(f"[EVOLUTION] alwaysOnline migration error: {e}")
 
 def _migrate_database():
     """تحديث قاعدة البيانات في الخلفية بطريقة آمنة لا تعيق تسجيل الدخول"""
