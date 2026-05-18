@@ -171,6 +171,12 @@ async def admin_subscriptions(request: Request, user: dict = Depends(verify_admi
                 if p.get("permissions") and isinstance(p["permissions"], str):
                     try: p["permissions"] = json.loads(p["permissions"])
                     except: p["permissions"] = {}
+                # تحويل assigned_model_ids من نص إلى قائمة
+                if p.get("assigned_model_ids") and isinstance(p["assigned_model_ids"], str):
+                    try: p["assigned_model_ids"] = json.loads(p["assigned_model_ids"])
+                    except: p["assigned_model_ids"] = []
+                if not p.get("assigned_model_ids"):
+                    p["assigned_model_ids"] = []
                 safe_plans.append(sanitize_data(p))
         except Exception as e:
             print(f"Error in admin_subscriptions: {e}")

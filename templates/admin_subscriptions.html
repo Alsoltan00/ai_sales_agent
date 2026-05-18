@@ -6,6 +6,14 @@
 .tab-content { display: none; }
 .tab-content.active { display: block; animation: fadeIn 0.4s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.model-slot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bs-body-bg); border: 1px solid var(--bs-border-color); border-radius: 10px; margin-bottom: 8px; transition: all 0.2s; }
+.model-slot:hover { border-color: var(--bs-primary); box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.15); }
+.model-slot .priority-badge { width: 28px; height: 28px; border-radius: 50%; background: var(--bs-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+.model-slot .priority-badge.fallback { background: var(--bs-warning); color: #000; }
+.model-slot select { flex: 1; }
+.model-slot .btn-remove { flex-shrink: 0; }
+.smart-routing-info { background: linear-gradient(135deg, rgba(var(--bs-primary-rgb),0.08), rgba(var(--bs-success-rgb),0.06)); border: 1px solid rgba(var(--bs-primary-rgb),0.2); border-radius: 12px; padding: 14px; margin-top: 12px; }
+.smart-routing-info .badge { font-size: 11px; }
 {% endblock %}
 
 {% block content %}
@@ -85,6 +93,7 @@
                             <th class="text-secondary">اسم الباقة</th>
                             <th class="text-secondary">السعر</th>
                             <th class="text-secondary text-center">المدة (يوم)</th>
+                            <th class="text-secondary text-center">النماذج</th>
                             <th class="text-secondary text-end">الإجراءات</th>
                         </tr>
                     </thead>
@@ -94,6 +103,14 @@
                             <td class="fw-bold text-primary">{{ plan.label_ar }} <small class="text-secondary">({{ plan.name }})</small></td>
                             <td class="text-body fw-600">{{ plan.price }} ريال</td>
                             <td class="text-center text-body">{{ plan.duration_days }} يوم</td>
+                            <td class="text-center">
+                                {% set model_count = (plan.assigned_model_ids | length) if plan.assigned_model_ids else 0 %}
+                                {% if model_count > 0 %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{{ model_count }} نموذج</span>
+                                {% else %}
+                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle rounded-pill">بدون</span>
+                                {% endif %}
+                            </td>
                             <td class="text-end">
                                 <button class="btn btn-icon btn-ghost-secondary btn-sm" onclick='openPlanModal({{ plan | tojson }})'>
                                     <i class="ti ti-edit"></i>
@@ -113,7 +130,7 @@
 
 <!-- Plan Modal -->
 <div class="modal fade" id="planModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content overflow-hidden">
             <div class="modal-header border-bottom">
                 <h5 class="modal-title" id="modalPlanTitle">إضافة باقة جديدة</h5>
@@ -139,18 +156,38 @@
                     </div>
                 </div>
                 
+                <!-- قسم النماذج المتعددة -->
+                <div class="p-3 bg-secondary-bg-subtle rounded-3 border mb-3">
+                    <div class="d-flex align-items-center justify-content-between mb-3">
+                        <label class="form-label fw-bold text-primary mb-0"><i class="ti ti-brain me-1"></i> نماذج الذكاء الاصطناعي</label>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="addModelSlot()">
+                            <i class="ti ti-plus me-1"></i> إضافة نموذج
+                        </button>
+                    </div>
+                    
+                    <div id="modelSlotsContainer">
+                        <!-- يتم إضافة النماذج ديناميكياً هنا -->
+                    </div>
+                    
+                    <div id="noModelsMsg" class="text-center text-secondary py-3" style="display:none;">
+                        <i class="ti ti-info-circle me-1"></i> لم يتم إضافة أي نموذج. اضغط "إضافة نموذج" للبدء.
+                    </div>
+
+                    <div class="smart-routing-info">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="ti ti-bolt text-primary" style="font-size: 20px; margin-top: 2px;"></i>
+                            <div>
+                                <strong class="text-primary small">التوجيه الذكي التلقائي</strong>
+                                <p class="mb-0 text-secondary small mt-1">
+                                    النموذج رقم <span class="badge bg-primary">1</span> هو الأساسي. عند تأخره أو فشله، يتم تشغيل باقي النماذج <span class="badge bg-warning text-dark">بالتوازي</span> وأسرع رد يصل العميل فوراً. <strong>لن يتوقف الرد أبداً.</strong>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="p-3 bg-secondary-bg-subtle rounded-3 border">
                     <label class="form-label fw-bold text-primary mb-3"><i class="ti ti-settings me-1"></i> صلاحيات الباقة</label>
-                    
-                    <div class="mb-3">
-                        <label class="form-label small">نموذج الذكاء المخصص للباقة</label>
-                        <select class="form-select" id="permAssignedModel">
-                            <option value="">بدون نموذج مخصص</option>
-                            {% for model in global_models %}
-                            <option value="{{ model.id }}">{{ model.model_name }} ({{ model.provider }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
 
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <span class="small fw-600">الحد الأقصى للرسائل (0 = غير محدود)</span>
@@ -214,6 +251,75 @@
     const planModal = new bootstrap.Modal(document.getElementById('planModal'));
     const renewModal = new bootstrap.Modal(document.getElementById('renewModal'));
 
+    // قائمة النماذج العالمية المتاحة
+    const globalModels = {{ (global_models or []) | tojson }};
+
+    function buildModelOptions(selectedId) {
+        let opts = '<option value="">-- اختر نموذج --</option>';
+        globalModels.forEach(m => {
+            const sel = (m.id === selectedId) ? 'selected' : '';
+            opts += `<option value="${m.id}" ${sel}>${m.model_name} (${m.provider})</option>`;
+        });
+        return opts;
+    }
+
+    function addModelSlot(modelId = '', priority = null) {
+        const container = document.getElementById('modelSlotsContainer');
+        const slotCount = container.children.length;
+        const p = priority || (slotCount + 1);
+        const isPrimary = (p === 1);
+        
+        const slot = document.createElement('div');
+        slot.className = 'model-slot';
+        slot.innerHTML = `
+            <div class="priority-badge ${isPrimary ? '' : 'fallback'}">${p}</div>
+            <select class="form-select form-select-sm" onchange="updateSlotInfo(this)">
+                ${buildModelOptions(modelId)}
+            </select>
+            <button type="button" class="btn btn-sm btn-ghost-danger btn-remove" onclick="removeModelSlot(this)">
+                <i class="ti ti-x"></i>
+            </button>
+        `;
+        container.appendChild(slot);
+        refreshSlotNumbers();
+    }
+
+    function removeModelSlot(btn) {
+        btn.closest('.model-slot').remove();
+        refreshSlotNumbers();
+    }
+
+    function refreshSlotNumbers() {
+        const container = document.getElementById('modelSlotsContainer');
+        const slots = container.querySelectorAll('.model-slot');
+        const noMsg = document.getElementById('noModelsMsg');
+        
+        slots.forEach((slot, i) => {
+            const badge = slot.querySelector('.priority-badge');
+            badge.textContent = i + 1;
+            badge.className = 'priority-badge' + (i === 0 ? '' : ' fallback');
+        });
+        
+        noMsg.style.display = slots.length === 0 ? 'block' : 'none';
+    }
+
+    function updateSlotInfo(select) {
+        // يمكن إضافة معلومات إضافية عن النموذج المختار
+    }
+
+    function getModelSlotsData() {
+        const container = document.getElementById('modelSlotsContainer');
+        const slots = container.querySelectorAll('.model-slot');
+        const result = [];
+        slots.forEach((slot, i) => {
+            const select = slot.querySelector('select');
+            if (select.value) {
+                result.push({ model_id: select.value, priority: i + 1 });
+            }
+        });
+        return result;
+    }
+
     function openPlanModal(plan = null) {
         currentPlanId = plan ? plan.id : null;
         document.getElementById('modalPlanTitle').innerText = plan ? 'تعديل باقة' : 'إضافة باقة جديدة';
@@ -222,23 +328,39 @@
         document.getElementById('planPrice').value = plan ? plan.price : 0;
         document.getElementById('planDuration').value = plan ? plan.duration_days : 30;
         
-        const perms = plan && plan.permissions ? plan.permissions : {assigned_model_id: '', max_messages: 0, voice_notes: false, files_support: false};
-        document.getElementById('permAssignedModel').value = perms.assigned_model_id || '';
+        const perms = plan && plan.permissions ? plan.permissions : {max_messages: 0, voice_notes: false, files_support: false};
         document.getElementById('permMaxMessages').value = perms.max_messages || 0;
         document.getElementById('permVoiceNotes').checked = !!perms.voice_notes;
         document.getElementById('permFilesSupport').checked = !!perms.files_support;
         
+        // تحميل النماذج المتعددة
+        const container = document.getElementById('modelSlotsContainer');
+        container.innerHTML = '';
+        
+        const modelIds = (plan && plan.assigned_model_ids) ? plan.assigned_model_ids : [];
+        if (modelIds.length > 0) {
+            modelIds.sort((a, b) => (a.priority || 99) - (b.priority || 99));
+            modelIds.forEach(m => addModelSlot(m.model_id, m.priority));
+        } else if (plan && plan.permissions && plan.permissions.assigned_model_id) {
+            // توافق مع النظام القديم (نموذج واحد)
+            addModelSlot(plan.permissions.assigned_model_id, 1);
+        }
+        
+        refreshSlotNumbers();
         planModal.show();
     }
 
     async function savePlan() {
+        const modelSlots = getModelSlotsData();
+        
         const data = {
             name: document.getElementById('planName').value,
             label_ar: document.getElementById('planLabel').value,
             price: parseFloat(document.getElementById('planPrice').value),
             duration_days: parseInt(document.getElementById('planDuration').value),
+            assigned_model_ids: modelSlots,
             permissions: {
-                assigned_model_id: document.getElementById('permAssignedModel').value,
+                assigned_model_id: modelSlots.length > 0 ? modelSlots[0].model_id : '',
                 max_messages: parseInt(document.getElementById('permMaxMessages').value) || 0,
                 voice_notes: document.getElementById('permVoiceNotes').checked,
                 files_support: document.getElementById('permFilesSupport').checked
@@ -324,6 +446,9 @@
                 if(days < 7) el.classList.add('text-warning');
             }
         });
+        
+        // تهيئة حالة رسالة "لا نماذج"
+        refreshSlotNumbers();
     });
 </script>
 {% endblock %}

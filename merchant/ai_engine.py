@@ -145,35 +145,80 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         except Exception as e:
             print(f"[ENGINE] Customer CRM lookup error: {e}")
 
-    # ─── 2. AI MODEL RESOLUTION ──────────────────────────────────────────────
-    api_key, model_id, provider = None, "gpt-3.5-turbo", "openai"
+    # ─── 2. AI MODEL RESOLUTION (Multi-Model Smart Router) ─────────────────────
+    resolved_models = []  # قائمة النماذج المتاحة مرتبة بالأولوية
     try:
-        # A. Check plan-assigned model first
+        # A. جلب النماذج المتعددة من الباقة
         plan_name = c.get("subscription_plan")
         if plan_name:
-            p_det = supabase.table("subscription_plans").select("permissions").eq("name", plan_name).single().execute()
+            p_det = supabase.table("subscription_plans").select("permissions, assigned_model_ids").eq("name", plan_name).single().execute()
             if p_det.data:
                 perms = p_det.data.get("permissions", {})
                 if isinstance(perms, str): perms = json.loads(perms)
-                mid = perms.get("assigned_model_id")
-                if mid:
-                    gm = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
-                    if gm.data:
-                        api_key  = gm.data["api_key"]
-                        model_id = gm.data["model_id"]
-                        provider = gm.data["provider"].lower()
+                
+                # أولاً: جلب النماذج المتعددة (الجديد)
+                model_ids_list = p_det.data.get("assigned_model_ids") or []
+                if isinstance(model_ids_list, str):
+                    try: model_ids_list = json.loads(model_ids_list)
+                    except: model_ids_list = []
+                
+                if model_ids_list:
+                    # ترتيب حسب الأولوية
+                    sorted_models = sorted(model_ids_list, key=lambda x: x.get("priority", 99))
+                    for m_entry in sorted_models:
+                        mid = m_entry.get("model_id")
+                        if not mid:
+                            continue
+                        try:
+                            gm = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
+                            if gm.data and gm.data.get("api_key"):
+                                resolved_models.append({
+                                    "api_key": gm.data["api_key"],
+                                    "model_id": gm.data["model_id"],
+                                    "provider": gm.data["provider"].lower(),
+                                    "name": gm.data.get("model_name", gm.data["model_id"]),
+                                    "priority": m_entry.get("priority", 99)
+                                })
+                        except Exception as gm_err:
+                            print(f"[ENGINE] Model {mid} fetch error: {gm_err}")
+                
+                # Fallback: النموذج القديم (assigned_model_id واحد)
+                if not resolved_models:
+                    mid = perms.get("assigned_model_id")
+                    if mid:
+                        gm = supabase.table("global_ai_models").select("*").eq("id", mid).single().execute()
+                        if gm.data and gm.data.get("api_key"):
+                            resolved_models.append({
+                                "api_key": gm.data["api_key"],
+                                "model_id": gm.data["model_id"],
+                                "provider": gm.data["provider"].lower(),
+                                "name": gm.data.get("model_name", gm.data["model_id"]),
+                                "priority": 1
+                            })
 
-        # B. Fallback: merchant's own active config
-        if not api_key:
+        # B. Fallback: إعداد التاجر المباشر
+        if not resolved_models:
             m_cfg = supabase.table("ai_models_config").select("*").eq("client_id", client_id).eq("is_active", True).execute()
             if m_cfg.data:
-                api_key  = m_cfg.data[0]["api_key"]
-                model_id = m_cfg.data[0]["model_id"]
-                provider = m_cfg.data[0]["provider"].lower()
+                for cfg_item in m_cfg.data:
+                    resolved_models.append({
+                        "api_key": cfg_item["api_key"],
+                        "model_id": cfg_item["model_id"],
+                        "provider": cfg_item["provider"].lower(),
+                        "name": cfg_item.get("model_name", cfg_item["model_id"]),
+                        "priority": len(resolved_models) + 1
+                    })
 
-        if not api_key:
+        if not resolved_models:
             print(f"[ENGINE] ERROR: No active API key found for client {client_id}")
             return "عذراً، لم يتم إعداد نموذج الذكاء الاصطناعي للمتجر."
+
+        # استخدام النموذج الأول كإعداد افتراضي للمتغيرات القديمة
+        api_key = resolved_models[0]["api_key"]
+        model_id = resolved_models[0]["model_id"]
+        provider = resolved_models[0]["provider"]
+        
+        print(f"[ENGINE] Resolved {len(resolved_models)} models: {[m['name'] for m in resolved_models]}")
 
     except Exception as e:
         print(f"[ENGINE] Model resolution error: {e}")
@@ -678,43 +723,122 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
 
     print(f"[ENGINE] Sending {len(messages)} messages to {provider}/{model_id}")
 
-    # ─── 9. LLM CALL (With Retry Logic) ──────────────────────────────────────
+    # ─── 9. SMART MULTI-MODEL LLM CALL ───────────────────────────────────────
     import asyncio
-    max_retries = 2
-    for attempt in range(max_retries + 1):
+
+    async def _call_single_model(model_info: dict, msgs: list, sys_prompt: str, temp: float, max_tok: int) -> str:
+        """استدعاء نموذج واحد مع إدارة الأخطاء"""
+        p = model_info["provider"]
+        k = model_info["api_key"]
+        m = model_info["model_id"]
+        
+        if   p == "openai":     return await _call_openai(k, m, msgs, temp, max_tok)
+        elif p == "google":     return await _call_google(k, m, msgs, sys_prompt, temp, max_tok)
+        elif p == "openrouter": return await _call_openrouter(k, m, msgs, temp, max_tok)
+        elif p == "groq":       return await _call_groq(k, m, msgs, temp, max_tok)
+        elif p == "anthropic":  return await _call_anthropic(k, m, msgs, sys_prompt, temp, max_tok)
+        elif p == "huggingface": return await _call_huggingface(k, m, msgs, temp, max_tok)
+        elif p == "cerebras":   return await _call_cerebras(k, m, msgs, temp, max_tok)
+        elif p == "nvidia":     return await _call_nvidia(k, m, msgs, temp, max_tok)
+        elif p == "xai":        return await _call_openai(k, m, msgs, temp, max_tok)  # xAI uses OpenAI-compatible API
+        else:                   return await _call_openrouter(k, m, msgs, temp, max_tok)
+
+    response = None
+    
+    if len(resolved_models) == 1:
+        # ── نموذج واحد فقط: استدعاء مباشر مع إعادة المحاولة ──
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                response = await _call_single_model(resolved_models[0], messages, system_prompt, ai_temperature, ai_max_tokens)
+                break
+            except Exception as e:
+                err_msg = str(e)
+                if ("429" in err_msg or "traffic" in err_msg.lower()) and attempt < max_retries:
+                    print(f"[ENGINE] Rate limit hit (attempt {attempt+1}), retrying in 1.5s...")
+                    await asyncio.sleep(1.5)
+                    continue
+                print(f"[ENGINE] Model {resolved_models[0]['name']} failed: {e}")
+    else:
+        # ── نماذج متعددة: التوجيه الذكي (Smart Cascade + Racing) ──
+        print(f"[ENGINE] 🚀 Smart Multi-Model Router: {len(resolved_models)} models available")
+        
+        # المرحلة 1: تجربة النموذج الأساسي (الأعلى أولوية) مع timeout قصير
+        primary = resolved_models[0]
         try:
-            if   provider == "openai":     response = await _call_openai(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            elif provider == "google":     response = await _call_google(api_key, model_id, messages, system_prompt, ai_temperature, ai_max_tokens)
-            elif provider == "openrouter": response = await _call_openrouter(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            elif provider == "groq":       response = await _call_groq(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            elif provider == "anthropic":  response = await _call_anthropic(api_key, model_id, messages, system_prompt, ai_temperature, ai_max_tokens)
-            elif provider == "huggingface": response = await _call_huggingface(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            elif provider == "cerebras":    response = await _call_cerebras(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            elif provider == "nvidia":      response = await _call_nvidia(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-            else:
-                response = await _call_openrouter(api_key, model_id, messages, ai_temperature, ai_max_tokens)
-
-            if phone_number != "STRATEGY_GEN":
-                _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
-                supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
-            return response
-
-        except Exception as e:
-            err_msg = str(e)
-            if ("429" in err_msg or "traffic" in err_msg.lower()) and attempt < max_retries:
-                print(f"[ENGINE] Rate limit hit (attempt {attempt+1}), retrying in 2s...")
-                await asyncio.sleep(2)
-                continue
+            response = await asyncio.wait_for(
+                _call_single_model(primary, messages, system_prompt, ai_temperature, ai_max_tokens),
+                timeout=12.0  # 12 ثانية كحد أقصى للنموذج الأساسي
+            )
+            print(f"[ENGINE] ✅ Primary model '{primary['name']}' responded successfully")
+        except (asyncio.TimeoutError, Exception) as primary_err:
+            print(f"[ENGINE] ⚡ Primary model '{primary['name']}' failed/timeout: {primary_err}")
             
-            print(f"[ENGINE] CRITICAL LLM ERROR [{provider}]: {e}")
-            return f"عذراً، واجهت مشكلة تقنية بسبب ضغط الطلبات حالياً. يرجى المحاولة مرة أخرى بعد لحظات."
+            # المرحلة 2: سباق النماذج البديلة بالتوازي
+            fallback_models = resolved_models[1:]
+            if fallback_models:
+                print(f"[ENGINE] 🏁 Racing {len(fallback_models)} fallback models...")
+                
+                async def _race_model(model_info, idx):
+                    """Wrapper لتتبع أي نموذج نجح"""
+                    result = await _call_single_model(model_info, messages, system_prompt, ai_temperature, ai_max_tokens)
+                    return (idx, model_info["name"], result)
+                
+                tasks = [asyncio.create_task(_race_model(m, i)) for i, m in enumerate(fallback_models)]
+                
+                try:
+                    # انتظار أول نموذج يرد بنجاح
+                    done, pending = await asyncio.wait(tasks, timeout=20.0, return_when=asyncio.FIRST_COMPLETED)
+                    
+                    # إلغاء المهام المتبقية لتوفير الموارد
+                    for task in pending:
+                        task.cancel()
+                    
+                    # استخراج النتيجة الأولى الناجحة
+                    for task in done:
+                        try:
+                            idx, model_name, result = task.result()
+                            if result:
+                                response = result
+                                print(f"[ENGINE] ✅ Fallback model '{model_name}' won the race!")
+                                break
+                        except Exception as task_err:
+                            print(f"[ENGINE] ❌ Fallback task error: {task_err}")
+                            continue
+                    
+                    # إذا فشلت كل المهام المكتملة، ننتظر الباقي
+                    if not response and pending:
+                        try:
+                            done2, _ = await asyncio.wait(pending, timeout=15.0)
+                            for task in done2:
+                                try:
+                                    idx, model_name, result = task.result()
+                                    if result:
+                                        response = result
+                                        print(f"[ENGINE] ✅ Late fallback '{model_name}' succeeded!")
+                                        break
+                                except: continue
+                        except: pass
+                    
+                except Exception as race_err:
+                    print(f"[ENGINE] ❌ Race error: {race_err}")
+
+    # ── فشل كل النماذج: رد ودي لا يرفض العميل أبداً ──
+    if not response:
+        response = "أهلاً بك! نعتذر عن التأخير البسيط، نظامنا يعمل على تحسين الخدمة حالياً. يرجى إعادة إرسال رسالتك بعد لحظات وسنخدمك فوراً 🙏"
+        print(f"[ENGINE] ⚠️ ALL {len(resolved_models)} models failed — friendly fallback sent")
+
+    if phone_number != "STRATEGY_GEN":
+        _log_message(supabase, client_id, user_message, response, phone_number, channel, message_id)
+        supabase.table("clients").update({"messages_used": messages_used + 1}).eq("id", client_id).execute()
+    return response
 
 
 
 # ─── PROVIDER IMPLEMENTATIONS ─────────────────────────────────────────────────
 
 async def _call_openai(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
-    async with httpx.AsyncClient(timeout=45) as c:
+    async with httpx.AsyncClient(timeout=25) as c:
         r = await c.post(
             "https://api.openai.com/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},
@@ -727,7 +851,7 @@ async def _call_openai(api_key: str, model_id: str, messages: list, temperature:
 
 
 async def _call_openrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
-    async with httpx.AsyncClient(timeout=45) as c:
+    async with httpx.AsyncClient(timeout=25) as c:
         r = await c.post(
             "https://openrouter.ai/api/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -740,7 +864,7 @@ async def _call_openrouter(api_key: str, model_id: str, messages: list, temperat
 
 
 async def _call_groq(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
-    async with httpx.AsyncClient(timeout=30) as c:
+    async with httpx.AsyncClient(timeout=20) as c:
         r = await c.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},

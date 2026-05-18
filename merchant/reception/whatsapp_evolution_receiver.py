@@ -67,7 +67,7 @@ async def _send_evolution_message(api_url: str, api_key: str, instance_name: str
     payload = {
         "number": clean_number,
         "text": text,
-        "options": {"delay": 1200, "presence": "composing", "linkPreview": False}
+        "options": {"delay": 300, "presence": "composing", "linkPreview": False}
     }
     try:
         async with httpx.AsyncClient() as client:
@@ -95,6 +95,19 @@ async def _send_evolution_audio(api_url: str, api_key: str, instance_name: str, 
     except Exception as e:
         print(f"[AUDIO SEND ERROR] {e}")
         return False
+
+
+async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str, phone: str):
+    """إرسال إشعار 'جاري الكتابة' فوراً لتحسين تجربة العميل"""
+    clean_number = phone.split("@")[0]
+    url = f"{api_url.rstrip('/')}/chat/updatePresence/{instance_name}"
+    headers = {"apikey": api_key, "Content-Type": "application/json"}
+    payload = {"number": clean_number, "presence": "composing"}
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(url, json=payload, headers=headers, timeout=5)
+    except:
+        pass  # لا نوقف المعالجة إذا فشل إرسال الإشعار
 
 
 @router.post("/whatsapp/evolution/{instance_name}")
@@ -306,6 +319,12 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
         if not await _is_authorized(client_id, phone):
             print(f"[AUTH] Number {phone} is NOT authorized for client {client_id}")
             return
+
+        # ⚡ إرسال إشعار "جاري الكتابة" فوراً لتحسين تجربة العميل
+        try:
+            import asyncio
+            asyncio.create_task(_send_typing_indicator(api_url, api_key, instance_name, phone))
+        except: pass
 
         # توليد الرد — ترتيب الوسائط: (client_id, phone_number, user_message, ...)
         print(f"[AI] Calling AI for client {client_id}, phone={phone}, text={text[:40]}...")

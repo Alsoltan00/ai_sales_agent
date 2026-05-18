@@ -110,6 +110,18 @@ def _migrate_database():
             conn.execute(text("CREATE TABLE IF NOT EXISTS subscription_plans (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, label_ar TEXT, price DECIMAL(10, 2) DEFAULT 0, duration_days INTEGER DEFAULT 30, permissions JSONB DEFAULT '{}', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
             conn.execute(text("CREATE TABLE IF NOT EXISTS global_ai_models (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), model_name TEXT NOT NULL, provider TEXT NOT NULL, api_key TEXT NOT NULL, model_id TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);"))
         
+        # 2.5 إضافة أعمدة النماذج المتعددة
+        with engine.begin() as conn:
+            # إضافة عمود النماذج المتعددة في الخطط
+            try:
+                conn.execute(text("ALTER TABLE subscription_plans ADD COLUMN IF NOT EXISTS assigned_model_ids JSONB DEFAULT '[]';"))
+            except: pass
+            # إضافة عمود القدرات والحالة في النماذج العالمية
+            try:
+                conn.execute(text("ALTER TABLE global_ai_models ADD COLUMN IF NOT EXISTS capabilities JSONB DEFAULT '{}';"))
+                conn.execute(text("ALTER TABLE global_ai_models ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
+            except: pass
+
         # 3. تحديث جدول التخطيط
         if 'planning_config' in table_names:
             with engine.begin() as conn:
