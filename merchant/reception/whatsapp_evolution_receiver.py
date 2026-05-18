@@ -100,14 +100,27 @@ async def _send_evolution_audio(api_url: str, api_key: str, instance_name: str, 
 async def _send_typing_indicator(api_url: str, api_key: str, instance_name: str, phone: str):
     """إرسال إشعار 'جاري الكتابة' فوراً لتحسين تجربة العميل"""
     clean_number = phone.split("@")[0]
-    url = f"{api_url.rstrip('/')}/chat/updatePresence/{instance_name}"
+    base = api_url.rstrip('/')
     headers = {"apikey": api_key, "Content-Type": "application/json"}
-    payload = {"number": clean_number, "presence": "composing"}
+    
+    # Evolution API يتطلب delay لتحديد مدة ظهور "جاري الكتابة"
+    payload = {
+        "number": clean_number,
+        "remoteJid": f"{clean_number}@s.whatsapp.net",
+        "presence": "composing",
+        "delay": 8000  # 8 ثوانٍ — كافية لتوليد رد الـ AI
+    }
+    
     try:
         async with httpx.AsyncClient() as client:
-            await client.post(url, json=payload, headers=headers, timeout=5)
-    except:
-        pass  # لا نوقف المعالجة إذا فشل إرسال الإشعار
+            # محاولة الـ endpoint الأساسي
+            r = await client.post(f"{base}/chat/updatePresence/{instance_name}", json=payload, headers=headers, timeout=5)
+            if r.status_code >= 400:
+                # محاولة endpoint بديل لبعض إصدارات Evolution
+                await client.post(f"{base}/message/sendPresence/{instance_name}", json=payload, headers=headers, timeout=5)
+            print(f"[TYPING] Sent composing indicator to {clean_number}")
+    except Exception as e:
+        print(f"[TYPING] Failed (non-blocking): {e}")
 
 
 @router.post("/whatsapp/evolution/{instance_name}")
