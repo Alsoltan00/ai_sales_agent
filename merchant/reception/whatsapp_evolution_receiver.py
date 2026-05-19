@@ -369,6 +369,13 @@ async def _process_evolution_message(instance_name: str, body: dict, host: str, 
             base_url=base_url
         )
 
+        import re
+        if ai_reply:
+            # تنظيف تنسيق الماركدوان من Gemini وإزالة الهروب من الرموز
+            ai_reply = ai_reply.replace("\\_", "_")
+            # تحويل الماركدوان العريض (**) إلى واتساب العريض (*)
+            ai_reply = re.sub(r'\*\*(.*?)\*\*', r'*\1*', ai_reply)
+
         # --- تفعيل الحفظ التلقائي للطلبات ---
         from merchant.reception.order_extractor import extract_order_json, build_order_record, validate_order_data, get_delivery_type_for_client
         

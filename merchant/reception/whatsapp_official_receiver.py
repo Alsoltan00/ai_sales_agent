@@ -201,6 +201,13 @@ async def _process_official_webhook(body: dict, host: str, scheme: str):
                             base_url=base_url
                         )
                         
+                        import re
+                        if ai_reply:
+                            # تنظيف تنسيق الماركدوان من Gemini وإزالة الهروب من الرموز
+                            ai_reply = ai_reply.replace("\\_", "_")
+                            # تحويل الماركدوان العريض (**) إلى واتساب العريض (*)
+                            ai_reply = re.sub(r'\*\*(.*?)\*\*', r'*\1*', ai_reply)
+                        
                         # تحديث رد الذكاء الاصطناعي في قاعدة البيانات للذاكرة
                         try:
                             supabase.table("message_logs").update({
