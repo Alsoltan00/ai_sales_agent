@@ -467,6 +467,7 @@ def admin_api_add_global_model(payload: dict, user: dict = Depends(verify_admin)
             "provider": payload.get("provider", "").strip().lower(),
             "model_id": payload.get("model_id", "").strip(),
             "api_key": payload.get("api_key", "").strip(),
+            "base_url": payload.get("base_url", "").strip(),
             "capabilities": payload.get("capabilities", {})
         }
         supabase.table("global_ai_models").insert(clean_payload).execute()
@@ -484,6 +485,7 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
     provider = payload.get("provider", "").lower()
     api_key = payload.get("api_key", "").strip()
     model_id = payload.get("model_id", "").strip()
+    base_url = payload.get("base_url", "").strip()
 
     if not all([provider, api_key, model_id]):
         return {"status": "error", "message": "جميع الحقول مطلوبة"}
@@ -579,6 +581,23 @@ async def admin_api_test_global_model(payload: dict, user: dict = Depends(verify
 
             elif provider == "nvidia":
                 res = await client.post("https://integrate.api.nvidia.com/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+                if res.status_code == 200: results["text"] = True
+
+            elif provider == "agentrouter":
+                res = await client.post("https://agentrouter.org/v1/chat/completions",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                    json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
+                )
+                if res.status_code == 200: results["text"] = True
+
+            elif provider == "custom":
+                endpoint = base_url.rstrip("/")
+                if not endpoint.endswith("/chat/completions"):
+                    endpoint += "/chat/completions"
+                res = await client.post(endpoint,
                     headers={"Authorization": f"Bearer {api_key}"},
                     json={"model": model_id, "messages": [{"role": "user", "content": "Hi"}], "max_tokens": 5}
                 )

@@ -101,7 +101,13 @@
                                 <option value="openrouter">OpenRouter</option>
                                 <option value="huggingface">Hugging Face</option>
                                 <option value="cerebras">Cerebras</option>
+                                <option value="agentrouter">Agent Router</option>
+                                <option value="custom">مزود مخصص (Custom OpenAI)</option>
                             </select>
+                        </div>
+                        <div class="mb-3" id="base_url_div" style="display: none;">
+                            <label class="form-label fw-bold small text-uppercase text-secondary">الرابط الأساسي (Base URL)</label>
+                            <input type="text" class="form-control" id="base_url" placeholder="https://agentrouter.org/v1">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-bold small text-uppercase text-secondary">معرف النموذج (ID)</label>
@@ -202,7 +208,9 @@
         'nvidia': 'moonshotai/kimi-k2.6',
         'openrouter': 'google/gemini-2.0-flash-exp:free',
         'huggingface': 'mistralai/Mistral-7B-Instruct-v0.3',
-        'cerebras': 'llama3.1-70b'
+        'cerebras': 'llama3.1-70b',
+        'agentrouter': 'gemini-1.5-pro',
+        'custom': ''
     };
 
     function openAddModal() { 
@@ -210,11 +218,21 @@
         if(!document.getElementById('model_id').value) {
             document.getElementById('model_id').value = defaultModels[provider] || '';
         }
+        if (provider === 'custom') {
+            document.getElementById('base_url_div').style.display = 'block';
+        } else {
+            document.getElementById('base_url_div').style.display = 'none';
+        }
         addModal.show();
     }
 
     document.getElementById('provider').addEventListener('change', function(e) {
         document.getElementById('model_id').value = defaultModels[e.target.value] || '';
+        if (e.target.value === 'custom') {
+            document.getElementById('base_url_div').style.display = 'block';
+        } else {
+            document.getElementById('base_url_div').style.display = 'none';
+        }
     });
 
     function updateTestCard(id, status, isSuccess = null) {
@@ -265,7 +283,8 @@
             model_name: document.getElementById('model_name').value,
             provider: document.getElementById('provider').value,
             model_id: document.getElementById('model_id').value,
-            api_key: document.getElementById('api_key').value
+            api_key: document.getElementById('api_key').value,
+            base_url: document.getElementById('base_url').value
         };
 
         if(!payload.model_name || !payload.api_key) {
@@ -347,6 +366,7 @@
             provider: document.getElementById('provider').value,
             model_id: document.getElementById('model_id').value,
             api_key: document.getElementById('api_key').value,
+            base_url: document.getElementById('base_url').value,
             capabilities: discoveredCapabilities
         };
 

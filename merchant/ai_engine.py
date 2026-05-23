@@ -176,6 +176,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                                     "api_key": gm.data["api_key"],
                                     "model_id": gm.data["model_id"],
                                     "provider": gm.data["provider"].lower(),
+                                    "base_url": gm.data.get("base_url", ""),
                                     "name": gm.data.get("model_name", gm.data["model_id"]),
                                     "priority": m_entry.get("priority", 99)
                                 })
@@ -192,6 +193,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                                 "api_key": gm.data["api_key"],
                                 "model_id": gm.data["model_id"],
                                 "provider": gm.data["provider"].lower(),
+                                "base_url": gm.data.get("base_url", ""),
                                 "name": gm.data.get("model_name", gm.data["model_id"]),
                                 "priority": 1
                             })
@@ -205,6 +207,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
                         "api_key": cfg_item["api_key"],
                         "model_id": cfg_item["model_id"],
                         "provider": cfg_item["provider"].lower(),
+                        "base_url": cfg_item.get("base_url", ""),
                         "name": cfg_item.get("model_name", cfg_item["model_id"]),
                         "priority": len(resolved_models) + 1
                     })
@@ -731,6 +734,7 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         p = model_info["provider"]
         k = model_info["api_key"]
         m = model_info["model_id"]
+        b = model_info.get("base_url", "")
         
         if   p == "openai":     return await _call_openai(k, m, msgs, temp, max_tok)
         elif p == "google":     return await _call_google(k, m, msgs, sys_prompt, temp, max_tok)
@@ -741,6 +745,8 @@ async def get_ai_response(client_id: str, phone_number: str, user_message: str,
         elif p == "cerebras":   return await _call_cerebras(k, m, msgs, temp, max_tok)
         elif p == "nvidia":     return await _call_nvidia(k, m, msgs, temp, max_tok)
         elif p == "xai":        return await _call_openai(k, m, msgs, temp, max_tok)  # xAI uses OpenAI-compatible API
+        elif p == "agentrouter": return await _call_agentrouter(k, m, msgs, temp, max_tok)
+        elif p == "custom":     return await _call_custom(k, m, b, msgs, temp, max_tok)
         else:                   return await _call_openrouter(k, m, msgs, temp, max_tok)
 
     response = None
@@ -847,6 +853,33 @@ async def _call_openai(api_key: str, model_id: str, messages: list, temperature:
         data = r.json()
         if "choices" not in data:
             raise Exception(f"OpenAI error: {data.get('error', {}).get('message', str(data))}")
+        return data["choices"][0]["message"]["content"].strip()
+
+async def _call_custom(api_key: str, model_id: str, base_url: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
+    endpoint = base_url.rstrip("/")
+    if not endpoint.endswith("/chat/completions"):
+        endpoint += "/chat/completions"
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(
+            endpoint,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        )
+        data = r.json()
+        if r.status_code != 200 or "choices" not in data:
+            raise Exception(f"Custom provider error: {data.get('error', {}).get('message', str(data))}")
+        return data["choices"][0]["message"]["content"].strip()
+
+async def _call_agentrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
+    async with httpx.AsyncClient(timeout=45) as c:
+        r = await c.post(
+            "https://agentrouter.org/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+        )
+        data = r.json()
+        if r.status_code != 200 or "choices" not in data:
+            raise Exception(f"AgentRouter error: {data.get('error', {}).get('message', str(data))}")
         return data["choices"][0]["message"]["content"].strip()
 
 
