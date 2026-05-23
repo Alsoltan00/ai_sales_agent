@@ -877,7 +877,7 @@ async def _call_agentrouter(api_key: str, model_id: str, messages: list, tempera
             r = await c.post(
                 "https://agentrouter.org/v1/chat/completions",
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "stream": False}
             )
             
             if r.status_code != 200:
