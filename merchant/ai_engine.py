@@ -871,16 +871,26 @@ async def _call_custom(api_key: str, model_id: str, base_url: str, messages: lis
         return data["choices"][0]["message"]["content"].strip()
 
 async def _call_agentrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
-    async with httpx.AsyncClient(timeout=45) as c:
-        r = await c.post(
-            "https://agentrouter.org/v1/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
-        )
-        data = r.json()
-        if r.status_code != 200 or "choices" not in data:
-            raise Exception(f"AgentRouter error: {data.get('error', {}).get('message', str(data))}")
-        return data["choices"][0]["message"]["content"].strip()
+    """استدعاء نماذج عبر Agent Router (OpenAI-compatible API)"""
+    async with httpx.AsyncClient(timeout=60) as c:
+        try:
+            r = await c.post(
+                "https://agentrouter.org/v1/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
+            )
+            
+            if r.status_code != 200:
+                print(f"[AGENTROUTER ERROR] Status: {r.status_code}, Body: {r.text[:500]}")
+                raise Exception(f"AgentRouter API Error ({r.status_code}): {r.text[:200]}")
+            
+            data = r.json()
+            if "choices" not in data:
+                raise Exception(f"AgentRouter error: unexpected response: {str(data)[:300]}")
+            return data["choices"][0]["message"]["content"].strip()
+        except Exception as e:
+            print(f"[AGENTROUTER EXCEPTION] {str(e)[:500]}")
+            raise
 
 
 async def _call_openrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
