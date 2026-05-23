@@ -872,7 +872,7 @@ async def _call_custom(api_key: str, model_id: str, base_url: str, messages: lis
 
 async def _call_agentrouter(api_key: str, model_id: str, messages: list, temperature: float = 0.1, max_tokens: int = 600) -> str:
     """استدعاء نماذج عبر Agent Router (OpenAI-compatible API)"""
-    async with httpx.AsyncClient(timeout=60) as c:
+    async with httpx.AsyncClient(timeout=90, follow_redirects=True) as c:
         try:
             r = await c.post(
                 "https://agentrouter.org/v1/chat/completions",
@@ -880,9 +880,14 @@ async def _call_agentrouter(api_key: str, model_id: str, messages: list, tempera
                 json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "stream": False}
             )
             
+            print(f"[AGENTROUTER DEBUG] Status: {r.status_code}, Content-Length: {len(r.content)}, Content-Type: {r.headers.get('content-type', 'N/A')}")
+            print(f"[AGENTROUTER DEBUG] Raw response (first 500 chars): {r.text[:500]}")
+            
             if r.status_code != 200:
-                print(f"[AGENTROUTER ERROR] Status: {r.status_code}, Body: {r.text[:500]}")
-                raise Exception(f"AgentRouter API Error ({r.status_code}): {r.text[:200]}")
+                raise Exception(f"AgentRouter API Error ({r.status_code}): {r.text[:300]}")
+            
+            if not r.text or not r.text.strip():
+                raise Exception(f"AgentRouter returned empty response body")
             
             data = r.json()
             if "choices" not in data:
