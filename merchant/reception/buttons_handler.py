@@ -80,8 +80,11 @@ async def send_evolution_buttons(api_url: str, api_key: str, instance_name: str,
     evo_buttons = []
     for btn in buttons[:3]:
         evo_buttons.append({
-            "buttonId": btn["id"],
-            "buttonText": {"displayText": btn["text"]}
+            "type": "reply",
+            "reply": {
+                "id": btn["id"],
+                "title": btn["text"]
+            }
         })
     
     payload = {

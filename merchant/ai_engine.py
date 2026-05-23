@@ -876,7 +876,12 @@ async def _call_agentrouter(api_key: str, model_id: str, messages: list, tempera
         try:
             r = await c.post(
                 "https://agentrouter.org/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                headers={
+                    "Authorization": f"Bearer {api_key}",
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    "Accept": "application/json"
+                },
                 json={"model": model_id, "messages": messages, "temperature": temperature, "max_tokens": max_tokens, "stream": False}
             )
             
