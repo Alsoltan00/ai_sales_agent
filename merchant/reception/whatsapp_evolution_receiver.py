@@ -162,18 +162,6 @@ async def evolution_webhook(instance_name: str, request: Request, background_tas
         if event not in ("messages.upsert", "MESSAGES_UPSERT"):
             return Response(status_code=200)
 
-        # ⚡ تشغيل إشعار "جاري الكتابة" فوراً في نفس الملي-ثانية من استلام الـ Webhook
-        try:
-            msg_data = body.get("data", {})
-            phone = msg_data.get("key", {}).get("remoteJid", "")
-            if phone and not msg_data.get("key", {}).get("fromMe", False):
-                cfg = await _find_client_by_instance(instance_name)
-                if cfg and "evolution_api_url" in cfg:
-                    import asyncio
-                    asyncio.create_task(_send_typing_indicator(cfg["evolution_api_url"], cfg["evolution_api_key"], instance_name, phone))
-        except:
-            pass
-
         # إعداد متغيرات الروابط للفاتورة قبل إرسالها للمهمة الخلفية
         # الأولوية لـ x-forwarded-host لأنه يحمل النطاق العام في Render/Nginx
         host = request.headers.get("x-forwarded-host") or request.headers.get("host") or request.url.hostname
