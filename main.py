@@ -158,6 +158,8 @@ def _migrate_database():
             try:
                 conn.execute(text("ALTER TABLE global_ai_models ADD COLUMN IF NOT EXISTS capabilities JSONB DEFAULT '{}';"))
                 conn.execute(text("ALTER TABLE global_ai_models ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;"))
+                conn.execute(text("ALTER TABLE global_ai_models ADD COLUMN IF NOT EXISTS base_url TEXT;"))
+                conn.execute(text("ALTER TABLE ai_models_config ADD COLUMN IF NOT EXISTS base_url TEXT;"))
             except: pass
 
         # 3. تحديث جدول التخطيط

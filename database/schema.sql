@@ -76,6 +76,7 @@ CREATE TABLE IF NOT EXISTS ai_models_config (
     provider TEXT NOT NULL,
     api_key TEXT NOT NULL,
     model_id TEXT NOT NULL,
+    base_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     is_working BOOLEAN DEFAULT FALSE,
     tested_at TIMESTAMP,
