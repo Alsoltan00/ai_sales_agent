@@ -1,4 +1,14 @@
-﻿# AI Sales Agent — وكيل المبيعات الذكي
+---
+title: AI Sales Agent
+emoji: 🤖
+colorFrom: blue
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# AI Sales Agent — وكيل المبيعات الذكي
 
 نظام وكيل مبيعات ذكي متكامل يعمل عبر واتساب وتيليجرام.
 يتعامل مع الرسائل الواردة، يبحث في بيانات الشركة، ويرد بذكاء وأناقة.

@@ -1,0 +1,24 @@
+# لا ترسل هذه الملفات داخل Docker
+.env
+*.env
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+.git/
+.worktrees/
+scratch/
+*.log
+*.txt
+.vscode/
+.idea/
+.pytest_cache/
+htmlcov/
+.coverage
+dist/
+build/
+*.egg-info/
+wispbyte_deploy/
+.DS_Store
+Thumbs.db
